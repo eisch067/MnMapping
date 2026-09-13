@@ -2,6 +2,17 @@
 
 MnMapping is a lightweight, personal-use-first Minnesota mapping viewer. The project should stay simple, client-heavy, and easy to expand county by county without rebuilding the application.
 
+## Development
+
+The implementation lives alongside these numbered build specifications.
+
+```bash
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`. Useful checks are `npm run typecheck`, `npm run lint`, and `npm run build`. Cesium's runtime assets are copied from the installed package into the ignored `public/cesium/` directory automatically before development and production builds.
+
 ## Product principles
 
 - Prefer statewide public services over self-hosting large datasets.
