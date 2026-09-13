@@ -4,17 +4,18 @@ import { useEffect, useRef } from "react";
 import type { ImageryLayer, Viewer } from "cesium";
 import { layerRegistry } from "@/config/layers";
 import { createLayerResource } from "@/lib/map/createLayer";
+import type { LayerStateById } from "@/lib/map/layerState";
 
 interface CesiumMapProps {
-  visibility: Record<string, boolean>;
+  layerState: LayerStateById;
   onResetReady: (reset: () => void) => void;
 }
 
-export function CesiumMap({ visibility, onResetReady }: CesiumMapProps) {
+export function CesiumMap({ layerState, onResetReady }: CesiumMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const imageryRef = useRef(new Map<string, ImageryLayer>());
-  const visibilityRef = useRef(visibility);
+  const layerStateRef = useRef(layerState);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -45,15 +46,28 @@ export function CesiumMap({ visibility, onResetReady }: CesiumMapProps) {
       viewer.camera.setView(minnesotaView);
       onResetReady(() => viewer.camera.flyTo({ ...minnesotaView, duration: 0.8 }));
 
-      await Promise.all(
-        layerRegistry.filter((layer) => layer.category !== "elevation").map(async (definition) => {
-          const resource = await createLayerResource(definition);
-          if (cancelled || !("alpha" in resource)) return;
-          resource.show = visibilityRef.current[definition.id] ?? false;
-          viewer.imageryLayers.add(resource);
-          imageryLayers.set(definition.id, resource);
-        }),
+      const definitions = layerRegistry.filter((layer) => layer.category !== "elevation");
+      const pendingResources = definitions.map((definition) =>
+        createLayerResource(definition).then(
+          (resource) => ({ resource, error: null }),
+          (error: unknown) => ({ resource: null, error }),
+        ),
       );
+
+      for (let index = 0; index < definitions.length; index += 1) {
+        const definition = definitions[index];
+        const { resource, error } = await pendingResources[index];
+        if (error) {
+          console.error(`Unable to load ${definition.name}`, error);
+          continue;
+        }
+        if (cancelled || !resource || !("alpha" in resource)) continue;
+        const currentState = layerStateRef.current[definition.id];
+        resource.show = currentState?.visible ?? false;
+        resource.alpha = currentState?.opacity ?? definition.defaultOpacity;
+        viewer.imageryLayers.add(resource);
+        imageryLayers.set(definition.id, resource);
+      }
     }).catch((error: unknown) => console.error("Unable to initialize the map", error));
 
     return () => {
@@ -66,13 +80,15 @@ export function CesiumMap({ visibility, onResetReady }: CesiumMapProps) {
   }, [onResetReady]);
 
   useEffect(() => {
-    visibilityRef.current = visibility;
+    layerStateRef.current = layerState;
     for (const [id, imagery] of imageryRef.current) {
+      const currentState = layerState[id];
       // Cesium layers expose visibility through an intentionally mutable object API.
       // eslint-disable-next-line react-hooks/immutability
-      imagery.show = visibility[id] ?? false;
+      imagery.show = currentState?.visible ?? false;
+      imagery.alpha = currentState?.opacity ?? 1;
     }
-  }, [visibility]);
+  }, [layerState]);
 
   return <div className="map-canvas" ref={containerRef} aria-label="Interactive map of Minnesota" />;
 }

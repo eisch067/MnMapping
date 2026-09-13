@@ -11,6 +11,14 @@ export const layerSourceTypes = [
 
 export type LayerSourceType = (typeof layerSourceTypes)[number];
 export type LayerCategory = "basemap" | "imagery" | "elevation" | "public-land" | "parcels" | "reference";
+export type InitialCounty = "Hubbard" | "Beltrami" | "Becker" | "Todd" | "Douglas";
+
+export interface LayerBounds {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
 
 export interface LayerDefinition {
   id: string;
@@ -25,7 +33,10 @@ export interface LayerDefinition {
   minimumScale?: number;
   maximumScale?: number;
   attribution: string;
-  county?: "Hubbard" | "Beltrami" | "Becker" | "Todd" | "Douglas";
+  agency?: string;
+  sourceUrl?: string;
+  county?: InitialCounty;
+  bounds?: LayerBounds;
   year?: number | string;
   resolution?: string;
   description?: string;

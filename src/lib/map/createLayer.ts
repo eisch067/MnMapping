@@ -9,6 +9,7 @@ export async function createLayerResource(layer: LayerDefinition): Promise<Cesiu
     CesiumTerrainProvider,
     GeoJsonDataSource,
     ImageryLayer,
+    Rectangle,
     TileMapServiceImageryProvider,
     WebMapServiceImageryProvider,
     WebMapTileServiceImageryProvider,
@@ -17,6 +18,9 @@ export async function createLayerResource(layer: LayerDefinition): Promise<Cesiu
     alpha: layer.defaultOpacity,
     show: layer.defaultVisible,
   };
+  const rectangle = layer.bounds
+    ? Rectangle.fromDegrees(layer.bounds.west, layer.bounds.south, layer.bounds.east, layer.bounds.north)
+    : undefined;
 
   switch (layer.sourceType) {
     case "tms":
@@ -29,7 +33,13 @@ export async function createLayerResource(layer: LayerDefinition): Promise<Cesiu
         new WebMapServiceImageryProvider({
           url: layer.url,
           layers: requiredOption(layer, "layers"),
-          parameters: { transparent: true, format: "image/png" },
+          parameters: {
+            transparent: booleanOption(layer, "transparent") ?? true,
+            format: stringOption(layer, "format") ?? "image/png",
+            version: stringOption(layer, "version") ?? "1.1.1",
+          },
+          enablePickFeatures: false,
+          rectangle,
           ...levelOptions(layer),
         }),
         common,
@@ -49,7 +59,13 @@ export async function createLayerResource(layer: LayerDefinition): Promise<Cesiu
     case "arcgis-mapserver":
     case "arcgis-imageserver":
       return ImageryLayer.fromProviderAsync(
-        ArcGisMapServerImageryProvider.fromUrl(layer.url),
+        ArcGisMapServerImageryProvider.fromUrl(layer.url, {
+          credit: layer.attribution,
+          enablePickFeatures: booleanOption(layer, "enablePickFeatures") ?? false,
+          layers: stringOption(layer, "layers"),
+          rectangle,
+          usePreCachedTilesIfAvailable: booleanOption(layer, "usePreCachedTilesIfAvailable") ?? true,
+        }),
         common,
       );
     case "geojson":
@@ -68,6 +84,11 @@ function levelOptions(layer: LayerDefinition) {
 function stringOption(layer: LayerDefinition, key: string): string | undefined {
   const value = layer.options?.[key];
   return typeof value === "string" ? value : undefined;
+}
+
+function booleanOption(layer: LayerDefinition, key: string): boolean | undefined {
+  const value = layer.options?.[key];
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function requiredOption(layer: LayerDefinition, key: string): string {
