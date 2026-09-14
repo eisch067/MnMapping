@@ -1,4 +1,4 @@
-import type { InitialCounty } from "@/config/layers/types";
+import { countyRegistry, type SupportedCounty } from "@/config/counties";
 
 export const minnesotaBounds = {
   west: -97.38,
@@ -25,13 +25,9 @@ export interface ViewportBounds {
   north: number;
 }
 
-export const supportedCountyBounds: Record<InitialCounty, ViewportBounds> = {
-  Hubbard: { west: -95.21, south: 46.80, east: -94.63, north: 47.40 },
-  Beltrami: { west: -95.52, south: 47.39, east: -94.35, north: 48.56 },
-  Becker: { west: -96.05, south: 46.56, east: -95.30, north: 47.31 },
-  Todd: { west: -95.18, south: 45.79, east: -94.62, north: 46.35 },
-  Douglas: { west: -95.70, south: 45.68, east: -95.20, north: 46.19 },
-};
+export const supportedCountyBounds = Object.fromEntries(
+  countyRegistry.map((county) => [county.name, county.bounds]),
+) as Record<SupportedCounty, ViewportBounds>;
 
 export function isInMinnesota(latitude: number, longitude: number): boolean {
   return latitude >= minnesotaBounds.south
@@ -50,17 +46,16 @@ export function parseCoordinates(value: string): Pick<MapLocation, "latitude" | 
   return isInMinnesota(latitude, longitude) ? { latitude, longitude } : null;
 }
 
-export function initialCountyForName(county?: string): InitialCounty | undefined {
+export function initialCountyForName(county?: string): SupportedCounty | undefined {
   if (!county) return undefined;
   const normalized = county.replace(/\s+County$/i, "").trim().toLowerCase();
-  const counties: InitialCounty[] = ["Hubbard", "Beltrami", "Becker", "Todd", "Douglas"];
-  return counties.find((candidate) => candidate.toLowerCase() === normalized);
+  return countyRegistry.find((candidate) => candidate.name.toLowerCase() === normalized)?.name;
 }
 
-export function supportedCountiesInViewport(bounds: ViewportBounds): InitialCounty[] {
-  return (Object.entries(supportedCountyBounds) as Array<[InitialCounty, ViewportBounds]>)
-    .filter(([, countyBounds]) => rectanglesIntersect(bounds, countyBounds))
-    .map(([county]) => county);
+export function supportedCountiesInViewport(bounds: ViewportBounds): SupportedCounty[] {
+  return countyRegistry
+    .filter((county) => rectanglesIntersect(bounds, county.bounds))
+    .map((county) => county.name as SupportedCounty);
 }
 
 function rectanglesIntersect(first: ViewportBounds, second: ViewportBounds): boolean {

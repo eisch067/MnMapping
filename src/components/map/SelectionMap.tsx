@@ -5,16 +5,24 @@ import type { Cartesian2, Viewer } from "cesium";
 import { minnesotaBounds } from "@/lib/location";
 
 interface SelectionMapProps {
+  active: boolean;
   selectedPoint: { latitude: number; longitude: number } | null;
   onPointSelect: (latitude: number, longitude: number) => void;
 }
 
-export function SelectionMap({ selectedPoint, onPointSelect }: SelectionMapProps) {
+export function SelectionMap({ active, selectedPoint, onPointSelect }: SelectionMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const selectRef = useRef(onPointSelect);
 
   useEffect(() => { selectRef.current = onPointSelect; }, [onPointSelect]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!active || !viewer || viewer.isDestroyed()) return;
+    viewer.resize();
+    viewer.scene.requestRender();
+  }, [active]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -46,6 +54,7 @@ export function SelectionMap({ selectedPoint, onPointSelect }: SelectionMapProps
         sceneModePicker: false,
         selectionIndicator: false,
         timeline: false,
+        requestRenderMode: true,
       });
       viewerRef.current = viewer;
       viewer.camera.setView({ destination: Rectangle.fromDegrees(

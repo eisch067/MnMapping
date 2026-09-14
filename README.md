@@ -21,6 +21,12 @@ Public-land semantics and sources are recorded in [`docs/public-land-sources.md`
 Parcel adapters, inspection, and browser-local data are recorded in [`docs/parcels-and-local-data.md`](docs/parcels-and-local-data.md).
 The optional onX-compatible export workflow is recorded in [`docs/onx-handoff.md`](docs/onx-handoff.md).
 
+### Automated screenshots
+
+With Microsoft Edge installed and `npm run dev` running, use `npm run screenshot` to capture `http://localhost:3000` into `screenshots/localhost.png`. You can also ask Codex in VS Code to run this command and inspect the image; no browser extension or manual capture is needed.
+
+An optional URL and output path can be supplied: `npm run screenshot -- http://localhost:3000 screenshots/review.png`. Captures use a fresh browser session at 1440 × 1000, so saved locations and other preferences from your normal browser are not included. Generated screenshots are ignored by Git.
+
 ## Product principles
 
 - Prefer statewide public services over self-hosting large datasets.
@@ -40,6 +46,8 @@ The optional onX-compatible export workflow is recorded in [`docs/onx-handoff.md
 
 These counties are primarily needed for county-specific imagery and parcel/ownership adapters. Statewide imagery, lidar, MnTOPO, and public-land layers should work across Minnesota wherever services are available.
 
+The v1.0 north-of-I-94 expansion covers all 43 North-zone counties through the shared county registry. Verified named imagery and repeatable parcel sources are integrated; counties without a repeatable parcel service remain explicitly pending. See [`docs/north-region-status.md`](docs/north-region-status.md) for batch results and deferred counties, and [`specs/v1.0/MnMapping-North-of-I94-County-Expansion.md`](specs/v1.0/MnMapping-North-of-I94-County-Expansion.md) for the requirements.
+
 ## Planned stack
 
 - Next.js
@@ -51,22 +59,22 @@ These counties are primarily needed for county-specific imagery and parcel/owner
 
 ## Build order
 
-1. [Core application and map shell](01-core-map-shell.md)
-2. [Layer registry and source adapters](02-layer-registry.md)
-3. [Statewide imagery](03-statewide-imagery.md)
-4. [County high-resolution imagery](04-county-imagery.md)
-5. [Statewide lidar](05-statewide-lidar.md)
-6. [3D terrain and elevation exaggeration](06-3d-terrain.md)
-7. [MnTOPO, hillshade, and contours](07-mntopo.md)
-8. [Layer controls, opacity, ordering, and comparison](08-layer-controls.md)
-9. [Statewide public-land boundaries](09-public-land.md)
-10. [County public-land supplements](10-county-public-land.md)
-11. [Private parcel architecture](11-parcel-architecture.md)
-12. [Initial five county parcel adapters](12-initial-county-parcels.md)
-13. [Coordinates, identify, and map inspection](13-map-inspection.md)
-14. [Pins, drawings, and local browser storage](14-local-user-data.md)
-15. [GPX/KML import and export](15-import-export.md)
-16. [OnX-oriented export workflow and later enhancements](16-onx-and-later.md)
+1. [Core application and map shell](specs/original/01-core-map-shell.md)
+2. [Layer registry and source adapters](specs/original/02-layer-registry.md)
+3. [Statewide imagery](specs/original/03-statewide-imagery.md)
+4. [County high-resolution imagery](specs/original/04-county-imagery.md)
+5. [Statewide lidar](specs/original/05-statewide-lidar.md)
+6. [3D terrain and elevation exaggeration](specs/original/06-3d-terrain.md)
+7. [MnTOPO, hillshade, and contours](specs/original/07-mntopo.md)
+8. [Layer controls, opacity, ordering, and comparison](specs/original/08-layer-controls.md)
+9. [Statewide public-land boundaries](specs/original/09-public-land.md)
+10. [County public-land supplements](specs/original/10-county-public-land.md)
+11. [Private parcel architecture](specs/original/11-parcel-architecture.md)
+12. [Initial five county parcel adapters](specs/original/12-initial-county-parcels.md)
+13. [Coordinates, identify, and map inspection](specs/original/13-map-inspection.md)
+14. [Pins, drawings, and local browser storage](specs/original/14-local-user-data.md)
+15. [GPX/KML import and export](specs/original/15-import-export.md)
+16. [OnX-oriented export workflow and later enhancements](specs/original/16-onx-and-later.md)
 
 ## Non-goals for the first version
 

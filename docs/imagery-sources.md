@@ -17,6 +17,14 @@ Official cached services from Hubbard County GIS are configured for 2026 (spring
 
 The county catalog also publishes older CIR, partial fall, NAIP, hillshade, and 2025 storm-response services. Those are intentionally excluded from the normal high-resolution natural-color catalog because they are duplicate statewide products, non-natural-color/special-purpose layers, or partial operational imagery.
 
+## Aitkin County
+
+MnGeo's active `fall11` and `fallcir11` WMS layers provide 2011 fall natural-color and color-infrared imagery at 0.5-meter resolution. Both are exposed as separate Aitkin choices and clipped to the county adapter bounds. The WMS capabilities, layer names, resolution, and published coverage were verified on 2026-09-14.
+
+## North-region expansion
+
+The remaining v1.0 North counties use a shared catalog of active MnGeo WMS layers. It includes verified Metro, county, fall, North 1-foot, northern-border, Arrowhead, and north-central acquisitions from 2009 through 2025. Each county references only relevant presets, while each preset retains the service's published coverage rectangle. The complete selection and deferred unverified county imagery are recorded in [`north-region-status.md`](north-region-status.md).
+
 ## Beltrami County
 
 MnGeo-hosted natural-color layers are configured for 2023 (9 inches), 2020 (9 inches), and the joint 2014 Polk/Beltrami acquisition (1 foot). Published WMS coverage bounds are stored on each layer.

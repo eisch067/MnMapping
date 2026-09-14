@@ -1,8 +1,4 @@
-import { beckerLayers } from "./counties/becker";
-import { beltramiLayers } from "./counties/beltrami";
-import { douglasLayers } from "./counties/douglas";
-import { hubbardLayers } from "./counties/hubbard";
-import { toddLayers } from "./counties/todd";
+import { countyRegistry } from "@/config/counties";
 import { elevationLayers } from "./elevation";
 import { imageryLayers } from "./imagery";
 import { publicLandLayers } from "./publicLand";
@@ -14,11 +10,7 @@ export const layerRegistry: readonly LayerDefinition[] = [
   ...imageryLayers,
   ...elevationLayers,
   ...publicLandLayers,
-  ...hubbardLayers,
-  ...beltramiLayers,
-  ...beckerLayers,
-  ...toddLayers,
-  ...douglasLayers,
+  ...countyRegistry.flatMap((county) => county.layers),
 ];
 
 export type { LayerDefinition } from "./types";

@@ -28,6 +28,7 @@ export function MapShell() {
   const [myData, setMyData] = useState<MyMapItem[]>([]);
   const [myDataVisible, setMyDataVisible] = useState(true);
   const [showMyData, setShowMyData] = useState(false);
+  const [layerPanelOpen, setLayerPanelOpen] = useState(false);
   const registerReset = useCallback((reset: () => void) => setResetCamera(() => reset), []);
   const registerViewControls = useCallback((controls: MapViewControls) => setViewControls(controls), []);
   const registerViewport = useCallback((bounds: ViewportBounds) => setViewportBounds(bounds), []);
@@ -154,11 +155,14 @@ export function MapShell() {
           </div>
           <button className="map-button" type="button" onClick={() => viewControls?.showMapView()}><MapIcon />Map view</button>
           <button className="map-button" type="button" onClick={showTerrainView}><TerrainIcon />Terrain</button>
+          <button className="map-button layers-button" type="button" aria-expanded={layerPanelOpen} aria-controls="map-layer-panel" onClick={() => setLayerPanelOpen((value) => !value)}><LayersIcon />Layers</button>
           <button className="map-button compact-action" type="button" onClick={() => resetCamera?.()}><LocateIcon />Recenter</button>
           <button className="map-button change-area" type="button" onClick={changeArea}><SearchIcon />Change area</button>
         </div>
       </header>
       <LayerPanel
+        open={layerPanelOpen}
+        onClose={() => setLayerPanelOpen(false)}
         layers={activeLayers}
         state={layerState}
         terrainExaggeration={verticalExaggeration}

@@ -49,3 +49,7 @@ export function ChevronUpIcon(props: IconProps) {
 export function ChevronDownIcon(props: IconProps) {
   return <IconFrame {...props}><path d="m6 9.5 6 6 6-6" /></IconFrame>;
 }
+
+export function CloseIcon(props: IconProps) {
+  return <IconFrame {...props}><path d="m6 6 12 12M18 6 6 18" /></IconFrame>;
+}

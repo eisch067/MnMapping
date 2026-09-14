@@ -1,6 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { isTerrainLayer, type LayerCategory, type LayerDefinition } from "@/config/layers/types";
 import type { LayerStateById } from "@/lib/map/layerState";
-import { ChevronDownIcon, ChevronUpIcon } from "./MapIcons";
+import { ChevronDownIcon, ChevronUpIcon, CloseIcon, LayersIcon } from "./MapIcons";
 
 interface LayerPanelProps {
   layers: readonly LayerDefinition[];
@@ -10,6 +13,8 @@ interface LayerPanelProps {
   onOpacityChange: (id: string, opacity: number) => void;
   onTerrainExaggerationChange: (exaggeration: number) => void;
   onMoveLayer: (id: string, direction: "up" | "down") => void;
+  open: boolean;
+  onClose: () => void;
 }
 
 const categoryLabels: Record<LayerCategory, string> = {
@@ -31,15 +36,42 @@ export function LayerPanel({
   onOpacityChange,
   onTerrainExaggerationChange,
   onMoveLayer,
+  open,
+  onClose,
 }: LayerPanelProps) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(
+    () => new Set(["terrain", ...Object.keys(categoryLabels)]),
+  );
   const terrainLayers = layers.filter(isTerrainLayer);
   const categories = groupLayers(layers.filter((layer) => !isTerrainLayer(layer)));
+  const toggleSection = (id: string) => setCollapsed((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose, open]);
 
   return (
-    <aside className="side-panel" aria-label="Map layers and tools">
-      <h2>Layers</h2>
-      <p className="panel-note">Compare imagery, inspect lidar-derived relief, or tilt into exaggerated 3D terrain.</p>
-      {terrainLayers.map((layer) => {
+    <aside id="map-layer-panel" className={`side-panel ${open ? "is-open" : ""}`} aria-label="Map layers" aria-hidden={!open} inert={!open}>
+      <header className="layer-panel-header">
+        <span><LayersIcon /><strong>Map layers</strong></span>
+        <button className="panel-close" type="button" onClick={onClose} aria-label="Close map layers"><CloseIcon /></button>
+      </header>
+      <p className="panel-note">Choose what appears on the map and arrange the display order.</p>
+      {terrainLayers.length > 0 && <section className="layer-category">
+        <button className="layer-category-heading" type="button" aria-expanded={!collapsed.has("terrain")} aria-controls="layer-section-terrain" onClick={() => toggleSection("terrain")}>
+          <span>3D terrain</span><span className="category-summary">{terrainLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
+        </button>
+        {!collapsed.has("terrain") && <div className="layer-list" id="layer-section-terrain">{terrainLayers.map((layer) => {
         const layerState = state[layer.id] ?? { visible: false, opacity: 1 };
         return (
           <section className="terrain-controls" key={layer.id} aria-label="3D terrain controls">
@@ -85,12 +117,16 @@ export function LayerPanel({
             </details>
           </section>
         );
-      })}
+        })}</div>}
+      </section>}
       <div className="layer-categories">
         {Array.from(categories, ([category, categoryLayers]) => (
           <section className="layer-category" key={category}>
-            <h3>{categoryLabels[category]}</h3>
-            <div className="layer-list">
+            <button className="layer-category-heading" type="button" aria-expanded={!collapsed.has(category)} aria-controls={`layer-section-${category}`} onClick={() => toggleSection(category)}>
+              <span>{categoryLabels[category]}</span>
+              <span className="category-summary">{categoryLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
+            </button>
+            {!collapsed.has(category) && <div className="layer-list" id={`layer-section-${category}`}>
               {[...categoryLayers].reverse().map((layer) => {
                 const layerState = state[layer.id] ?? {
                   visible: layer.defaultVisible,
@@ -150,7 +186,7 @@ export function LayerPanel({
                   </div>
                 );
               })}
-            </div>
+            </div>}
           </section>
         ))}
       </div>

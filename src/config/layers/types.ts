@@ -12,7 +12,9 @@ export const layerSourceTypes = [
 
 export type LayerSourceType = (typeof layerSourceTypes)[number];
 export type LayerCategory = "basemap" | "imagery" | "elevation" | "public-land" | "parcels" | "reference";
-export type InitialCounty = "Hubbard" | "Beltrami" | "Becker" | "Todd" | "Douglas";
+export type CountyZone = "north" | "south";
+export type ParcelAvailability = "available" | "partial" | "pending";
+export type ParcelSourceType = "arcgis-feature" | "mngeo-open" | "download" | "none";
 
 export const terrainSourceTypes: readonly LayerSourceType[] = ["cesium-terrain", "arcgis-terrain"];
 
@@ -61,7 +63,7 @@ export interface LayerDefinition {
   attribution: string;
   agency?: string;
   sourceUrl?: string;
-  county?: InitialCounty;
+  county?: string;
   bounds?: LayerBounds;
   year?: number | string;
   resolution?: string;
@@ -71,4 +73,19 @@ export interface LayerDefinition {
   popupFields?: readonly LayerPopupField[];
   parcelFields?: ParcelFieldMap;
   options?: Record<string, string | number | boolean | string[]>;
+}
+
+export interface CountyDefinition {
+  id: string;
+  name: string;
+  fips: string;
+  zone: CountyZone;
+  bounds: LayerBounds;
+  layers: readonly LayerDefinition[];
+  parcels: {
+    status: ParcelAvailability;
+    sourceType: ParcelSourceType;
+    verifiedAt?: string;
+  };
+  notes?: readonly string[];
 }

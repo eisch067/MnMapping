@@ -6,5 +6,6 @@ public/cesium/
 *.log
 *.tsbuildinfo
 .DS_Store
+screenshots/
 .env*
 !.env.example

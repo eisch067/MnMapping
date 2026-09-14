@@ -8,10 +8,12 @@ export interface LayerState {
 export type LayerStateById = Record<string, LayerState>;
 
 const preferenceKey = "mnmapping.layer-preferences.v1";
+const layerOrderVersion = 2;
 
 interface StoredPreferences {
   layers?: LayerStateById;
   order?: string[];
+  orderVersion?: number;
   verticalExaggeration?: number;
 }
 
@@ -38,9 +40,12 @@ export function restoreLayerState(layers: readonly LayerDefinition[]): LayerStat
 }
 
 export function restoreLayerOrder(layers: readonly LayerDefinition[]): string[] {
-  const validIds = layers.map((layer) => layer.id);
+  const validIds = defaultLayerOrder(layers);
   const validIdSet = new Set(validIds);
-  const stored = readPreferences()?.order?.filter((id) => validIdSet.has(id)) ?? [];
+  const preferences = readPreferences();
+  const stored = preferences?.orderVersion === layerOrderVersion
+    ? preferences.order?.filter((id) => validIdSet.has(id)) ?? []
+    : [];
   return [...new Set([...stored, ...validIds])];
 }
 
@@ -56,7 +61,7 @@ export function saveLayerPreferences(
 ) {
   if (typeof window === "undefined") return;
   try {
-    window.localStorage.setItem(preferenceKey, JSON.stringify({ layers, order, verticalExaggeration }));
+    window.localStorage.setItem(preferenceKey, JSON.stringify({ layers, order, orderVersion: layerOrderVersion, verticalExaggeration }));
   } catch {
     // Private browsing and storage policies can make localStorage unavailable.
   }
@@ -70,4 +75,16 @@ function readPreferences(): StoredPreferences | null {
   } catch {
     return null;
   }
+}
+
+function defaultLayerOrder(layers: readonly LayerDefinition[]): string[] {
+  const imagery = layers
+    .filter((layer) => layer.category === "imagery")
+    .toSorted((first, second) => imageryYear(first) - imageryYear(second));
+  let imageryIndex = 0;
+  return layers.map((layer) => layer.category === "imagery" ? imagery[imageryIndex++].id : layer.id);
+}
+
+function imageryYear(layer: LayerDefinition): number {
+  return typeof layer.year === "number" ? layer.year : Number.POSITIVE_INFINITY;
 }

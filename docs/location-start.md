@@ -6,7 +6,8 @@ MnMapping starts with a location prompt instead of initializing the full viewer 
 
 - Text searches use the public ArcGIS World Geocoding Service with a Minnesota search extent.
 - Coordinates are accepted in either latitude/longitude or longitude/latitude order when the values fall within Minnesota.
-- Map selection uses Esri World Street Map only. Detailed imagery and terrain are not created until the point is confirmed.
+- Map selection uses Esri World Street Map only. Its code, viewer, and initial tiles begin loading during browser idle time so the map opens promptly without delaying the location form. Detailed imagery and terrain are not created until the point is confirmed.
+- Selecting a point immediately begins reverse geocoding. The confirmation card shows the resolved place and county as soon as they arrive, and confirming reuses that result rather than issuing the same lookup again.
 - Reverse geocoding identifies the county for coordinate and map selections.
 - Searches and selected locations are not persisted by MnMapping.
 
@@ -16,4 +17,4 @@ After selection, the camera starts at the chosen place rather than the statewide
 
 Imagery and terrain providers are lazy: a hidden provider is created only when its layer is first enabled. The default statewide composite therefore requests tiles only around the chosen camera extent, while optional county vintages, lidar hillshade, and 3D terrain produce no requests until used.
 
-The initial optimized county set remains Hubbard, Beltrami, Becker, Todd, and Douglas. Searches elsewhere in Minnesota receive the statewide catalog until an adapter for that county is added.
+The optimized county registry includes all 43 counties assigned to the v1.0 North zone. Searches elsewhere in Minnesota receive the statewide catalog until an adapter for that county is added. County recognition, viewport bounds, layer lists, parcel status, and source type come from the shared registry, so expansion does not require branches in the map UI.
