@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { isTerrainLayer, type LayerCategory, type LayerDefinition } from "@/config/layers/types";
+import { isLayerAvailableAtCameraHeight, isTerrainLayer, type LayerCategory, type LayerDefinition } from "@/config/layers/types";
 import type { LayerStateById } from "@/lib/map/layerState";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, LayersIcon } from "./MapIcons";
 
@@ -13,6 +13,8 @@ interface LayerPanelProps {
   onOpacityChange: (id: string, opacity: number) => void;
   onTerrainExaggerationChange: (exaggeration: number) => void;
   onMoveLayer: (id: string, direction: "up" | "down") => void;
+  pendingParcelCounties: readonly string[];
+  cameraHeight: number;
   open: boolean;
   onClose: () => void;
 }
@@ -36,14 +38,24 @@ export function LayerPanel({
   onOpacityChange,
   onTerrainExaggerationChange,
   onMoveLayer,
+  pendingParcelCounties,
+  cameraHeight,
   open,
   onClose,
 }: LayerPanelProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(
-    () => new Set(["terrain", "imagery-county", "imagery-statewide", ...Object.keys(categoryLabels)]),
+    () => new Set([
+      "terrain",
+      "imagery-county",
+      "imagery-statewide",
+      "imagery-statewide-naip",
+      "imagery-statewide-cir",
+      ...Object.keys(categoryLabels),
+    ]),
   );
   const terrainLayers = layers.filter(isTerrainLayer);
   const categories = groupLayers(layers.filter((layer) => !isTerrainLayer(layer)));
+  if (pendingParcelCounties.length > 0 && !categories.has("parcels")) categories.set("parcels", []);
   const toggleSection = (id: string) => setCollapsed((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id);
@@ -60,18 +72,20 @@ export function LayerPanel({
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose, open]);
 
-  const renderLayerRows = (items: readonly LayerDefinition[]) => [...items].reverse().map((layer) => {
+  const renderLayerRows = (items: readonly LayerDefinition[], reverse = true) => (reverse ? [...items].reverse() : items).map((layer) => {
     const layerState = state[layer.id] ?? {
       visible: layer.defaultVisible,
       opacity: layer.defaultOpacity,
     };
+    const unavailable = Boolean(layer.unavailableMessage) && !isLayerAvailableAtCameraHeight(layer, cameraHeight);
     return (
-      <div className="layer-row" key={layer.id}>
+      <div className={`layer-row ${unavailable ? "is-scale-locked" : ""}`} key={layer.id}>
         <div className="layer-row-heading">
           <label className="layer-toggle">
             <input
               type="checkbox"
               checked={layerState.visible}
+              disabled={unavailable}
               onChange={(event) => onVisibilityChange(layer.id, event.target.checked)}
             />
             <span>
@@ -116,6 +130,7 @@ export function LayerPanel({
           <p>{layer.agency ?? layer.attribution}</p>
           <a href={layer.sourceUrl ?? layer.url} target="_blank" rel="noreferrer">Service metadata</a>
         </details>
+        {unavailable && <div className="layer-scale-overlay">{layer.unavailableMessage}</div>}
       </div>
     );
   });
@@ -197,12 +212,42 @@ export function LayerPanel({
                       <span>{isCounty ? "County" : "Statewide"}</span>
                       <span className="category-summary">{scopeLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
                     </button>
-                    {!collapsed.has(scopeId) && <div className="layer-list" id={`layer-section-${scopeId}`}>{renderLayerRows(scopeLayers)}</div>}
+                    {!collapsed.has(scopeId) && (isCounty ? (
+                      <div className="layer-list" id={`layer-section-${scopeId}`}>
+                        {renderLayerRows(sortImageryNewestFirst(scopeLayers), false)}
+                      </div>
+                    ) : (
+                      <div className="layer-list" id={`layer-section-${scopeId}`}>
+                        {renderLayerRows(sortImageryNewestFirst(scopeLayers.filter((layer) => !layer.imageryGroup && typeof layer.year !== "number")), false)}
+                        <div className="layer-subscopes">
+                          {(["naip", "cir"] as const).map((group) => {
+                            const groupId = `${scopeId}-${group}`;
+                            const groupLayers = sortImageryNewestFirst(scopeLayers.filter((layer) => layer.imageryGroup === group));
+                            if (groupLayers.length === 0) return null;
+                            return <section className="layer-scope" key={groupId}>
+                              <button className="layer-scope-heading" type="button" aria-expanded={!collapsed.has(groupId)} aria-controls={`layer-section-${groupId}`} onClick={() => toggleSection(groupId)}>
+                                <span>{group === "naip" ? "NAIP" : "CIR"}</span>
+                                <span className="category-summary">{groupLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
+                              </button>
+                              {!collapsed.has(groupId) && <div className="layer-list" id={`layer-section-${groupId}`}>{renderLayerRows(groupLayers, false)}</div>}
+                            </section>;
+                          })}
+                        </div>
+                        {renderLayerRows(sortImageryNewestFirst(scopeLayers.filter((layer) => !layer.imageryGroup && typeof layer.year === "number")), false)}
+                      </div>
+                    ))}
                   </section>;
                 })}
               </div>
             ) : (
-              <div className="layer-list" id={`layer-section-${category}`}>{renderLayerRows(categoryLayers)}</div>
+              <div className="layer-list" id={`layer-section-${category}`}>
+                {renderLayerRows(categoryLayers)}
+                {category === "parcels" && pendingParcelCounties.map((county) => (
+                  <p className="layer-availability-note" key={county}>
+                    <strong>{county} County parcels pending.</strong> No stable, repeatable public query source has been verified yet.
+                  </p>
+                ))}
+              </div>
             ))}
           </section>
         ))}
@@ -228,4 +273,12 @@ function groupLayers(layers: readonly LayerDefinition[]) {
     categories.set(layer.category, [...(categories.get(layer.category) ?? []), layer]);
   }
   return categories;
+}
+
+function sortImageryNewestFirst(layers: readonly LayerDefinition[]): LayerDefinition[] {
+  return [...layers].sort((left, right) => {
+    const leftYear = typeof left.year === "number" ? left.year : Number.POSITIVE_INFINITY;
+    const rightYear = typeof right.year === "number" ? right.year : Number.POSITIVE_INFINITY;
+    return rightYear - leftYear;
+  });
 }

@@ -5,11 +5,12 @@ import { douglasLayers } from "./layers/counties/douglas";
 import { hubbardLayers } from "./layers/counties/hubbard";
 import { toddLayers } from "./layers/counties/todd";
 import { northExpansionCounties } from "./layers/counties/northExpansion";
+import { createMnGeoCountyPublicLandLayer } from "./layers/counties/publicLand";
 import { createMnGeoParcelLayer } from "./layers/counties/shared";
 import { southExpansionCounties } from "./layers/counties/southExpansion";
 import type { CountyDefinition, LayerBounds } from "./layers/types";
 
-export const countyRegistry = [
+const counties = [
   county("aitkin", "Aitkin", "001", { west: -93.82, south: 46.15, east: -93.04, north: 47.03 }, aitkinLayers, "available", "arcgis-feature", ["First county in north-expansion Batch N1."]),
   county("becker", "Becker", "005", { west: -96.05, south: 46.56, east: -95.30, north: 47.31 }, [...beckerLayers, createMnGeoParcelLayer("becker", "Becker", "005", { west: -96.05, south: 46.56, east: -95.30, north: 47.31 }, 35_718)], "available", "mngeo-open"),
   county("beltrami", "Beltrami", "007", { west: -95.52, south: 47.39, east: -94.35, north: 48.56 }, beltramiLayers, "pending", "none", ["MnGeo metadata lists Beltrami, but the Open Parcels polygon layer returned no Beltrami records at verification."]),
@@ -19,6 +20,11 @@ export const countyRegistry = [
   ...northExpansionCounties,
   ...southExpansionCounties,
 ] as const satisfies readonly CountyDefinition[];
+
+export const countyRegistry = counties.map((entry): CountyDefinition => {
+  const publicLand = createMnGeoCountyPublicLandLayer(entry.id, entry.name, entry.fips, entry.bounds);
+  return publicLand ? { ...entry, layers: [...entry.layers, publicLand] } : entry;
+});
 
 export type SupportedCounty = (typeof countyRegistry)[number]["name"];
 

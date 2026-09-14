@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { countyRegistry } from "@/config/counties";
 import { layerRegistry } from "@/config/layers";
 import { isTerrainLayer } from "@/config/layers/types";
 import { LayerPanel } from "@/components/ui/LayerPanel";
@@ -19,6 +20,7 @@ export function MapShell() {
   const [layerState, setLayerState] = useState(() => restoreLayerState(layerRegistry));
   const [layerOrder, setLayerOrder] = useState(() => restoreLayerOrder(layerRegistry));
   const [verticalExaggeration, setVerticalExaggeration] = useState(restoreVerticalExaggeration);
+  const [cameraHeight, setCameraHeight] = useState(Number.POSITIVE_INFINITY);
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
   const [viewControls, setViewControls] = useState<MapViewControls | null>(null);
   const [mode, setMode] = useState<InteractionMode>("inspect");
@@ -38,6 +40,12 @@ export function MapShell() {
     () => viewportBounds ? supportedCountiesInViewport(viewportBounds) : selectedCounty ? [selectedCounty] : [],
     [selectedCounty, viewportBounds],
   );
+  const pendingParcelCounties = useMemo(() => {
+    const visibleCounties = new Set(viewportCounties);
+    return countyRegistry
+      .filter((county) => visibleCounties.has(county.name) && county.parcels.status === "pending")
+      .map((county) => county.name);
+  }, [viewportCounties]);
   const activeLayers = useMemo(
     () => {
       const countySet = new Set(viewportCounties);
@@ -115,7 +123,11 @@ export function MapShell() {
   const moveLayer = (id: string, direction: "up" | "down") => {
     const layer = activeLayers.find((candidate) => candidate.id === id);
     if (!layer) return;
-    const peers = activeLayers.filter((candidate) => candidate.category === layer.category && !isTerrainLayer(candidate));
+    const peers = activeLayers.filter((candidate) => (
+      candidate.category === layer.category
+      && !isTerrainLayer(candidate)
+      && (layer.category !== "imagery" || Boolean(candidate.county) === Boolean(layer.county))
+    ));
     const peerIndex = peers.findIndex((candidate) => candidate.id === id);
     const target = peers[peerIndex + (direction === "up" ? 1 : -1)];
     if (!target) return;
@@ -140,6 +152,7 @@ export function MapShell() {
         onResetReady={registerReset}
         onViewControlsReady={registerViewControls}
         onViewportChange={registerViewport}
+        onCameraHeightChange={setCameraHeight}
         interactionMode={mode}
         myData={myData}
         myDataVisible={myDataVisible}
@@ -176,6 +189,8 @@ export function MapShell() {
         }))}
         onTerrainExaggerationChange={setVerticalExaggeration}
         onMoveLayer={moveLayer}
+        pendingParcelCounties={pendingParcelCounties}
+        cameraHeight={cameraHeight}
       />
       <nav className="map-tools" aria-label="Map inspection and personal data tools">
         {(["inspect", "pin", "line", "polygon"] as const).map((tool) => <button key={tool} type="button" aria-pressed={mode === tool} onClick={() => { setMode(tool); setDraft([]); }}>{tool}</button>)}

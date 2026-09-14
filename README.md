@@ -13,6 +13,8 @@ npm run dev
 
 Open `http://localhost:3000`. Useful checks are `npm run typecheck`, `npm run lint`, and `npm run build`. Cesium's runtime assets are copied from the installed package into the ignored `public/cesium/` directory automatically before development and production builds.
 
+The production target is Cloudflare Workers. The checked-in vinext configuration preserves the application's server route handlers and supports automatic deployment from GitHub. Follow the exact account setup in [`docs/cloudflare-deployment.md`](docs/cloudflare-deployment.md).
+
 Current imagery services and source-selection decisions are recorded in [`docs/imagery-sources.md`](docs/imagery-sources.md).
 Elevation source roles and vertical-reference details are recorded in [`docs/elevation-sources.md`](docs/elevation-sources.md).
 The location-first startup and lazy-loading behavior are recorded in [`docs/location-start.md`](docs/location-start.md).
@@ -46,7 +48,7 @@ An optional URL and output path can be supplied: `npm run screenshot -- http://l
 
 These counties are primarily needed for county-specific imagery and parcel/ownership adapters. Statewide imagery, lidar, MnTOPO, and public-land layers should work across Minnesota wherever services are available.
 
-The v1.0 county expansion recognizes all 87 Minnesota counties through the shared registry. Verified named imagery and repeatable parcel sources are integrated; counties without a repeatable parcel service remain explicitly pending. See the [`North status`](docs/north-region-status.md), [`South status`](docs/south-region-status.md), and [`remaining checklist`](docs/remaining-checklist.md) for implementation details and follow-up work.
+The v1.0 county expansion recognizes all 87 Minnesota counties through the shared registry. Verified named imagery and repeatable parcel sources are integrated; counties without a repeatable parcel service remain explicitly pending in the Layers UI. County-fee and tax-forfeit ownership parcels are available for the 56 counties represented in MnGeo's current government-ownership service. See the [`North status`](docs/north-region-status.md), [`South status`](docs/south-region-status.md), [`North checklist`](docs/north-of-i94-checklist.md), [`South checklist`](docs/south-of-i94-checklist.md), and [`shared release checklist`](docs/remaining-checklist.md) for implementation details and follow-up work.
 
 ## Planned stack
 
@@ -56,6 +58,7 @@ The v1.0 county expansion recognizes all 87 Minnesota counties through the share
 - Browser `localStorage` for small preferences
 - Browser IndexedDB for pins, drawings, and imported user data
 - Public WMS / WMTS / ArcGIS REST / FeatureServer / ImageServer sources
+- Cloudflare Workers with vinext for production hosting
 
 ## Build order
 

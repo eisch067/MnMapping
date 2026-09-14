@@ -9,3 +9,6 @@ public/cesium/
 screenshots/
 .env*
 !.env.example
+/dist/
+.vinext/
+.wrangler/

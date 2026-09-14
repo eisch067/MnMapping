@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { GeoJsonDataSource, ImageryLayer, TerrainProvider, Viewer } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
-import { isTerrainLayer } from "@/config/layers/types";
+import { isLayerAvailableAtCameraHeight, isTerrainLayer } from "@/config/layers/types";
 import { cameraHeightForLocation, type MapLocation, type ViewportBounds } from "@/lib/location";
 import { applyGeoJsonOpacity, createLayerResource } from "@/lib/map/createLayer";
 import type { LayerStateById } from "@/lib/map/layerState";
@@ -20,6 +20,7 @@ interface CesiumMapProps {
   onResetReady: (reset: () => void) => void;
   onViewControlsReady: (controls: MapViewControls) => void;
   onViewportChange: (bounds: ViewportBounds) => void;
+  onCameraHeightChange: (height: number) => void;
   interactionMode: InteractionMode;
   myData: readonly MyMapItem[];
   myDataVisible: boolean;
@@ -40,6 +41,7 @@ export function CesiumMap({
   onResetReady,
   onViewControlsReady,
   onViewportChange,
+  onCameraHeightChange,
   interactionMode,
   myData,
   myDataVisible,
@@ -120,7 +122,9 @@ export function CesiumMap({
           north: CesiumMath.toDegrees(rectangle.north),
         };
         setInternalViewportBounds(bounds);
-        setCameraHeight(viewer.camera.positionCartographic.height);
+        const currentCameraHeight = viewer.camera.positionCartographic.height;
+        setCameraHeight(currentCameraHeight);
+        onCameraHeightChange(currentCameraHeight);
         onViewportChange(bounds);
       };
       viewer.camera.moveEnd.addEventListener(reportViewport);
@@ -159,7 +163,7 @@ export function CesiumMap({
       viewerRef.current = null;
       if (viewer && !viewer.isDestroyed()) viewer.destroy();
     };
-  }, [location, onResetReady, onViewControlsReady, onViewportChange]);
+  }, [location, onCameraHeightChange, onResetReady, onViewControlsReady, onViewportChange]);
 
   useEffect(() => { coordinateClickRef.current = onCoordinateClick; }, [onCoordinateClick]);
   useEffect(() => { cursorChangeRef.current = onCursorChange; }, [onCursorChange]);
@@ -189,9 +193,12 @@ export function CesiumMap({
     const activeLayerIds = new Set(layers.map((layer) => layer.id));
     for (const [id, imagery] of imageryRef.current) {
       const currentState = layerState[id];
+      const definition = layers.find((layer) => layer.id === id);
       // Cesium layers expose visibility through an intentionally mutable object API.
       // eslint-disable-next-line react-hooks/immutability
-      imagery.show = activeLayerIds.has(id) && (currentState?.visible ?? false);
+      imagery.show = activeLayerIds.has(id)
+        && (currentState?.visible ?? false)
+        && Boolean(definition && isLayerAvailableAtCameraHeight(definition, cameraHeight));
       imagery.alpha = currentState?.opacity ?? 1;
     }
     for (const [id, dataSource] of dataSourcesRef.current) {
@@ -205,7 +212,7 @@ export function CesiumMap({
 
     layers.forEach((layer) => {
       const currentState = layerState[layer.id];
-      if (isTerrainLayer(layer) || layer.sourceType === "arcgis-featureserver" || layer.sourceType === "geojson" || !currentState?.visible || imageryRef.current.has(layer.id) || pendingImageryRef.current.has(layer.id)) return;
+      if (isTerrainLayer(layer) || layer.sourceType === "arcgis-featureserver" || layer.sourceType === "geojson" || !currentState?.visible || !isLayerAvailableAtCameraHeight(layer, cameraHeight) || imageryRef.current.has(layer.id) || pendingImageryRef.current.has(layer.id)) return;
       pendingImageryRef.current.add(layer.id);
       void createLayerResource(layer).then((resource) => {
         pendingImageryRef.current.delete(layer.id);
@@ -291,10 +298,19 @@ function synchronizeImageryOrder(
   layers: readonly LayerDefinition[],
   imageryById: ReadonlyMap<string, ImageryLayer>,
 ) {
-  for (const layer of layers) {
+  const renderOrder = layers.toSorted(
+    (first, second) => imageryStackBand(first) - imageryStackBand(second),
+  );
+  for (const layer of renderOrder) {
     const imagery = imageryById.get(layer.id);
     if (imagery && viewer.imageryLayers.contains(imagery)) viewer.imageryLayers.raiseToTop(imagery);
   }
+}
+
+function imageryStackBand(layer: LayerDefinition): number {
+  if (layer.category === "basemap") return 0;
+  if (layer.category === "imagery") return layer.county ? 2 : 1;
+  return 3;
 }
 
 function synchronizeDataSourceOrder(

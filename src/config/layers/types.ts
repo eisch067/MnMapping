@@ -22,6 +22,11 @@ export function isTerrainLayer(layer: LayerDefinition): boolean {
   return terrainSourceTypes.includes(layer.sourceType);
 }
 
+export function isLayerAvailableAtCameraHeight(layer: LayerDefinition, cameraHeight: number): boolean {
+  const maximum = Number(layer.options?.maxCameraHeight ?? Number.POSITIVE_INFINITY);
+  return cameraHeight <= maximum;
+}
+
 export interface LayerBounds {
   west: number;
   south: number;
@@ -47,6 +52,7 @@ export interface ParcelFieldMap {
 }
 
 export type AccessMeaning = "public-access" | "managed-land" | "administrative-boundary" | "access-varies";
+export type ImageryGroup = "naip" | "cir";
 
 export interface LayerDefinition {
   id: string;
@@ -68,6 +74,8 @@ export interface LayerDefinition {
   year?: number | string;
   resolution?: string;
   description?: string;
+  imageryGroup?: ImageryGroup;
+  unavailableMessage?: string;
   accessMeaning?: AccessMeaning;
   nameField?: string;
   popupFields?: readonly LayerPopupField[];

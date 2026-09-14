@@ -50,6 +50,7 @@ export const imageryLayers: LayerDefinition[] = [
     year,
     resolution,
     description: `Statewide summer ${color.toLowerCase()} National Agriculture Imagery Program imagery.`,
+    imageryGroup: color === "Color infrared" ? "cir" : "naip",
     options: { layers: layer, format: "image/jpeg", transparent: false, version: "1.1.1" },
   })),
   {
