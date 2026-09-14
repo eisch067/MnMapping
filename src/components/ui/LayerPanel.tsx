@@ -104,10 +104,23 @@ export function LayerPanel({
                           type="checkbox"
                           checked={layerState.visible}
                           onChange={(event) => onVisibilityChange(layer.id, event.target.checked)}
-                        />
-                        <span>
-                          <span className="layer-name">{layer.name}</span>
-                          <span className="layer-meta">{metadataLine(layer)}</span>
+                            />
+                            <span>
+                              <span className="layer-name-line">
+                                {layer.category === "public-land" && (
+                                  <span
+                                    className="legend-swatch"
+                                    aria-hidden="true"
+                                    style={{
+                                      background: String(layer.options?.fillColor ?? "#68a677"),
+                                      borderColor: String(layer.options?.strokeColor ?? "#c8eed1"),
+                                    }}
+                                  />
+                                )}
+                                <span className="layer-name">{layer.name}</span>
+                              </span>
+                              <span className="layer-meta">{metadataLine(layer)}</span>
+                              {layer.accessMeaning && <span className="land-meaning">{accessMeaningLabel(layer.accessMeaning)}</span>}
                         </span>
                       </label>
                       <span className="layer-order-controls" aria-label={`${layer.name} display order`}>
@@ -147,6 +160,13 @@ export function LayerPanel({
 
 function metadataLine(layer: LayerDefinition): string {
   return [layer.county ?? "Statewide", layer.year, layer.resolution, layer.attribution].filter(Boolean).join(" · ");
+}
+
+function accessMeaningLabel(value: NonNullable<LayerDefinition["accessMeaning"]>): string {
+  if (value === "public-access") return "Publicly accessible — verify current rules";
+  if (value === "managed-land") return "Managed conservation land — restrictions may apply";
+  if (value === "administrative-boundary") return "Unit boundary — not parcel ownership";
+  return "Ownership interest and access vary";
 }
 
 function groupLayers(layers: readonly LayerDefinition[]) {

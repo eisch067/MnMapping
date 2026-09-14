@@ -62,7 +62,10 @@ svg { flex: 0 0 auto; }
 .layer-toggle { display: grid; grid-template-columns: 18px 1fr; gap: 9px; align-items: start; cursor: pointer; }
 .layer-toggle input { margin-top: 3px; accent-color: var(--accent); }
 .layer-name { display: block; font-size: 13px; font-weight: 650; }
+.layer-name-line { display: flex; gap: 7px; align-items: center; }
+.legend-swatch { width: 13px; height: 13px; border: 2px solid; border-radius: 3px; opacity: .9; }
 .layer-meta { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.land-meaning { display: block; margin-top: 5px; color: #e4c98f; font-size: 9px; line-height: 1.35; }
 .layer-order-controls { display: flex; gap: 3px; }
 .layer-order-controls button { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid var(--panel-border); border-radius: 4px; background: rgba(255,255,255,.04); color: var(--muted); cursor: pointer; }
 .layer-order-controls button:hover { background: rgba(169,209,142,.12); color: var(--accent); }
@@ -76,6 +79,23 @@ svg { flex: 0 0 auto; }
 .layer-details a { color: var(--accent); }
 .status { position: absolute; z-index: 2; left: 12px; bottom: 12px; display: flex; gap: 7px; align-items: center; max-width: min(420px, calc(100vw - 24px)); padding: 7px 10px; border: 1px solid var(--panel-border); border-radius: 5px; background: var(--panel); color: var(--muted); font-size: 11px; }
 .status svg { width: 15px; height: 15px; color: var(--accent); }
+.mode-pin canvas, .mode-line canvas, .mode-polygon canvas { cursor: crosshair; }
+.map-tools { position: absolute; z-index: 3; top: 64px; left: 12px; display: flex; flex-wrap: wrap; gap: 5px; max-width: min(500px, calc(100vw - 380px)); padding: 7px; border: 1px solid var(--panel-border); border-radius: 7px; background: var(--panel); }
+.map-tools button, .inspection-card button, .my-data-panel button { border: 1px solid var(--panel-border); border-radius: 4px; padding: 6px 9px; background: rgba(255,255,255,.07); color: var(--text); cursor: pointer; font-size: 10px; text-transform: capitalize; }
+.map-tools button[aria-pressed="true"] { border-color: var(--accent); background: rgba(169,209,142,.18); color: var(--accent); }
+.inspection-card { position: absolute; z-index: 3; left: 12px; bottom: 48px; display: flex; gap: 9px; align-items: center; padding: 9px 10px; border: 1px solid var(--panel-border); border-radius: 6px; background: var(--panel); font-size: 11px; }
+.inspection-card span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.my-data-panel { position: absolute; z-index: 4; top: 112px; left: 12px; display: grid; gap: 10px; width: min(310px, calc(100vw - 24px)); max-height: calc(100dvh - 175px); overflow: auto; padding: 13px; border: 1px solid var(--panel-border); border-radius: 8px; background: var(--panel); box-shadow: 0 12px 30px rgba(0,0,0,.3); font-size: 11px; }
+.my-data-panel header { display: flex; justify-content: space-between; align-items: center; }
+.my-data-panel header label { color: var(--muted); }
+.file-import { display: grid; gap: 6px; padding: 9px; border: 1px dashed rgba(169,209,142,.4); border-radius: 5px; color: var(--accent); }
+.file-import input { max-width: 100%; color: var(--muted); font-size: 9px; }
+.export-buttons { display: flex; gap: 5px; }
+.my-data-list { display: grid; gap: 5px; }
+.my-data-list > div { display: flex; justify-content: space-between; align-items: center; padding: 7px; border-radius: 4px; background: rgba(255,255,255,.04); }
+.my-data-list strong, .my-data-list small { display: block; }
+.my-data-list small, .my-data-panel p { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.delete-all { color: #f0a28a !important; }
 
 .location-gate { position: relative; display: grid; width: 100vw; height: 100dvh; place-items: center; overflow: auto; padding: 80px 20px 40px; background: #17231e; color: var(--text); }
 .location-backdrop { position: absolute; inset: 0; opacity: .52; background:
@@ -134,6 +154,9 @@ svg { flex: 0 0 auto; }
   .brand span { display: none; }
   .top-bar { height: 48px; }
   .side-panel { top: 58px; right: 8px; max-height: 44dvh; }
+  .map-tools { top: auto; bottom: 45px; max-width: calc(100vw - 16px); }
+  .inspection-card { bottom: 93px; }
+  .my-data-panel { top: 58px; left: 8px; }
   .compact-action, .map-button:not(.change-area) { display: none; }
   .map-button { padding: 7px 9px; }
   .selected-location { width: min(52vw, 250px); padding-inline: 5px 9px; }

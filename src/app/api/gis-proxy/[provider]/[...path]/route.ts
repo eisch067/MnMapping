@@ -6,6 +6,7 @@ const providerRoots = {
   todd: "https://gis.mytoddcounty.com/toddcounty/rest/services/",
   "mngeo-dem": "https://enterprise.gisdata.mn.gov/agsimg/rest/services/",
   "mngeo-imagery": "https://imageserver.gisdata.mn.gov/cgi-bin/",
+  "mngeo-features": "https://enterprise.gisdata.mn.gov/aghost/rest/services/",
 } as const;
 
 type Provider = keyof typeof providerRoots;

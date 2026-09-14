@@ -12,7 +12,7 @@ const vintages = [
   { service: "2011_Imagery", year: 2011, resolution: "9 inches", season: "Spring" },
 ] as const;
 
-export const hubbardLayers: LayerDefinition[] = vintages.map((vintage) => ({
+const imageryLayers: LayerDefinition[] = vintages.map((vintage) => ({
   id: `hubbard-imagery-${String(vintage.year).replace("–", "-")}`,
   name: `${vintage.year} Hubbard County`,
   category: "imagery",
@@ -29,3 +29,23 @@ export const hubbardLayers: LayerDefinition[] = vintages.map((vintage) => ({
   description: `${vintage.season} acquisition. Official county cached imagery service.`,
   options: { enablePickFeatures: false },
 }));
+
+const parcelLayer: LayerDefinition = {
+  id: "hubbard-parcels",
+  name: "Hubbard tax parcels",
+  category: "parcels",
+  sourceType: "arcgis-featureserver",
+  url: "/api/gis-proxy/hubbard/OpenData/Hubbard_County_Tax_Parcels/FeatureServer",
+  sourceUrl: "https://gis.co.hubbard.mn.us/arcgis/rest/services/OpenData/Hubbard_County_Tax_Parcels/FeatureServer/0",
+  defaultVisible: false,
+  defaultOpacity: 0.8,
+  attribution: "Hubbard County GIS",
+  agency: "Hubbard County GIS",
+  county: "Hubbard",
+  description: "Official tax-parcel geometry and published assessment attributes. Loads only at parcel-scale zoom.",
+  nameField: "hubbgis_GIS_Parcels_PIN",
+  parcelFields: { parcelId: "hubbgis_GIS_Parcels_PIN", owner: "PINAME1", secondaryOwner: "PINAME2", siteAddress: "PAADRLN1", mailingAddress: "PIADRLN1", acres: "hubbgis_GIS_Parcels_Acres", legalDescription: "LGDSC", taxYear: "PYPYEAR" },
+  options: { layerId: 0, outFields: "hubbgis_GIS_Parcels_PIN,PINAME1,PINAME2,PAADRLN1,PIADRLN1,hubbgis_GIS_Parcels_Acres,LGDSC,PYPYEAR", fillColor: "#ffffff", strokeColor: "#f2d48a", fillAlpha: 0.01, strokeWidth: 1, maxCameraHeight: 35000 },
+};
+
+export const hubbardLayers: LayerDefinition[] = [...imageryLayers, parcelLayer];

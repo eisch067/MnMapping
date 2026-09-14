@@ -1,13 +1,21 @@
-import type { DataSource, ImageryLayer, TerrainProvider } from "cesium";
+import type { GeoJsonDataSource, ImageryLayer, TerrainProvider } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
+import type { LayerBounds } from "@/config/layers/types";
+import { normalizeParcel } from "@/lib/parcels";
 
-export type CesiumLayerResource = ImageryLayer | DataSource | TerrainProvider;
+export type CesiumLayerResource = ImageryLayer | GeoJsonDataSource | TerrainProvider;
 
-export async function createLayerResource(layer: LayerDefinition): Promise<CesiumLayerResource> {
+interface LayerRequestContext {
+  bounds?: LayerBounds;
+}
+
+export async function createLayerResource(layer: LayerDefinition, context: LayerRequestContext = {}): Promise<CesiumLayerResource> {
   const {
     ArcGisMapServerImageryProvider,
     ArcGISTiledElevationTerrainProvider,
     CesiumTerrainProvider,
+    Color,
+    ConstantProperty,
     GeoJsonDataSource,
     ImageryLayer,
     Rectangle,
@@ -99,13 +107,49 @@ export async function createLayerResource(layer: LayerDefinition): Promise<Cesiu
       );
     }
     case "geojson":
-      return GeoJsonDataSource.load(layer.url, { clampToGround: true });
+      return GeoJsonDataSource.load(layer.url, geoJsonStyle(layer, Color));
     case "cesium-terrain":
       return CesiumTerrainProvider.fromUrl(layer.url);
     case "arcgis-terrain":
       return ArcGISTiledElevationTerrainProvider.fromUrl(layer.url);
-    case "arcgis-featureserver":
-      throw new Error("ArcGIS FeatureServer rendering will be implemented with vector layers when first needed.");
+    case "arcgis-featureserver": {
+      const layerId = String(layer.options?.layerId ?? "0");
+      const serviceUrl = absoluteBrowserUrl(layer.url);
+      const queryUrl = new URL(`${serviceUrl}/${layerId}/query`);
+      queryUrl.searchParams.set("where", stringOption(layer, "where") ?? "1=1");
+      queryUrl.searchParams.set("outFields", stringOption(layer, "outFields") ?? "*");
+      queryUrl.searchParams.set("returnGeometry", "true");
+      queryUrl.searchParams.set("outSR", "4326");
+      queryUrl.searchParams.set("geometryPrecision", "6");
+      queryUrl.searchParams.set("f", "geojson");
+      if (context.bounds) {
+        queryUrl.searchParams.set("geometry", `${context.bounds.west},${context.bounds.south},${context.bounds.east},${context.bounds.north}`);
+        queryUrl.searchParams.set("geometryType", "esriGeometryEnvelope");
+        queryUrl.searchParams.set("inSR", "4326");
+        queryUrl.searchParams.set("spatialRel", "esriSpatialRelIntersects");
+      }
+      const dataSource = await GeoJsonDataSource.load(queryUrl.toString(), geoJsonStyle(layer, Color));
+      decorateGeoJson(dataSource, layer, ConstantProperty);
+      return dataSource;
+    }
+  }
+}
+
+export async function applyGeoJsonOpacity(dataSource: GeoJsonDataSource, layer: LayerDefinition, opacity: number) {
+  const { Color, ColorMaterialProperty, ConstantProperty } = await import("cesium");
+  const stroke = Color.fromCssColorString(stringOption(layer, "strokeColor") ?? "#3c7550").withAlpha(opacity);
+  const fillAlpha = Number(layer.options?.fillAlpha ?? 0.22) * opacity;
+  const fill = Color.fromCssColorString(stringOption(layer, "fillColor") ?? "#68a677").withAlpha(fillAlpha);
+  for (const entity of dataSource.entities.values) {
+    if (entity.polygon) {
+      entity.polygon.material = new ColorMaterialProperty(fill);
+      entity.polygon.outline = new ConstantProperty(true);
+      entity.polygon.outlineColor = new ConstantProperty(stroke);
+    }
+    if (entity.polyline) {
+      entity.polyline.material = new ColorMaterialProperty(stroke);
+      entity.polyline.width = new ConstantProperty(Number(layer.options?.strokeWidth ?? 2));
+    }
   }
 }
 
@@ -117,6 +161,77 @@ function absoluteBrowserUrl(url: string): string {
 
 function decodeTemplateBraces(url: string): string {
   return url.replaceAll("%7B", "{").replaceAll("%7D", "}");
+}
+
+function geoJsonStyle(layer: LayerDefinition, Color: typeof import("cesium").Color) {
+  const opacity = layer.defaultOpacity;
+  const stroke = Color.fromCssColorString(stringOption(layer, "strokeColor") ?? "#3c7550").withAlpha(opacity);
+  const fillAlpha = Number(layer.options?.fillAlpha ?? 0.22) * opacity;
+  const fill = Color.fromCssColorString(stringOption(layer, "fillColor") ?? "#68a677").withAlpha(fillAlpha);
+  return {
+    clampToGround: true,
+    stroke,
+    fill,
+    strokeWidth: Number(layer.options?.strokeWidth ?? 2),
+  };
+}
+
+function decorateGeoJson(
+  dataSource: GeoJsonDataSource,
+  layer: LayerDefinition,
+  ConstantProperty: typeof import("cesium").ConstantProperty,
+) {
+  for (const entity of dataSource.entities.values) {
+    const values = entity.properties?.getValue() as Record<string, unknown> | undefined;
+    if (values && layer.parcelFields && layer.county) {
+      const parcel = normalizeParcel(layer.county, layer.parcelFields, values);
+      entity.name = `Parcel ${parcel.parcelId}`;
+    }
+    const name = layer.nameField ? values?.[layer.nameField] : undefined;
+    if (typeof name === "string" && name.trim()) entity.name = name;
+    const popupFields = layer.parcelFields ? parcelPopupFields(layer.parcelFields) : layer.popupFields ?? [];
+    const rows = popupFields.flatMap(({ field, label }) => {
+      const value = values?.[field];
+      if (value === null || value === undefined || value === "") return [];
+      return [`<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(String(value))}</td></tr>`];
+    });
+    rows.push(`<tr><th>Source</th><td>${escapeHtml(layer.agency ?? layer.attribution)}</td></tr>`);
+    const accessNote = accessMeaningLabel(layer.accessMeaning);
+    if (accessNote) rows.push(`<tr><th>Boundary meaning</th><td>${escapeHtml(accessNote)}</td></tr>`);
+    entity.description = new ConstantProperty(`<table class="cesium-infoBox-defaultTable"><tbody>${rows.join("")}</tbody></table>`);
+  }
+}
+
+function parcelPopupFields(fields: NonNullable<LayerDefinition["parcelFields"]>) {
+  return [
+    { field: fields.parcelId, label: "Parcel ID" },
+    fields.owner && { field: fields.owner, label: "Owner" },
+    fields.secondaryOwner && { field: fields.secondaryOwner, label: "Secondary owner" },
+    fields.siteAddress && { field: fields.siteAddress, label: "Site address" },
+    fields.mailingAddress && { field: fields.mailingAddress, label: "Mailing address" },
+    fields.acres && { field: fields.acres, label: "Acres" },
+    fields.legalDescription && { field: fields.legalDescription, label: "Legal description" },
+    fields.assessedValue && { field: fields.assessedValue, label: "Assessed value" },
+    fields.taxYear && { field: fields.taxYear, label: "Tax year" },
+  ].filter((entry): entry is { field: string; label: string } => Boolean(entry));
+}
+
+function accessMeaningLabel(value: LayerDefinition["accessMeaning"]): string | null {
+  if (value === "public-access") return "Published as publicly accessible; verify current site rules.";
+  if (value === "managed-land") return "Managed land; access restrictions may apply.";
+  if (value === "administrative-boundary") return "Administrative or management boundary, not proof that every acre is publicly owned.";
+  if (value === "access-varies") return "Ownership interest and public access vary by parcel; verify before entering.";
+  return null;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    "\"": "&quot;",
+  })[character] ?? character);
 }
 
 function levelOptions(layer: LayerDefinition) {

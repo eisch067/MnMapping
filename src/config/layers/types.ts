@@ -27,6 +27,25 @@ export interface LayerBounds {
   north: number;
 }
 
+export interface LayerPopupField {
+  field: string;
+  label: string;
+}
+
+export interface ParcelFieldMap {
+  parcelId: string;
+  owner?: string;
+  secondaryOwner?: string;
+  siteAddress?: string;
+  mailingAddress?: string;
+  acres?: string;
+  legalDescription?: string;
+  assessedValue?: string;
+  taxYear?: string;
+}
+
+export type AccessMeaning = "public-access" | "managed-land" | "administrative-boundary" | "access-varies";
+
 export interface LayerDefinition {
   id: string;
   name: string;
@@ -47,5 +66,9 @@ export interface LayerDefinition {
   year?: number | string;
   resolution?: string;
   description?: string;
+  accessMeaning?: AccessMeaning;
+  nameField?: string;
+  popupFields?: readonly LayerPopupField[];
+  parcelFields?: ParcelFieldMap;
   options?: Record<string, string | number | boolean | string[]>;
 }

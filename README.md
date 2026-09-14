@@ -17,6 +17,9 @@ Current imagery services and source-selection decisions are recorded in [`docs/i
 Elevation source roles and vertical-reference details are recorded in [`docs/elevation-sources.md`](docs/elevation-sources.md).
 The location-first startup and lazy-loading behavior are recorded in [`docs/location-start.md`](docs/location-start.md).
 Layer ordering and preference persistence are recorded in [`docs/layer-controls.md`](docs/layer-controls.md).
+Public-land semantics and sources are recorded in [`docs/public-land-sources.md`](docs/public-land-sources.md).
+Parcel adapters, inspection, and browser-local data are recorded in [`docs/parcels-and-local-data.md`](docs/parcels-and-local-data.md).
+The optional onX-compatible export workflow is recorded in [`docs/onx-handoff.md`](docs/onx-handoff.md).
 
 ## Product principles
 
@@ -43,7 +46,7 @@ These counties are primarily needed for county-specific imagery and parcel/owner
 - TypeScript
 - CesiumJS
 - Browser `localStorage` for small preferences
-- Browser IndexedDB for larger local user data later
+- Browser IndexedDB for pins, drawings, and imported user data
 - Public WMS / WMTS / ArcGIS REST / FeatureServer / ImageServer sources
 
 ## Build order
