@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isLayerAvailableAtCameraHeight, isTerrainLayer, type LayerCategory, type LayerDefinition } from "@/config/layers/types";
 import type { LayerStateById } from "@/lib/map/layerState";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, LayersIcon } from "./MapIcons";
@@ -23,12 +23,17 @@ const categoryLabels: Record<LayerCategory, string> = {
   basemap: "Basemap",
   imagery: "Imagery",
   elevation: "Elevation",
-  "public-land": "Public land",
+  "public-land": "Public lands",
   parcels: "Parcels",
   reference: "Reference",
 };
 
 const exaggerationPresets = [1, 1.5, 2, 3, 5] as const;
+
+interface LayerTransferUsage {
+  bytes: number;
+  requests: number;
+}
 
 export function LayerPanel({
   layers,
@@ -53,15 +58,27 @@ export function LayerPanel({
       ...Object.keys(categoryLabels),
     ]),
   );
+  const [transferByLayer, setTransferByLayer] = useState<Record<string, LayerTransferUsage>>({});
+  const layersRef = useRef(layers);
+  const stateRef = useRef(state);
   const terrainLayers = layers.filter(isTerrainLayer);
   const categories = groupLayers(layers.filter((layer) => !isTerrainLayer(layer)));
   if (pendingParcelCounties.length > 0 && !categories.has("parcels")) categories.set("parcels", []);
+  const visibleLayers = layers
+    .filter((layer) => (state[layer.id]?.visible ?? layer.defaultVisible) && isLayerAvailableAtCameraHeight(layer, cameraHeight))
+    .toSorted((left, right) => (transferByLayer[right.id]?.bytes ?? 0) - (transferByLayer[left.id]?.bytes ?? 0));
+  const visibleTransferBytes = visibleLayers.reduce((total, layer) => total + (transferByLayer[layer.id]?.bytes ?? 0), 0);
   const toggleSection = (id: string) => setCollapsed((current) => {
     const next = new Set(current);
     if (next.has(id)) next.delete(id);
     else next.add(id);
     return next;
   });
+
+  useEffect(() => {
+    layersRef.current = layers;
+    stateRef.current = state;
+  }, [layers, state]);
 
   useEffect(() => {
     if (!open) return;
@@ -71,6 +88,39 @@ export function LayerPanel({
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose, open]);
+
+  useEffect(() => {
+    if (typeof PerformanceObserver === "undefined") return;
+    performance.setResourceTimingBufferSize(5_000);
+    const recordEntries = (entries: readonly PerformanceResourceTiming[]) => {
+      const additions: Record<string, LayerTransferUsage> = {};
+      for (const entry of entries) {
+        const layer = matchLayerRequest(entry.name, layersRef.current, stateRef.current);
+        if (!layer) continue;
+        const usage = additions[layer.id] ?? { bytes: 0, requests: 0 };
+        usage.bytes += entry.transferSize;
+        usage.requests += 1;
+        additions[layer.id] = usage;
+      }
+      if (Object.keys(additions).length === 0) return;
+      setTransferByLayer((current) => {
+        const next = { ...current };
+        for (const [id, usage] of Object.entries(additions)) {
+          const previous = next[id] ?? { bytes: 0, requests: 0 };
+          next[id] = { bytes: previous.bytes + usage.bytes, requests: previous.requests + usage.requests };
+        }
+        return next;
+      });
+    };
+    const observer = new PerformanceObserver((list) => recordEntries(list.getEntries() as PerformanceResourceTiming[]));
+    try {
+      observer.observe({ type: "resource", buffered: true });
+    } catch {
+      recordEntries(performance.getEntriesByType("resource") as PerformanceResourceTiming[]);
+      observer.observe({ entryTypes: ["resource"] });
+    }
+    return () => observer.disconnect();
+  }, []);
 
   const renderLayerRows = (items: readonly LayerDefinition[], reverse = true) => (reverse ? [...items].reverse() : items).map((layer) => {
     const layerState = state[layer.id] ?? {
@@ -241,6 +291,19 @@ export function LayerPanel({
               </div>
             ) : (
               <div className="layer-list" id={`layer-section-${category}`}>
+                {category === "public-land" && categoryLayers.length > 0 && <label className="category-master-toggle">
+                  <input
+                    type="checkbox"
+                    checked={categoryLayers.every((layer) => state[layer.id]?.visible ?? layer.defaultVisible)}
+                    ref={(input) => {
+                      if (!input) return;
+                      const enabled = categoryLayers.filter((layer) => state[layer.id]?.visible ?? layer.defaultVisible).length;
+                      input.indeterminate = enabled > 0 && enabled < categoryLayers.length;
+                    }}
+                    onChange={(event) => categoryLayers.forEach((layer) => onVisibilityChange(layer.id, event.target.checked))}
+                  />
+                  <span><strong>All public lands</strong><small>Turn every public-land layer in the current area on or off.</small></span>
+                </label>}
                 {renderLayerRows(categoryLayers)}
                 {category === "parcels" && pendingParcelCounties.map((county) => (
                   <p className="layer-availability-note" key={county}>
@@ -252,6 +315,22 @@ export function LayerPanel({
           </section>
         ))}
       </div>
+      <section className="active-layers" aria-labelledby="active-layers-heading">
+        <header>
+          <span><strong id="active-layers-heading">Active layers</strong><small>Transferred this session</small></span>
+          <output>{formatBytes(visibleTransferBytes)}</output>
+        </header>
+        {visibleLayers.length > 0 ? <div className="active-layer-list">
+          {visibleLayers.map((layer) => {
+            const usage = transferByLayer[layer.id] ?? { bytes: 0, requests: 0 };
+            return <label className="active-layer" key={layer.id}>
+              <input type="checkbox" checked onChange={(event) => onVisibilityChange(layer.id, event.target.checked)} />
+              <span><strong>{layer.name}</strong><small>{transferLabel(usage)}</small></span>
+            </label>;
+          })}
+        </div> : <p>No layers are currently active.</p>}
+        <p className="bandwidth-note">Counts bytes reported by the browser since this page loaded. Cached and some third-party requests may report no transferred size.</p>
+      </section>
     </aside>
   );
 }
@@ -281,4 +360,59 @@ function sortImageryNewestFirst(layers: readonly LayerDefinition[]): LayerDefini
     const rightYear = typeof right.year === "number" ? right.year : Number.POSITIVE_INFINITY;
     return rightYear - leftYear;
   });
+}
+
+function matchLayerRequest(requestName: string, layers: readonly LayerDefinition[], state: LayerStateById): LayerDefinition | undefined {
+  let requestUrl: URL;
+  try {
+    requestUrl = new URL(requestName, window.location.origin);
+  } catch {
+    return undefined;
+  }
+  return layers.find((layer) => {
+    if (!(state[layer.id]?.visible ?? layer.defaultVisible)) return false;
+    let layerUrl: URL;
+    try {
+      layerUrl = new URL(layer.url, window.location.origin);
+    } catch {
+      return false;
+    }
+    const basePath = layerUrl.pathname.replace(/\/$/, "");
+    if (requestUrl.origin !== layerUrl.origin || (requestUrl.pathname !== basePath && !requestUrl.pathname.startsWith(`${basePath}/`))) return false;
+    const expectedWmsLayer = stringLayerOption(layer, "layers") ?? stringLayerOption(layer, "layer");
+    const requestedWmsLayer = caseInsensitiveSearchParam(requestUrl.searchParams, "layers") ?? caseInsensitiveSearchParam(requestUrl.searchParams, "layer");
+    if (expectedWmsLayer && requestedWmsLayer && !requestedWmsLayer.split(",").includes(expectedWmsLayer)) return false;
+    const expectedLayerId = layer.options?.layerId;
+    if (expectedLayerId !== undefined && !requestUrl.pathname.startsWith(`${basePath}/${expectedLayerId}/`)) return false;
+    const expectedWhere = stringLayerOption(layer, "where");
+    if (expectedWhere && caseInsensitiveSearchParam(requestUrl.searchParams, "where") !== expectedWhere) return false;
+    const renderingRule = stringLayerOption(layer, "renderingRule") ?? stringLayerOption(layer, "renderingRuleJson");
+    if (renderingRule) {
+      const requestRule = caseInsensitiveSearchParam(requestUrl.searchParams, "renderingRule");
+      if (!requestRule?.toLowerCase().includes(renderingRule.toLowerCase().replaceAll("\\\"", "\""))) return false;
+    }
+    return true;
+  });
+}
+
+function stringLayerOption(layer: LayerDefinition, key: string): string | undefined {
+  const value = layer.options?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function caseInsensitiveSearchParam(searchParams: URLSearchParams, name: string): string | null {
+  const entry = [...searchParams].find(([key]) => key.toLowerCase() === name.toLowerCase());
+  return entry?.[1] ?? null;
+}
+
+function transferLabel(usage: LayerTransferUsage): string {
+  if (usage.requests === 0) return "No requests yet";
+  if (usage.bytes === 0) return `${usage.requests} ${usage.requests === 1 ? "request" : "requests"} · size unavailable or cached`;
+  return `${formatBytes(usage.bytes)} · ${usage.requests} ${usage.requests === 1 ? "request" : "requests"}`;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1_024) return `${bytes} B`;
+  if (bytes < 1_048_576) return `${(bytes / 1_024).toFixed(bytes < 10_240 ? 1 : 0)} KB`;
+  return `${(bytes / 1_048_576).toFixed(1)} MB`;
 }
