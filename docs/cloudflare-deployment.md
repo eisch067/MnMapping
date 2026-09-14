@@ -2,6 +2,8 @@
 
 MnMapping deploys as a full-stack Next.js application on Cloudflare Workers. It uses vinext so the location-search and GIS-proxy route handlers continue to run on the same hostname as the map. A static Cloudflare Pages export is not used because it would remove those server routes.
 
+Production URL: [mnmapping.eischens-brad.workers.dev](https://mnmapping.eischens-brad.workers.dev)
+
 ## One-time repository preparation
 
 The repository is already configured with:

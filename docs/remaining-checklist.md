@@ -17,9 +17,9 @@ Each regional checklist starts with work that spans many counties, then lists im
 - [ ] Complete keyboard, screen-reader, color-contrast, touch, and narrow-screen reviews.
 - [ ] Finish visual and performance validation for the property-scale 2-foot contour layer and its zoom overlay.
 - [x] Choose and configure Cloudflare Workers with vinext as the v1.0 deployment target.
-- [ ] Connect the GitHub repository to Cloudflare Workers Builds and complete the first production deployment.
+- [x] Connect the GitHub repository to Cloudflare Workers Builds and complete the first production deployment.
 - [ ] Add CI for typecheck, lint, build, and tests.
-- [ ] Add a production smoke check for routes, Cesium assets, location search, and the GIS proxy.
+- [x] Run the production smoke check for routes, Cesium assets, location search, and the GIS proxy.
 - [ ] Record the supported browser set and complete browser validation.
 - [ ] Commit the current imagery-priority, parcel-status, county-land, contour, and checklist changes after visual review.
 
