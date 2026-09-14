@@ -17,4 +17,4 @@ After selection, the camera starts at the chosen place rather than the statewide
 
 Imagery and terrain providers are lazy: a hidden provider is created only when its layer is first enabled. The default statewide composite therefore requests tiles only around the chosen camera extent, while optional county vintages, lidar hillshade, and 3D terrain produce no requests until used.
 
-The optimized county registry includes all 43 counties assigned to the v1.0 North zone. Searches elsewhere in Minnesota receive the statewide catalog until an adapter for that county is added. County recognition, viewport bounds, layer lists, parcel status, and source type come from the shared registry, so expansion does not require branches in the map UI.
+The county registry includes all 87 Minnesota counties across the v1.0 North and South zones. County recognition, viewport bounds, layer lists, parcel status, and source type come from this shared registry, so expansion and source repairs do not require branches in the map UI.

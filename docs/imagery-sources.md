@@ -4,7 +4,7 @@ Verified against live service metadata on September 13, 2026.
 
 ## Statewide
 
-MnGeo's Composite Image Service is the `Best Available` layer. Its selection changes by location and scale using imagery quality, resolution, recency, coverage, and season. Separate natural-color NAIP layers are configured for 2025 (0.6 meter), 2023 (0.3 meter), and 2021 (0.6 meter). All requests go directly from the browser to MnGeo.
+MnGeo's Composite Image Service is the `Best Available` layer. Its selection changes by location and scale using imagery quality, resolution, recency, coverage, and season. Separate natural-color and color-infrared NAIP layers are configured for 2025 (0.6 meter), 2023 (0.3 meter), 2021 (0.6 meter), and 2019 (0.6 meter). Historical 1991 USGS DOQ imagery is also available. Statewide requests use the fixed MnGeo proxy route.
 
 - Composite: `https://imageserver.gisdata.mn.gov/cgi-bin/mncomp?`, layer `mncomp`
 - NAIP and county WMS: `https://imageserver.gisdata.mn.gov/cgi-bin/wmsll?`
@@ -24,6 +24,10 @@ MnGeo's active `fall11` and `fallcir11` WMS layers provide 2011 fall natural-col
 ## North-region expansion
 
 The remaining v1.0 North counties use a shared catalog of active MnGeo WMS layers. It includes verified Metro, county, fall, North 1-foot, northern-border, Arrowhead, and north-central acquisitions from 2009 through 2025. Each county references only relevant presets, while each preset retains the service's published coverage rectangle. The complete selection and deferred unverified county imagery are recorded in [`north-region-status.md`](north-region-status.md).
+
+## South-region expansion
+
+All 44 South-zone counties are registered. The catalog uses the verified 2011 spring Southern Minnesota layer only within its published footprint, labels separate spring/fall collections, and adds verified high-resolution county and Metro acquisitions where available. See [`south-region-status.md`](south-region-status.md) for batch and deferral details.
 
 ## Beltrami County
 

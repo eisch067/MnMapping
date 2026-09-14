@@ -40,7 +40,7 @@ export function LayerPanel({
   onClose,
 }: LayerPanelProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(
-    () => new Set(["terrain", ...Object.keys(categoryLabels)]),
+    () => new Set(["terrain", "imagery-county", "imagery-statewide", ...Object.keys(categoryLabels)]),
   );
   const terrainLayers = layers.filter(isTerrainLayer);
   const categories = groupLayers(layers.filter((layer) => !isTerrainLayer(layer)));
@@ -59,6 +59,66 @@ export function LayerPanel({
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose, open]);
+
+  const renderLayerRows = (items: readonly LayerDefinition[]) => [...items].reverse().map((layer) => {
+    const layerState = state[layer.id] ?? {
+      visible: layer.defaultVisible,
+      opacity: layer.defaultOpacity,
+    };
+    return (
+      <div className="layer-row" key={layer.id}>
+        <div className="layer-row-heading">
+          <label className="layer-toggle">
+            <input
+              type="checkbox"
+              checked={layerState.visible}
+              onChange={(event) => onVisibilityChange(layer.id, event.target.checked)}
+            />
+            <span>
+              <span className="layer-name-line">
+                {layer.category === "public-land" && (
+                  <span
+                    className="legend-swatch"
+                    aria-hidden="true"
+                    style={{
+                      background: String(layer.options?.fillColor ?? "#68a677"),
+                      borderColor: String(layer.options?.strokeColor ?? "#c8eed1"),
+                    }}
+                  />
+                )}
+                <span className="layer-name">{layer.name}</span>
+              </span>
+              <span className="layer-meta">{metadataLine(layer)}</span>
+              {layer.accessMeaning && <span className="land-meaning">{accessMeaningLabel(layer.accessMeaning)}</span>}
+            </span>
+          </label>
+          <span className="layer-order-controls" aria-label={`${layer.name} display order`}>
+            <button type="button" title="Move above" aria-label={`Move ${layer.name} above`} onClick={() => onMoveLayer(layer.id, "up")}><ChevronUpIcon /></button>
+            <button type="button" title="Move below" aria-label={`Move ${layer.name} below`} onClick={() => onMoveLayer(layer.id, "down")}><ChevronDownIcon /></button>
+          </span>
+        </div>
+        <label className="opacity-control">
+          <span>Opacity</span>
+          <input
+            aria-label={`${layer.name} opacity`}
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            value={Math.round(layerState.opacity * 100)}
+            onChange={(event) => onOpacityChange(layer.id, Number(event.target.value) / 100)}
+          />
+          <output>{Math.round(layerState.opacity * 100)}%</output>
+        </label>
+        <details className="layer-details">
+          <summary>Info</summary>
+          <p>{layer.description ?? "No additional source notes."}</p>
+          <p>{layer.agency ?? layer.attribution}</p>
+          <a href={layer.sourceUrl ?? layer.url} target="_blank" rel="noreferrer">Service metadata</a>
+        </details>
+      </div>
+    );
+  });
 
   return (
     <aside id="map-layer-panel" className={`side-panel ${open ? "is-open" : ""}`} aria-label="Map layers" aria-hidden={!open} inert={!open}>
@@ -126,67 +186,24 @@ export function LayerPanel({
               <span>{categoryLabels[category]}</span>
               <span className="category-summary">{categoryLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
             </button>
-            {!collapsed.has(category) && <div className="layer-list" id={`layer-section-${category}`}>
-              {[...categoryLayers].reverse().map((layer) => {
-                const layerState = state[layer.id] ?? {
-                  visible: layer.defaultVisible,
-                  opacity: layer.defaultOpacity,
-                };
-                return (
-                  <div className="layer-row" key={layer.id}>
-                    <div className="layer-row-heading">
-                      <label className="layer-toggle">
-                        <input
-                          type="checkbox"
-                          checked={layerState.visible}
-                          onChange={(event) => onVisibilityChange(layer.id, event.target.checked)}
-                            />
-                            <span>
-                              <span className="layer-name-line">
-                                {layer.category === "public-land" && (
-                                  <span
-                                    className="legend-swatch"
-                                    aria-hidden="true"
-                                    style={{
-                                      background: String(layer.options?.fillColor ?? "#68a677"),
-                                      borderColor: String(layer.options?.strokeColor ?? "#c8eed1"),
-                                    }}
-                                  />
-                                )}
-                                <span className="layer-name">{layer.name}</span>
-                              </span>
-                              <span className="layer-meta">{metadataLine(layer)}</span>
-                              {layer.accessMeaning && <span className="land-meaning">{accessMeaningLabel(layer.accessMeaning)}</span>}
-                        </span>
-                      </label>
-                      <span className="layer-order-controls" aria-label={`${layer.name} display order`}>
-                        <button type="button" title="Move above" aria-label={`Move ${layer.name} above`} onClick={() => onMoveLayer(layer.id, "up")}><ChevronUpIcon /></button>
-                        <button type="button" title="Move below" aria-label={`Move ${layer.name} below`} onClick={() => onMoveLayer(layer.id, "down")}><ChevronDownIcon /></button>
-                      </span>
-                    </div>
-                    <label className="opacity-control">
-                      <span>Opacity</span>
-                      <input
-                        aria-label={`${layer.name} opacity`}
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={Math.round(layerState.opacity * 100)}
-                        onChange={(event) => onOpacityChange(layer.id, Number(event.target.value) / 100)}
-                      />
-                      <output>{Math.round(layerState.opacity * 100)}%</output>
-                    </label>
-                    <details className="layer-details">
-                      <summary>Info</summary>
-                      <p>{layer.description ?? "No additional source notes."}</p>
-                      <p>{layer.agency ?? layer.attribution}</p>
-                      <a href={layer.sourceUrl ?? layer.url} target="_blank" rel="noreferrer">Service metadata</a>
-                    </details>
-                  </div>
-                );
-              })}
-            </div>}
+            {!collapsed.has(category) && (category === "imagery" ? (
+              <div className="layer-scopes" id={`layer-section-${category}`}>
+                {([true, false] as const).map((isCounty) => {
+                  const scopeId = `imagery-${isCounty ? "county" : "statewide"}`;
+                  const scopeLayers = categoryLayers.filter((layer) => Boolean(layer.county) === isCounty);
+                  if (scopeLayers.length === 0) return null;
+                  return <section className="layer-scope" key={scopeId}>
+                    <button className="layer-scope-heading" type="button" aria-expanded={!collapsed.has(scopeId)} aria-controls={`layer-section-${scopeId}`} onClick={() => toggleSection(scopeId)}>
+                      <span>{isCounty ? "County" : "Statewide"}</span>
+                      <span className="category-summary">{scopeLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
+                    </button>
+                    {!collapsed.has(scopeId) && <div className="layer-list" id={`layer-section-${scopeId}`}>{renderLayerRows(scopeLayers)}</div>}
+                  </section>;
+                })}
+              </div>
+            ) : (
+              <div className="layer-list" id={`layer-section-${category}`}>{renderLayerRows(categoryLayers)}</div>
+            ))}
           </section>
         ))}
       </div>

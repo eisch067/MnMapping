@@ -46,7 +46,7 @@ An optional URL and output path can be supplied: `npm run screenshot -- http://l
 
 These counties are primarily needed for county-specific imagery and parcel/ownership adapters. Statewide imagery, lidar, MnTOPO, and public-land layers should work across Minnesota wherever services are available.
 
-The v1.0 north-of-I-94 expansion covers all 43 North-zone counties through the shared county registry. Verified named imagery and repeatable parcel sources are integrated; counties without a repeatable parcel service remain explicitly pending. See [`docs/north-region-status.md`](docs/north-region-status.md) for batch results and deferred counties, and [`specs/v1.0/MnMapping-North-of-I94-County-Expansion.md`](specs/v1.0/MnMapping-North-of-I94-County-Expansion.md) for the requirements.
+The v1.0 county expansion recognizes all 87 Minnesota counties through the shared registry. Verified named imagery and repeatable parcel sources are integrated; counties without a repeatable parcel service remain explicitly pending. See the [`North status`](docs/north-region-status.md), [`South status`](docs/south-region-status.md), and [`remaining checklist`](docs/remaining-checklist.md) for implementation details and follow-up work.
 
 ## Planned stack
 

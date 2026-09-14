@@ -59,7 +59,7 @@ svg { flex: 0 0 auto; }
 .exaggeration-slider input { width: 100%; accent-color: var(--accent); }
 .exaggeration-slider output { text-align: right; font-variant-numeric: tabular-nums; }
 .terrain-details { margin-left: 0; }
-.layer-categories, .layer-category, .layer-scope { display: grid; gap: 10px; }
+.layer-categories, .layer-category, .layer-scopes, .layer-scope { display: grid; gap: 10px; }
 .layer-categories { margin-top: 10px; }
 .layer-category + .layer-category { margin-top: 0; }
 .layer-category-heading { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 10px 2px; border: 0; border-bottom: 1px solid var(--panel-border); background: transparent; color: var(--text); cursor: pointer; font-size: 12px; font-weight: 750; letter-spacing: .07em; text-align: left; text-transform: uppercase; }
@@ -67,7 +67,10 @@ svg { flex: 0 0 auto; }
 .category-summary { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: 0; text-transform: none; }
 .category-summary svg { width: 15px; height: 15px; transition: transform .18s ease; }
 .layer-category-heading[aria-expanded="false"] .category-summary svg { transform: rotate(-90deg); }
-.layer-scope h4 { margin: 0; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .04em; }
+.layer-scopes { padding-left: 10px; }
+.layer-scope-heading { display: flex; width: 100%; align-items: center; justify-content: space-between; padding: 8px 2px; border: 0; border-bottom: 1px solid rgba(169,209,142,.14); background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-align: left; }
+.layer-scope-heading:hover { color: var(--accent); }
+.layer-scope-heading[aria-expanded="false"] .category-summary svg { transform: rotate(-90deg); }
 .layer-list { display: grid; gap: 9px; }
 .layer-row { padding: 10px; border-radius: 7px; background: rgba(255,255,255,.045); }
 .layer-row-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }

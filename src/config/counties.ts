@@ -4,7 +4,9 @@ import { beltramiLayers } from "./layers/counties/beltrami";
 import { douglasLayers } from "./layers/counties/douglas";
 import { hubbardLayers } from "./layers/counties/hubbard";
 import { toddLayers } from "./layers/counties/todd";
-import { createMnGeoParcelLayer, northExpansionCounties } from "./layers/counties/northExpansion";
+import { northExpansionCounties } from "./layers/counties/northExpansion";
+import { createMnGeoParcelLayer } from "./layers/counties/shared";
+import { southExpansionCounties } from "./layers/counties/southExpansion";
 import type { CountyDefinition, LayerBounds } from "./layers/types";
 
 export const countyRegistry = [
@@ -15,6 +17,7 @@ export const countyRegistry = [
   county("hubbard", "Hubbard", "057", { west: -95.21, south: 46.80, east: -94.63, north: 47.40 }, hubbardLayers, "available", "arcgis-feature"),
   county("todd", "Todd", "153", { west: -95.18, south: 45.79, east: -94.62, north: 46.35 }, toddLayers, "available", "arcgis-feature"),
   ...northExpansionCounties,
+  ...southExpansionCounties,
 ] as const satisfies readonly CountyDefinition[];
 
 export type SupportedCounty = (typeof countyRegistry)[number]["name"];

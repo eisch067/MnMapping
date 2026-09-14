@@ -8,6 +8,8 @@ const providerRoots = {
   "mngeo-imagery": "https://imageserver.gisdata.mn.gov/cgi-bin/",
   "mngeo-features": "https://enterprise.gisdata.mn.gov/aghost/rest/services/",
   "douglas-open": "https://services2.arcgis.com/8iQOd6RvhPL17pJd/arcgis/rest/services/",
+  "meeker-open": "https://services2.arcgis.com/pHb2Lre5eSy5plfE/arcgis/rest/services/",
+  "goodhue-public": "https://publicmaps.co.goodhue.mn.us/arcgis/rest/services/",
 } as const;
 
 type Provider = keyof typeof providerRoots;
