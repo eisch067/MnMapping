@@ -1,11 +1,13 @@
-import type { LayerCategory, LayerDefinition } from "@/config/layers/types";
+import { isTerrainLayer, type LayerCategory, type LayerDefinition } from "@/config/layers/types";
 import type { LayerStateById } from "@/lib/map/layerState";
 
 interface LayerPanelProps {
   layers: readonly LayerDefinition[];
   state: LayerStateById;
+  terrainExaggeration: number;
   onVisibilityChange: (id: string, visible: boolean) => void;
   onOpacityChange: (id: string, opacity: number) => void;
+  onTerrainExaggerationChange: (exaggeration: number) => void;
 }
 
 const categoryLabels: Record<LayerCategory, string> = {
@@ -17,13 +19,70 @@ const categoryLabels: Record<LayerCategory, string> = {
   reference: "Reference",
 };
 
-export function LayerPanel({ layers, state, onVisibilityChange, onOpacityChange }: LayerPanelProps) {
-  const categories = groupLayers(layers);
+const exaggerationPresets = [1, 1.5, 2, 3, 5] as const;
+
+export function LayerPanel({
+  layers,
+  state,
+  terrainExaggeration,
+  onVisibilityChange,
+  onOpacityChange,
+  onTerrainExaggerationChange,
+}: LayerPanelProps) {
+  const terrainLayers = layers.filter(isTerrainLayer);
+  const categories = groupLayers(layers.filter((layer) => !isTerrainLayer(layer)));
 
   return (
     <aside className="side-panel" aria-label="Map layers and tools">
       <h2>Layers</h2>
-      <p className="panel-note">Combine imagery vintages, then fade the upper layer to compare coverage.</p>
+      <p className="panel-note">Compare imagery, inspect lidar-derived relief, or tilt into exaggerated 3D terrain.</p>
+      {terrainLayers.map((layer) => {
+        const layerState = state[layer.id] ?? { visible: false, opacity: 1 };
+        return (
+          <section className="terrain-controls" key={layer.id} aria-label="3D terrain controls">
+            <label className="terrain-toggle">
+              <input
+                type="checkbox"
+                checked={layerState.visible}
+                onChange={(event) => onVisibilityChange(layer.id, event.target.checked)}
+              />
+              <span><strong>{layer.name}</strong><small>{layer.resolution}</small></span>
+            </label>
+            <span className="control-label">Vertical exaggeration</span>
+            <div className="preset-buttons">
+              {exaggerationPresets.map((preset) => (
+                <button
+                  className="preset-button"
+                  type="button"
+                  aria-pressed={terrainExaggeration === preset}
+                  key={preset}
+                  onClick={() => onTerrainExaggerationChange(preset)}
+                >
+                  {preset}×
+                </button>
+              ))}
+            </div>
+            <label className="exaggeration-slider">
+              <input
+                aria-label="Vertical exaggeration"
+                type="range"
+                min="1"
+                max="5"
+                step="0.1"
+                value={terrainExaggeration}
+                onChange={(event) => onTerrainExaggerationChange(Number(event.target.value))}
+              />
+              <output>{terrainExaggeration.toFixed(1)}×</output>
+            </label>
+            <details className="layer-details terrain-details">
+              <summary>Source details</summary>
+              <p>{layer.description}</p>
+              <p>{layer.agency}</p>
+              <a href={layer.sourceUrl ?? layer.url} target="_blank" rel="noreferrer">Service metadata</a>
+            </details>
+          </section>
+        );
+      })}
       <div className="layer-categories">
         {Array.from(categories, ([category, scopes]) => (
           <section className="layer-category" key={category}>

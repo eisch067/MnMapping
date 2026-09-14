@@ -6,11 +6,13 @@ export type CesiumLayerResource = ImageryLayer | DataSource | TerrainProvider;
 export async function createLayerResource(layer: LayerDefinition): Promise<CesiumLayerResource> {
   const {
     ArcGisMapServerImageryProvider,
+    ArcGISTiledElevationTerrainProvider,
     CesiumTerrainProvider,
     GeoJsonDataSource,
     ImageryLayer,
     Rectangle,
     TileMapServiceImageryProvider,
+    UrlTemplateImageryProvider,
     WebMapServiceImageryProvider,
     WebMapTileServiceImageryProvider,
   } = await import("cesium");
@@ -57,7 +59,6 @@ export async function createLayerResource(layer: LayerDefinition): Promise<Cesiu
         common,
       );
     case "arcgis-mapserver":
-    case "arcgis-imageserver":
       return ImageryLayer.fromProviderAsync(
         ArcGisMapServerImageryProvider.fromUrl(layer.url, {
           credit: layer.attribution,
@@ -68,13 +69,50 @@ export async function createLayerResource(layer: LayerDefinition): Promise<Cesiu
         }),
         common,
       );
+    case "arcgis-imageserver": {
+      const renderingRule = stringOption(layer, "renderingRule");
+      const exportUrl = new URL(`${absoluteBrowserUrl(layer.url)}/exportImage`);
+      exportUrl.searchParams.set("bbox", "{westProjected},{southProjected},{eastProjected},{northProjected}");
+      exportUrl.searchParams.set("bboxSR", "3857");
+      exportUrl.searchParams.set("imageSR", "3857");
+      exportUrl.searchParams.set("size", "{width},{height}");
+      exportUrl.searchParams.set("format", stringOption(layer, "format") ?? "png");
+      exportUrl.searchParams.set("f", "image");
+      if (renderingRule) {
+        exportUrl.searchParams.set("renderingRule", JSON.stringify({ rasterFunction: renderingRule }));
+      }
+      const templateUrl = decodeTemplateBraces(exportUrl.toString());
+      return new ImageryLayer(
+        new UrlTemplateImageryProvider({
+          url: templateUrl,
+          credit: layer.attribution,
+          enablePickFeatures: false,
+          hasAlphaChannel: true,
+          rectangle,
+          ...levelOptions(layer),
+        }),
+        common,
+      );
+    }
     case "geojson":
       return GeoJsonDataSource.load(layer.url, { clampToGround: true });
     case "cesium-terrain":
       return CesiumTerrainProvider.fromUrl(layer.url);
+    case "arcgis-terrain":
+      return ArcGISTiledElevationTerrainProvider.fromUrl(layer.url);
     case "arcgis-featureserver":
       throw new Error("ArcGIS FeatureServer rendering will be implemented with vector layers when first needed.");
   }
+}
+
+function absoluteBrowserUrl(url: string): string {
+  if (/^https?:\/\//.test(url)) return url.replace(/\/$/, "");
+  if (typeof window === "undefined") throw new Error("Relative GIS service URLs require a browser context.");
+  return new URL(url.replace(/\/$/, ""), window.location.origin).toString();
+}
+
+function decodeTemplateBraces(url: string): string {
+  return url.replaceAll("%7B", "{").replaceAll("%7D", "}");
 }
 
 function levelOptions(layer: LayerDefinition) {

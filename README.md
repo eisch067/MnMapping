@@ -14,6 +14,7 @@ npm run dev
 Open `http://localhost:3000`. Useful checks are `npm run typecheck`, `npm run lint`, and `npm run build`. Cesium's runtime assets are copied from the installed package into the ignored `public/cesium/` directory automatically before development and production builds.
 
 Current imagery services and source-selection decisions are recorded in [`docs/imagery-sources.md`](docs/imagery-sources.md).
+Elevation source roles and vertical-reference details are recorded in [`docs/elevation-sources.md`](docs/elevation-sources.md).
 
 ## Product principles
 

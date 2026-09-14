@@ -4,6 +4,7 @@ const providerRoots = {
   hubbard: "https://gis.co.hubbard.mn.us/arcgis/rest/services/",
   becker: "https://gis-server.co.becker.mn.us/arcgis/rest/services/",
   todd: "https://gis.mytoddcounty.com/toddcounty/rest/services/",
+  "mngeo-dem": "https://enterprise.gisdata.mn.gov/agsimg/rest/services/",
 } as const;
 
 type Provider = keyof typeof providerRoots;

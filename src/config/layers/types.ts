@@ -7,11 +7,18 @@ export const layerSourceTypes = [
   "arcgis-featureserver",
   "geojson",
   "cesium-terrain",
+  "arcgis-terrain",
 ] as const;
 
 export type LayerSourceType = (typeof layerSourceTypes)[number];
 export type LayerCategory = "basemap" | "imagery" | "elevation" | "public-land" | "parcels" | "reference";
 export type InitialCounty = "Hubbard" | "Beltrami" | "Becker" | "Todd" | "Douglas";
+
+export const terrainSourceTypes: readonly LayerSourceType[] = ["cesium-terrain", "arcgis-terrain"];
+
+export function isTerrainLayer(layer: LayerDefinition): boolean {
+  return terrainSourceTypes.includes(layer.sourceType);
+}
 
 export interface LayerBounds {
   west: number;

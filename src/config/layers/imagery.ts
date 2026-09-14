@@ -1,6 +1,12 @@
 import type { LayerDefinition } from "./types";
 
 const MNGEO_IMAGERY_WMS = "https://imageserver.gisdata.mn.gov/cgi-bin/wmsll?";
+const MINNESOTA_IMAGERY_BOUNDS = {
+  west: -97.38,
+  south: 43.37,
+  east: -89.33,
+  north: 49.4,
+} as const;
 
 export const imageryLayers: LayerDefinition[] = [
   {
@@ -11,6 +17,8 @@ export const imageryLayers: LayerDefinition[] = [
     url: "https://imageserver.gisdata.mn.gov/cgi-bin/mncomp?",
     defaultVisible: true,
     defaultOpacity: 1,
+    minimumLevel: 5,
+    bounds: MINNESOTA_IMAGERY_BOUNDS,
     attribution: "MnGeo Composite Image Service",
     agency: "Minnesota Geospatial Information Office (MnGeo)",
     year: "Dynamic",
@@ -30,6 +38,8 @@ export const imageryLayers: LayerDefinition[] = [
     url: MNGEO_IMAGERY_WMS,
     defaultVisible: false,
     defaultOpacity: 1,
+    minimumLevel: 5,
+    bounds: MINNESOTA_IMAGERY_BOUNDS,
     attribution: "USDA Farm Service Agency via MnGeo",
     agency: "USDA Farm Service Agency; hosted by MnGeo",
     year,
