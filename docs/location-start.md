@@ -12,7 +12,7 @@ MnMapping starts with a location prompt instead of initializing the full viewer 
 
 ## Loading behavior
 
-After selection, the camera starts at the chosen place rather than the statewide extent. The layer panel includes statewide sources plus county-specific sources for the selected county. County adapters outside the selected area are not initialized.
+After selection, the camera starts at the chosen place rather than the statewide extent. The header keeps the chosen address/place and its county visible. County-specific options then follow the current camera viewport: panning into a supported county adds its catalog, leaving it removes that catalog, and zooming out can expose multiple intersecting counties. County adapters outside the visible area are not shown or rendered.
 
 Imagery and terrain providers are lazy: a hidden provider is created only when its layer is first enabled. The default statewide composite therefore requests tiles only around the chosen camera extent, while optional county vintages, lidar hillshade, and 3D terrain produce no requests until used.
 

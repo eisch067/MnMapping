@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ImageryLayer, TerrainProvider, Viewer } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
 import { isTerrainLayer } from "@/config/layers/types";
-import { cameraHeightForLocation, type MapLocation } from "@/lib/location";
+import { cameraHeightForLocation, type MapLocation, type ViewportBounds } from "@/lib/location";
 import { createLayerResource } from "@/lib/map/createLayer";
 import type { LayerStateById } from "@/lib/map/layerState";
 
@@ -15,6 +15,7 @@ interface CesiumMapProps {
   verticalExaggeration: number;
   onResetReady: (reset: () => void) => void;
   onViewControlsReady: (controls: MapViewControls) => void;
+  onViewportChange: (bounds: ViewportBounds) => void;
 }
 
 export interface MapViewControls {
@@ -29,6 +30,7 @@ export function CesiumMap({
   verticalExaggeration,
   onResetReady,
   onViewControlsReady,
+  onViewportChange,
 }: CesiumMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
@@ -81,6 +83,18 @@ export function CesiumMap({
         showMapView: () => viewer.camera.flyTo({ ...mapView, duration: 1.1 }),
         showTerrainView: () => viewer.camera.flyTo({ ...terrainView, duration: 1.4 }),
       });
+      const reportViewport = () => {
+        const rectangle = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
+        if (!rectangle) return;
+        onViewportChange({
+          west: CesiumMath.toDegrees(rectangle.west),
+          south: CesiumMath.toDegrees(rectangle.south),
+          east: CesiumMath.toDegrees(rectangle.east),
+          north: CesiumMath.toDegrees(rectangle.north),
+        });
+      };
+      viewer.camera.moveEnd.addEventListener(reportViewport);
+      reportViewport();
       setMapReady(true);
     }).catch((error: unknown) => console.error("Unable to initialize the map", error));
 
@@ -95,22 +109,23 @@ export function CesiumMap({
       viewerRef.current = null;
       if (viewer && !viewer.isDestroyed()) viewer.destroy();
     };
-  }, [location, onResetReady, onViewControlsReady]);
+  }, [location, onResetReady, onViewControlsReady, onViewportChange]);
 
   useEffect(() => {
     layerStateRef.current = layerState;
     const viewer = viewerRef.current;
     if (!mapReady || !viewer) return;
 
+    const activeLayerIds = new Set(layers.map((layer) => layer.id));
     for (const [id, imagery] of imageryRef.current) {
       const currentState = layerState[id];
       // Cesium layers expose visibility through an intentionally mutable object API.
       // eslint-disable-next-line react-hooks/immutability
-      imagery.show = currentState?.visible ?? false;
+      imagery.show = activeLayerIds.has(id) && (currentState?.visible ?? false);
       imagery.alpha = currentState?.opacity ?? 1;
     }
 
-    layers.forEach((layer, layerIndex) => {
+    layers.forEach((layer) => {
       const currentState = layerState[layer.id];
       if (isTerrainLayer(layer) || !currentState?.visible || imageryRef.current.has(layer.id) || pendingImageryRef.current.has(layer.id)) return;
       pendingImageryRef.current.add(layer.id);
@@ -121,11 +136,9 @@ export function CesiumMap({
         const latestState = layerStateRef.current[layer.id];
         resource.show = latestState?.visible ?? false;
         resource.alpha = latestState?.opacity ?? layer.defaultOpacity;
-        const insertionIndex = layers
-          .slice(0, layerIndex)
-          .filter((candidate) => imageryRef.current.has(candidate.id)).length;
-        currentViewer.imageryLayers.add(resource, insertionIndex);
+        currentViewer.imageryLayers.add(resource);
         imageryRef.current.set(layer.id, resource);
+        synchronizeImageryOrder(currentViewer, layers, imageryRef.current);
       }).catch((error: unknown) => {
         pendingImageryRef.current.delete(layer.id);
         console.error(`Unable to load ${layer.name}`, error);
@@ -151,6 +164,7 @@ export function CesiumMap({
         console.error(`Unable to load ${terrainDefinition.name}`, error);
       });
     }
+    synchronizeImageryOrder(viewer, layers, imageryRef.current);
   }, [layerState, layers, mapReady]);
 
   useEffect(() => {
@@ -160,4 +174,15 @@ export function CesiumMap({
   }, [verticalExaggeration]);
 
   return <div className="map-canvas" ref={containerRef} aria-label={`Interactive map centered on ${location.label}`} />;
+}
+
+function synchronizeImageryOrder(
+  viewer: Viewer,
+  layers: readonly LayerDefinition[],
+  imageryById: ReadonlyMap<string, ImageryLayer>,
+) {
+  for (const layer of layers) {
+    const imagery = imageryById.get(layer.id);
+    if (imagery && viewer.imageryLayers.contains(imagery)) viewer.imageryLayers.raiseToTop(imagery);
+  }
 }

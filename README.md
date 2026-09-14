@@ -16,6 +16,7 @@ Open `http://localhost:3000`. Useful checks are `npm run typecheck`, `npm run li
 Current imagery services and source-selection decisions are recorded in [`docs/imagery-sources.md`](docs/imagery-sources.md).
 Elevation source roles and vertical-reference details are recorded in [`docs/elevation-sources.md`](docs/elevation-sources.md).
 The location-first startup and lazy-loading behavior are recorded in [`docs/location-start.md`](docs/location-start.md).
+Layer ordering and preference persistence are recorded in [`docs/layer-controls.md`](docs/layer-controls.md).
 
 ## Product principles
 

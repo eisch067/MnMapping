@@ -41,3 +41,11 @@ export function ArrowLeftIcon(props: IconProps) {
 export function CheckIcon(props: IconProps) {
   return <IconFrame {...props}><path d="m5 12.5 4.2 4.2L19.5 6.5" /></IconFrame>;
 }
+
+export function ChevronUpIcon(props: IconProps) {
+  return <IconFrame {...props}><path d="m6 14.5 6-6 6 6" /></IconFrame>;
+}
+
+export function ChevronDownIcon(props: IconProps) {
+  return <IconFrame {...props}><path d="m6 9.5 6 6 6-6" /></IconFrame>;
+}

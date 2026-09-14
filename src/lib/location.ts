@@ -18,6 +18,21 @@ export interface MapLocation {
   kind: LocationKind;
 }
 
+export interface ViewportBounds {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+export const supportedCountyBounds: Record<InitialCounty, ViewportBounds> = {
+  Hubbard: { west: -95.21, south: 46.80, east: -94.63, north: 47.40 },
+  Beltrami: { west: -95.52, south: 47.39, east: -94.35, north: 48.56 },
+  Becker: { west: -96.05, south: 46.56, east: -95.30, north: 47.31 },
+  Todd: { west: -95.18, south: 45.79, east: -94.62, north: 46.35 },
+  Douglas: { west: -95.70, south: 45.68, east: -95.20, north: 46.19 },
+};
+
 export function isInMinnesota(latitude: number, longitude: number): boolean {
   return latitude >= minnesotaBounds.south
     && latitude <= minnesotaBounds.north
@@ -40,6 +55,19 @@ export function initialCountyForName(county?: string): InitialCounty | undefined
   const normalized = county.replace(/\s+County$/i, "").trim().toLowerCase();
   const counties: InitialCounty[] = ["Hubbard", "Beltrami", "Becker", "Todd", "Douglas"];
   return counties.find((candidate) => candidate.toLowerCase() === normalized);
+}
+
+export function supportedCountiesInViewport(bounds: ViewportBounds): InitialCounty[] {
+  return (Object.entries(supportedCountyBounds) as Array<[InitialCounty, ViewportBounds]>)
+    .filter(([, countyBounds]) => rectanglesIntersect(bounds, countyBounds))
+    .map(([county]) => county);
+}
+
+function rectanglesIntersect(first: ViewportBounds, second: ViewportBounds): boolean {
+  return first.west <= second.east
+    && first.east >= second.west
+    && first.south <= second.north
+    && first.north >= second.south;
 }
 
 export function cameraHeightForLocation(kind: LocationKind): number {

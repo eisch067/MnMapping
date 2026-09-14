@@ -71,14 +71,18 @@ export async function createLayerResource(layer: LayerDefinition): Promise<Cesiu
       );
     case "arcgis-imageserver": {
       const renderingRule = stringOption(layer, "renderingRule");
+      const renderingRuleJson = stringOption(layer, "renderingRuleJson");
       const exportUrl = new URL(`${absoluteBrowserUrl(layer.url)}/exportImage`);
       exportUrl.searchParams.set("bbox", "{westProjected},{southProjected},{eastProjected},{northProjected}");
       exportUrl.searchParams.set("bboxSR", "3857");
       exportUrl.searchParams.set("imageSR", "3857");
       exportUrl.searchParams.set("size", "{width},{height}");
       exportUrl.searchParams.set("format", stringOption(layer, "format") ?? "png");
+      exportUrl.searchParams.set("transparent", String(booleanOption(layer, "transparent") ?? true));
       exportUrl.searchParams.set("f", "image");
-      if (renderingRule) {
+      if (renderingRuleJson) {
+        exportUrl.searchParams.set("renderingRule", renderingRuleJson);
+      } else if (renderingRule) {
         exportUrl.searchParams.set("renderingRule", JSON.stringify({ rasterFunction: renderingRule }));
       }
       const templateUrl = decodeTemplateBraces(exportUrl.toString());
