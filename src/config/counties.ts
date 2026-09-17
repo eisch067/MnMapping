@@ -13,7 +13,7 @@ import type { CountyDefinition, LayerBounds } from "./layers/types";
 const counties = [
   county("aitkin", "Aitkin", "001", { west: -93.82, south: 46.15, east: -93.04, north: 47.03 }, aitkinLayers, "available", "arcgis-feature", ["First county in north-expansion Batch N1."]),
   county("becker", "Becker", "005", { west: -96.05, south: 46.56, east: -95.30, north: 47.31 }, [...beckerLayers, createMnGeoParcelLayer("becker", "Becker", "005", { west: -96.05, south: 46.56, east: -95.30, north: 47.31 }, 35_718)], "available", "mngeo-open"),
-  county("beltrami", "Beltrami", "007", { west: -95.52, south: 47.39, east: -94.35, north: 48.56 }, beltramiLayers, "pending", "none", ["MnGeo metadata lists Beltrami, but the Open Parcels polygon layer returned no Beltrami records at verification."]),
+  county("beltrami", "Beltrami", "007", { west: -95.52, south: 47.39, east: -94.35, north: 48.56 }, beltramiLayers, "available", "arcgis-feature", ["Official Beltrami Open Data provides anonymous tax parcels and county parks."]),
   county("douglas", "Douglas", "041", { west: -95.70, south: 45.68, east: -95.20, north: 46.19 }, douglasLayers, "available", "arcgis-feature"),
   county("hubbard", "Hubbard", "057", { west: -95.21, south: 46.80, east: -94.63, north: 47.40 }, hubbardLayers, "available", "arcgis-feature"),
   county("todd", "Todd", "153", { west: -95.18, south: 45.79, east: -94.62, north: 46.35 }, toddLayers, "available", "arcgis-feature"),

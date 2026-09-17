@@ -47,6 +47,10 @@ Todd's caches use a county coordinate system unsupported by Cesium's tiled ArcGI
 
 MnGeo-hosted natural-color layers are configured for 2022 (2 inches) and 2016 (3 inches), with their published WMS coverage bounds. Douglas County's EagleView service was not selected because the public metadata does not establish open reuse terms for its licensed imagery.
 
+## Brown County
+
+Brown County's official portal catalogs public EagleView WMTS items for 2023 and 2026. The live service identifies the newer mosaic as captured March 30-31, 2026, and anonymous tile requests work. Brown County's 2022 order form nevertheless describes Connect Image Service as solely for internal use within the customer's organization, with an active-account requirement and monthly request limits; neither portal item grants third-party reuse rights. Both items are linked from the start-page county summary but are not embedded. Brown continues to use verified MnGeo imagery until written reuse authority is established.
+
 ## Browser access
 
-MnGeo returns permissive CORS headers and is accessed directly. The official Hubbard, Becker, and Todd ArcGIS servers do not return browser CORS headers. A read-only, allowlisted route proxies only those three fixed government service roots; it cannot proxy arbitrary hosts or accept write methods.
+MnGeo returns permissive CORS headers and is accessed directly. County services without suitable browser CORS headers use a read-only, allowlisted proxy over fixed government service roots; it cannot proxy arbitrary hosts or accept write methods.

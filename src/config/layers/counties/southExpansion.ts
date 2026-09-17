@@ -2,6 +2,7 @@ import type { CountyDefinition, LayerBounds, LayerDefinition } from "../types";
 import { createMnGeoParcelLayer } from "./shared";
 
 const imageryUrl = "/api/gis-proxy/mngeo-imagery/wmsll?";
+const imagerySourceUrl = "https://imageserver.gisdata.mn.gov/cgi-bin/wmsll?";
 const verifiedAt = "2026-09-14";
 
 type ImageryPreset = {
@@ -53,6 +54,7 @@ type SouthCountyInput = {
   parcelCount?: number;
   parcelAcquired?: string;
   parcelLayer?: LayerDefinition;
+  additionalLayers?: readonly LayerDefinition[];
 };
 
 const southCountyInputs: readonly SouthCountyInput[] = [
@@ -66,7 +68,7 @@ const southCountyInputs: readonly SouthCountyInput[] = [
   { id: "wabasha", name: "Wabasha", fips: "157", batch: "S1", bounds: bounds(-92.5509, 44.1068, -91.8586, 44.4554), imagery: ["wab25", "south11", "fall11"], parcelCount: 17_323, parcelAcquired: "2026-07-23" },
 
   { id: "big-stone", name: "Big Stone", fips: "011", batch: "S2", bounds: bounds(-96.8355, 45.1767, -96.1037, 45.5861), imagery: ["south11", "south11ir"], parcelCount: 7_899, parcelAcquired: "2026-07-30" },
-  { id: "brown", name: "Brown", fips: "015", batch: "S2", bounds: bounds(-95.1086, 44.1078, -94.3688, 44.4981), imagery: ["south11", "south11ir"] },
+  { id: "brown", name: "Brown", fips: "015", batch: "S2", bounds: bounds(-95.1086, 44.1078, -94.3688, 44.4981), imagery: ["south11", "south11ir"], parcelLayer: directParcel("brown", "Brown", bounds(-95.1086, 44.1078, -94.3688, 44.4981), "/api/gis-proxy/brown/GISNEW/Brown_County_Production_Public_Parcels/FeatureServer", "https://gis.browncountymn.gov/server/rest/services/GISNEW/Brown_County_Production_Public_Parcels/FeatureServer/0", 0, "PIN", { parcelId: "PIN" }, "Official public county parcel geometry and parcel identifiers. Brown County labels the public dataset as containing no owner information. The anonymous service, fields, pagination support, and 18,481-record count were verified 2026-09-14."), additionalLayers: [createBrownParksLayer()] },
   { id: "chippewa", name: "Chippewa", fips: "023", batch: "S2", bounds: bounds(-96.0370, 44.7511, -95.2465, 45.1528), imagery: ["south11", "south11ir"], parcelCount: 11_962, parcelAcquired: "2026-03-23" },
   { id: "lac-qui-parle", name: "Lac qui Parle", fips: "073", batch: "S2", bounds: bounds(-96.4530, 44.8048, -95.7366, 45.2694), imagery: ["south11", "south11ir"], parcelCount: 8_876, parcelAcquired: "2025-12-10" },
   { id: "meeker", name: "Meeker", fips: "093", batch: "S2", bounds: bounds(-94.7635, 44.8919, -94.2556, 45.3266), imagery: ["meek13"], parcelLayer: directParcel("meeker", "Meeker", bounds(-94.7635, 44.8919, -94.2556, 45.3266), "/api/gis-proxy/meeker-open/Parcels_hub/FeatureServer", "https://services2.arcgis.com/pHb2Lre5eSy5plfE/arcgis/rest/services/Parcels_hub/FeatureServer/0", 0, "PID", { parcelId: "PID", owner: "NAME", mailingAddress: "MAILING", acres: "DEED_AC", legalDescription: "LEGAL1" }) },
@@ -110,6 +112,7 @@ export const southExpansionCounties: readonly CountyDefinition[] = southCountyIn
   const hasParcels = input.parcelCount !== undefined || input.parcelLayer !== undefined;
   const layers = [
     ...(input.imagery ?? []).map((key) => createImageryLayer(input.id, input.name, imageryPresets[key])),
+    ...(input.additionalLayers ?? []),
     ...(input.parcelLayer ? [input.parcelLayer] : input.parcelCount !== undefined ? [createMnGeoParcelLayer(input.id, input.name, input.fips, input.bounds, input.parcelCount, input.parcelAcquired)] : []),
   ];
   return {
@@ -135,6 +138,7 @@ function directParcel(
   layerId: number,
   nameField: string,
   parcelFields: NonNullable<LayerDefinition["parcelFields"]>,
+  description = `Official public county parcel geometry and published tax attributes. Anonymous metadata and bounded GeoJSON queries verified ${verifiedAt}.`,
 ): LayerDefinition {
   return {
     id: `${id}-parcels`,
@@ -149,7 +153,7 @@ function directParcel(
     agency: `${name} County GIS`,
     county: name,
     bounds: countyBounds,
-    description: `Official public county parcel geometry and published tax attributes. Anonymous metadata and bounded GeoJSON queries verified ${verifiedAt}.`,
+    description,
     nameField,
     parcelFields,
     options: {
@@ -164,6 +168,28 @@ function directParcel(
   };
 }
 
+function createBrownParksLayer(): LayerDefinition {
+  return {
+    id: "brown-local-parks",
+    name: "Brown County local parks",
+    category: "public-land",
+    sourceType: "arcgis-featureserver",
+    url: "/api/gis-proxy/brown/Hosted/Parks/FeatureServer",
+    sourceUrl: "https://gis.browncountymn.gov/server/rest/services/Hosted/Parks/FeatureServer/4",
+    defaultVisible: false,
+    defaultOpacity: 0.82,
+    attribution: "Brown County GIS",
+    agency: "Brown County GIS",
+    county: "Brown",
+    bounds: bounds(-95.1086, 44.1078, -94.3688, 44.4981),
+    description: "Fifty-two city, county, and state park polygons published by Brown County GIS. Two features classified as private-city parks are excluded. Layer fields, geometry, anonymous query support, and grouped counts were verified 2026-09-14. Verify current ownership, rules, and access before visiting.",
+    accessMeaning: "access-varies",
+    nameField: "name",
+    popupFields: [{ field: "name", label: "Park" }, { field: "park_type", label: "Type" }, { field: "city", label: "City" }, { field: "address", label: "Address" }],
+    options: { layerId: 4, where: "park_type IN ('CITY','COUNTY','STATE')", outFields: "name,park_type,city,address", fillColor: "#65b96e", strokeColor: "#c9f2cf", fillAlpha: 0.24, strokeWidth: 2 },
+  };
+}
+
 function createImageryLayer(countyId: string, countyName: string, imagery: ImageryPreset): LayerDefinition {
   return {
     id: `${countyId}-imagery-${imagery.layer}`,
@@ -171,6 +197,7 @@ function createImageryLayer(countyId: string, countyName: string, imagery: Image
     category: "imagery",
     sourceType: "wms",
     url: imageryUrl,
+    sourceUrl: imagerySourceUrl,
     defaultVisible: false,
     defaultOpacity: 1,
     minimumLevel: 5,

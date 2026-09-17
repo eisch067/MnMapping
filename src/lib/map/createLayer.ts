@@ -2,11 +2,14 @@ import type { GeoJsonDataSource, ImageryLayer, TerrainProvider } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
 import type { LayerBounds } from "@/config/layers/types";
 import { normalizeParcel } from "@/lib/parcels";
+import { fetchAllArcGisFeatures, type ArcGisQueryProgress } from "@/lib/map/arcgisFeatures";
 
 export type CesiumLayerResource = ImageryLayer | GeoJsonDataSource | TerrainProvider;
 
 interface LayerRequestContext {
   bounds?: LayerBounds;
+  signal?: AbortSignal;
+  onProgress?: (progress: ArcGisQueryProgress) => void;
 }
 
 export async function createLayerResource(layer: LayerDefinition, context: LayerRequestContext = {}): Promise<CesiumLayerResource> {
@@ -128,7 +131,11 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
         queryUrl.searchParams.set("inSR", "4326");
         queryUrl.searchParams.set("spatialRel", "esriSpatialRelIntersects");
       }
-      const dataSource = await GeoJsonDataSource.load(queryUrl.toString(), geoJsonStyle(layer, Color));
+      const featureCollection = await fetchAllArcGisFeatures(queryUrl, {
+        signal: context.signal,
+        onProgress: context.onProgress,
+      });
+      const dataSource = await GeoJsonDataSource.load(featureCollection, geoJsonStyle(layer, Color));
       decorateGeoJson(dataSource, layer, ConstantProperty);
       return dataSource;
     }
@@ -169,7 +176,7 @@ function geoJsonStyle(layer: LayerDefinition, Color: typeof import("cesium").Col
   const fillAlpha = Number(layer.options?.fillAlpha ?? 0.22) * opacity;
   const fill = Color.fromCssColorString(stringOption(layer, "fillColor") ?? "#68a677").withAlpha(fillAlpha);
   return {
-    clampToGround: true,
+    clampToGround: false,
     stroke,
     fill,
     strokeWidth: Number(layer.options?.strokeWidth ?? 2),
@@ -182,6 +189,11 @@ function decorateGeoJson(
   ConstantProperty: typeof import("cesium").ConstantProperty,
 ) {
   for (const entity of dataSource.entities.values) {
+    if (entity.polygon) {
+      entity.polygon.height = new ConstantProperty(0);
+      entity.polygon.outline = new ConstantProperty(true);
+    }
+    if (entity.polyline) entity.polyline.clampToGround = new ConstantProperty(true);
     const values = entity.properties?.getValue() as Record<string, unknown> | undefined;
     if (values && layer.parcelFields && layer.county) {
       const parcel = normalizeParcel(layer.county, layer.parcelFields, values);

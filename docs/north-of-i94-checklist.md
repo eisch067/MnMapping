@@ -4,14 +4,14 @@ This checklist covers the 43 counties assigned to the north-of-I-94 v1.0 region.
 
 ## Region-wide work
 
-- [ ] Add ArcGIS pagination or a visible truncation warning for every parcel and public-land query that returns exceededTransferLimit.
-- [ ] Add loading, retry, failure, and stale-request protection for imagery and feature layers.
-- [ ] Run an automated registry audit for every county in this file: unique IDs, FIPS, bounds, zone, imagery order, parcel status, and county-land filter.
-- [ ] Run a repeatable remote-source smoke test and record the verification date without making routine tests depend on network access.
+- [x] Add ArcGIS pagination or a visible truncation warning for every parcel and public-land query that returns exceededTransferLimit.
+- [x] Add loading, retry, failure, and stale-request protection for imagery and feature layers.
+- [x] Run an automated registry audit for every county in this file: unique IDs, FIPS, bounds, zone, imagery order, parcel status, and county-land filter.
+- [x] Run a repeatable remote-source smoke test and record the verification date without making routine tests depend on network access.
 - [ ] Verify cross-county panning loads and removes the correct county catalogs without restarting the map.
 - [ ] Verify county imagery overrides statewide imagery and the basemap while contours, public land, and parcels remain visible above it.
 - [ ] Validate the 2-foot contour property-scale lock, disabled overlay, rendering performance, and automatic hiding after zooming out.
-- [ ] Re-audit the 7 parcel-pending counties as a focused source batch.
+- [x] Re-audit the 7 parcel-pending counties as a focused source batch (3 integrated; 4 remain pending with evidence).
 - [ ] Re-audit the 11 counties without MnGeo county-fee/tax-forfeit records as a focused public-land batch.
 - [ ] Re-audit the 8 counties currently limited to statewide imagery as a focused imagery batch.
 - [ ] Record evidence for every source decision: official URL, layer ID, fields, record count, acquisition/freshness date, access meaning, and verification date.
@@ -47,11 +47,11 @@ Current: FIPS 27005; Initial; county imagery configured; MnGeo parcels; MnGeo co
 
 ### Beltrami County
 
-Current: FIPS 27007; Initial; county imagery configured; parcels pending; county-land source gap.
+Current: FIPS 27007; Initial; county imagery configured; direct parcels; county parks configured.
 
 - [ ] Visually verify every configured county imagery vintage, bounds, labels, newest-first order, and county-over-state rendering.
-- [ ] Recheck MnGeo and official county GIS for a stable anonymous parcel endpoint; integrate it or record the evidence for keeping parcels pending.
-- [ ] Search official county GIS for county-owned recreation land, tax-forfeited land, county forest, parks, or open-space polygons; integrate a clear source or record that none is suitable.
+- [x] Recheck MnGeo and official county GIS for a stable anonymous parcel endpoint; integrate it or record the evidence for keeping parcels pending.
+- [x] Search official county GIS for county-owned recreation land, tax-forfeited land, county forest, parks, or open-space polygons; integrate a clear source or record that none is suitable.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.
 
 ### Benton County
@@ -227,10 +227,10 @@ Current: FIPS 27077; N5; county imagery configured; MnGeo parcels; MnGeo county-
 
 ### Mahnomen County
 
-Current: FIPS 27087; N4; county imagery configured; parcels pending; county-land source gap.
+Current: FIPS 27087; N4; county imagery configured; direct parcels; county-land source gap.
 
 - [ ] Visually verify every configured county imagery vintage, bounds, labels, newest-first order, and county-over-state rendering.
-- [ ] Recheck MnGeo and official county GIS for a stable anonymous parcel endpoint; integrate it or record the evidence for keeping parcels pending.
+- [x] Recheck MnGeo and official county GIS for a stable anonymous parcel endpoint; integrate it or record the evidence for keeping parcels pending.
 - [ ] Search official county GIS for county-owned recreation land, tax-forfeited land, county forest, parks, or open-space polygons; integrate a clear source or record that none is suitable.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.
 
@@ -371,10 +371,10 @@ Current: FIPS 27153; Initial; county imagery configured; direct parcels; county-
 
 ### Wadena County
 
-Current: FIPS 27159; N5; county imagery configured; parcels pending; county-land source gap.
+Current: FIPS 27159; N5; county imagery configured; direct parcels; county-land source gap.
 
 - [ ] Visually verify every configured county imagery vintage, bounds, labels, newest-first order, and county-over-state rendering.
-- [ ] Recheck MnGeo and official county GIS for a stable anonymous parcel endpoint; integrate it or record the evidence for keeping parcels pending.
+- [x] Recheck MnGeo and official county GIS for a stable anonymous parcel endpoint; integrate it or record the evidence for keeping parcels pending.
 - [ ] Search official county GIS for county-owned recreation land, tax-forfeited land, county forest, parks, or open-space polygons; integrate a clear source or record that none is suitable.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.
 
@@ -404,4 +404,3 @@ Current: FIPS 27171; N3; county imagery configured; MnGeo parcels; MnGeo county-
 - [ ] Verify the bounded MnGeo Open Parcels query, acquisition metadata, geometry, and normalized popup fields.
 - [ ] Verify the county-filtered County Fee/Tax Forfeit geometry, popup fields, and access warning from MnGeo Government Ownership.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.
-

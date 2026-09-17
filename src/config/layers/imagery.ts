@@ -1,6 +1,7 @@
 import type { LayerDefinition } from "./types";
 
 const MNGEO_IMAGERY_WMS = "/api/gis-proxy/mngeo-imagery/wmsll?";
+const MNGEO_IMAGERY_SOURCE = "https://imageserver.gisdata.mn.gov/cgi-bin/wmsll?";
 const MINNESOTA_IMAGERY_BOUNDS = {
   west: -97.38,
   south: 43.37,
@@ -15,6 +16,7 @@ export const imageryLayers: LayerDefinition[] = [
     category: "imagery",
     sourceType: "wms",
     url: "/api/gis-proxy/mngeo-imagery/mncomp?",
+    sourceUrl: "https://imageserver.gisdata.mn.gov/cgi-bin/mncomp?",
     defaultVisible: true,
     defaultOpacity: 1,
     minimumLevel: 5,
@@ -41,6 +43,7 @@ export const imageryLayers: LayerDefinition[] = [
     category: "imagery",
     sourceType: "wms",
     url: MNGEO_IMAGERY_WMS,
+    sourceUrl: MNGEO_IMAGERY_SOURCE,
     defaultVisible: false,
     defaultOpacity: 1,
     minimumLevel: 5,
@@ -59,6 +62,7 @@ export const imageryLayers: LayerDefinition[] = [
     category: "imagery",
     sourceType: "wms",
     url: MNGEO_IMAGERY_WMS,
+    sourceUrl: MNGEO_IMAGERY_SOURCE,
     defaultVisible: false,
     defaultOpacity: 1,
     minimumLevel: 5,

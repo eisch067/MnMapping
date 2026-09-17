@@ -38,11 +38,11 @@ Current: FIPS 27013; S5; county imagery configured; parcels pending; county-land
 
 ### Brown County
 
-Current: FIPS 27015; S2; county imagery configured; parcels pending; county-land source gap.
+Current: FIPS 27015; S2; MnGeo imagery configured; direct Brown County parcels; official local-parks supplement. Brown County's portal catalogs public 2026 and 2023 EagleView mosaics, but its contract limits the Connect Image Service to internal organizational use and no third-party reuse license is published, so both are linked externally rather than integrated.
 
 - [ ] Visually verify every configured county imagery vintage, bounds, labels, newest-first order, and county-over-state rendering.
-- [ ] Recheck MnGeo and official county GIS for a stable anonymous parcel endpoint; integrate it or record the evidence for keeping parcels pending.
-- [ ] Search official county GIS for county-owned recreation land, tax-forfeited land, county forest, parks, or open-space polygons; integrate a clear source or record that none is suitable.
+- [x] Rechecked the official county GIS and integrated the anonymous `Brown_County_Production_Public_Parcels` FeatureServer: 18,481 polygons, stable bounded queries, parcel IDs, and no published owner information.
+- [x] Integrated 52 official city, county, and state park polygons with park name, type, city, and address; two private-city features are excluded and access remains labeled `access varies`.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.
 
 ### Carver County
@@ -413,4 +413,3 @@ Current: FIPS 27173; S2; county imagery configured; MnGeo parcels; MnGeo county-
 - [ ] Verify the bounded MnGeo Open Parcels query, acquisition metadata, geometry, and normalized popup fields.
 - [ ] Verify the county-filtered County Fee/Tax Forfeit geometry, popup fields, and access warning from MnGeo Government Ownership.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.
-

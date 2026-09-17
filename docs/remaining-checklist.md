@@ -9,9 +9,10 @@ Each regional checklist starts with work that spans many counties, then lists im
 
 ## Application-wide release work
 
-- [ ] Add shared ArcGIS pagination or truncation handling for parcel and public-land services.
+- [x] Add a statewide clickable county start map with newest-displayable imagery selection and clearly explained links to known restricted imagery.
+- [x] Add shared ArcGIS pagination or truncation handling for parcel and public-land services.
 - [ ] Add visible loading, retry, and failure states for all remote map layers.
-- [ ] Prevent stale viewport requests from replacing newer feature results.
+- [x] Prevent stale viewport requests from replacing newer feature results.
 - [ ] Add permanent tests for county recognition, registry integrity, layer ordering, request construction, and preference restoration.
 - [ ] Verify GPX, KML, and GeoJSON round trips and add malformed-file messages.
 - [ ] Complete keyboard, screen-reader, color-contrast, touch, and narrow-screen reviews.

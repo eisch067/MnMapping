@@ -2,6 +2,7 @@ import type { CountyDefinition, LayerBounds, LayerDefinition } from "../types";
 import { createMnGeoParcelLayer } from "./shared";
 
 const imageryUrl = "/api/gis-proxy/mngeo-imagery/wmsll?";
+const imagerySourceUrl = "https://imageserver.gisdata.mn.gov/cgi-bin/wmsll?";
 const verifiedAt = "2026-09-14";
 
 type ImageryPreset = {
@@ -60,6 +61,7 @@ type NorthCountyInput = {
   imagery?: readonly ImageryKey[];
   parcelCount?: number;
   parcelAcquired?: string;
+  directParcel?: LayerDefinition;
 };
 
 const northCountyInputs: readonly NorthCountyInput[] = [
@@ -82,16 +84,16 @@ const northCountyInputs: readonly NorthCountyInput[] = [
   { id: "ramsey", name: "Ramsey", fips: "123", batch: "N3", bounds: bounds(-93.2279, 44.8873, -92.9841, 45.1245), imagery: ["met25", "met25cir", "rams20", "rams20cir"], parcelCount: 172_178, parcelAcquired: "2026-08-04" },
   { id: "washington", name: "Washington", fips: "163", batch: "N3", bounds: bounds(-93.0226, 44.7457, -92.7409, 45.2969), imagery: ["met25", "met25cir", "wash13", "fall11"], parcelCount: 119_096, parcelAcquired: "2026-08-04" },
   { id: "wright", name: "Wright", fips: "171", batch: "N3", bounds: bounds(-94.2615, 44.9777, -93.5147, 45.4238), imagery: ["smet10", "smet10cir"], parcelCount: 75_691, parcelAcquired: "2026-07-01" },
-  { id: "sherburne", name: "Sherburne", fips: "141", batch: "N3", bounds: bounds(-94.1504, 45.2461, -93.5098, 45.5602), imagery: ["smet10", "smet10cir", "fall11", "fallcir11"], parcelCount: 44_573, parcelAcquired: "2026-04-08" },
-  { id: "isanti", name: "Isanti", fips: "059", batch: "N3", bounds: bounds(-93.5136, 45.4117, -93.0196, 45.7344), imagery: ["smet10", "smet10cir", "fall11", "fallcir11"], parcelCount: 23_889, parcelAcquired: "2026-07-01" },
-  { id: "chisago", name: "Chisago", fips: "025", batch: "N3", bounds: bounds(-93.1423, 45.2962, -92.6465, 45.7311), imagery: ["smet10", "smet10cir", "fall11", "fallcir11"], parcelCount: 29_949, parcelAcquired: "2026-08-06" },
+  { id: "sherburne", name: "Sherburne", fips: "141", batch: "N3", bounds: bounds(-94.1504, 45.2461, -93.5098, 45.5602), imagery: ["fall11", "fallcir11", "smet10", "smet10cir"], parcelCount: 44_573, parcelAcquired: "2026-04-08" },
+  { id: "isanti", name: "Isanti", fips: "059", batch: "N3", bounds: bounds(-93.5136, 45.4117, -93.0196, 45.7344), imagery: ["fall11", "fallcir11", "smet10", "smet10cir"], parcelCount: 23_889, parcelAcquired: "2026-07-01" },
+  { id: "chisago", name: "Chisago", fips: "025", batch: "N3", bounds: bounds(-93.1423, 45.2962, -92.6465, 45.7311), imagery: ["fall11", "fallcir11", "smet10", "smet10cir"], parcelCount: 29_949, parcelAcquired: "2026-08-06" },
   { id: "stearns", name: "Stearns", fips: "145", batch: "N3", bounds: bounds(-95.1398, 45.2824, -94.0465, 45.7754), parcelCount: 73_181, parcelAcquired: "2026-07-15" },
 
   { id: "st-louis", name: "St. Louis", fips: "137", batch: "N4", bounds: bounds(-93.0980, 46.6492, -91.7879, 48.6315), imagery: ["neclr2009", "neir2009", "ncclr09", "ncir09", "bwca09"], parcelCount: 186_455, parcelAcquired: "2026-02-05" },
   { id: "lake", name: "Lake", fips: "075", batch: "N4", bounds: bounds(-91.8002, 46.9397, -91.0208, 48.2060), imagery: ["lake24", "lake19", "neclr2009", "neir2009"], parcelCount: 47_116, parcelAcquired: "2026-04-15" },
   { id: "cass", name: "Cass", fips: "021", batch: "N4", bounds: bounds(-94.7871, 46.2766, -93.7727, 47.4807), imagery: ["fall12", "fallcir12"], parcelCount: 51_689, parcelAcquired: "2026-07-23" },
   { id: "clearwater", name: "Clearwater", fips: "029", batch: "N4", bounds: bounds(-95.5828, 47.1512, -95.1691, 48.0209), imagery: ["fall12", "fallcir12"], parcelCount: 9_778, parcelAcquired: "2026-04-15" },
-  { id: "mahnomen", name: "Mahnomen", fips: "087", batch: "N4", bounds: bounds(-96.0676, 47.1502, -95.5503, 47.5001), imagery: ["fall12", "fallcir12"] },
+  { id: "mahnomen", name: "Mahnomen", fips: "087", batch: "N4", bounds: bounds(-96.0676, 47.1502, -95.5503, 47.5001), imagery: ["fall12", "fallcir12"], directParcel: createMahnomenParcelLayer() },
   { id: "red-lake", name: "Red Lake", fips: "125", batch: "N4", bounds: bounds(-96.4828, 47.7597, -95.7090, 47.9649), parcelCount: 4_200, parcelAcquired: "2025-10-22" },
 
   { id: "kanabec", name: "Kanabec", fips: "065", batch: "N5", bounds: bounds(-93.5190, 45.7305, -93.0540, 46.1594), imagery: ["fall11", "fallcir11"] },
@@ -103,17 +105,19 @@ const northCountyInputs: readonly NorthCountyInput[] = [
   { id: "pennington", name: "Pennington", fips: "113", batch: "N5", bounds: bounds(-96.5010, 47.9338, -95.5824, 48.1751), parcelCount: 10_470, parcelAcquired: "2024-11-12" },
   { id: "pine", name: "Pine", fips: "115", batch: "N5", bounds: bounds(-93.1428, 45.7301, -92.2928, 46.4193), imagery: ["fall11", "fallcir11"] },
   { id: "roseau", name: "Roseau", fips: "135", batch: "N5", bounds: bounds(-96.4055, 48.5386, -95.0899, 49.0001), imagery: ["bord15"] },
-  { id: "wadena", name: "Wadena", fips: "159", batch: "N5", bounds: bounds(-95.1641, 46.3684, -94.7280, 46.8055), imagery: ["fall12", "fallcir12"] },
+  { id: "wadena", name: "Wadena", fips: "159", batch: "N5", bounds: bounds(-95.1641, 46.3684, -94.7280, 46.8055), imagery: ["fall12", "fallcir12"], directParcel: createWadenaParcelLayer() },
 ];
 
 export const northExpansionCounties: readonly CountyDefinition[] = northCountyInputs.map((input) => {
-  const hasParcels = input.parcelCount !== undefined;
+  const hasParcels = input.parcelCount !== undefined || input.directParcel !== undefined;
   const layers = [
     ...(input.imagery ?? []).map((key) => createImageryLayer(input.id, input.name, imageryPresets[key])),
-    ...(hasParcels ? [createMnGeoParcelLayer(input.id, input.name, input.fips, input.bounds, input.parcelCount, input.parcelAcquired)] : []),
+    ...(input.directParcel ? [input.directParcel] : input.parcelCount !== undefined ? [createMnGeoParcelLayer(input.id, input.name, input.fips, input.bounds, input.parcelCount, input.parcelAcquired)] : []),
   ];
   const notes = hasParcels
-    ? [`Batch ${input.batch}. MnGeo Open Parcels contained ${input.parcelCount!.toLocaleString("en-US")} records at verification.`]
+    ? [input.directParcel
+      ? `Batch ${input.batch}. A stable anonymous county parcel service was verified ${verifiedAt}.`
+      : `Batch ${input.batch}. MnGeo Open Parcels contained ${input.parcelCount!.toLocaleString("en-US")} records at verification.`]
     : [`Batch ${input.batch}. Parcel support deferred: MnGeo metadata lists the county, but the polygon layer returned no county records; no other repeatable query service was verified.`];
   return {
     id: input.id,
@@ -124,7 +128,7 @@ export const northExpansionCounties: readonly CountyDefinition[] = northCountyIn
     layers,
     parcels: {
       status: hasParcels ? "available" : "pending",
-      sourceType: hasParcels ? "mngeo-open" : "none",
+      sourceType: input.directParcel ? "arcgis-feature" : hasParcels ? "mngeo-open" : "none",
       verifiedAt,
     },
     notes,
@@ -138,6 +142,7 @@ function createImageryLayer(countyId: string, countyName: string, imagery: Image
     category: "imagery",
     sourceType: "wms",
     url: imageryUrl,
+    sourceUrl: imagerySourceUrl,
     defaultVisible: false,
     defaultOpacity: 1,
     minimumLevel: 5,
@@ -165,4 +170,46 @@ function preset(
 
 function bounds(west: number, south: number, east: number, north: number): LayerBounds {
   return { west, south, east, north };
+}
+
+function createMahnomenParcelLayer(): LayerDefinition {
+  return {
+    id: "mahnomen-parcels",
+    name: "Mahnomen tax parcels",
+    category: "parcels",
+    sourceType: "arcgis-featureserver",
+    url: "https://services8.arcgis.com/eORKbx5CWReJmkoa/ArcGIS/rest/services/TaxParcels/FeatureServer",
+    sourceUrl: "https://services8.arcgis.com/eORKbx5CWReJmkoa/ArcGIS/rest/services/TaxParcels/FeatureServer/0",
+    defaultVisible: false,
+    defaultOpacity: 0.8,
+    attribution: "Mahnomen County, Minnesota",
+    agency: "Mahnomen County GIS",
+    county: "Mahnomen",
+    bounds: bounds(-96.0676, 47.1502, -95.5503, 47.5001),
+    description: `Official county tax-parcel polygons with owner, address, acreage, legal-description, and tax-year attributes. Anonymous GeoJSON queries, 6,222-record count, service metadata, fields, and data freshness were verified ${verifiedAt}; data last edited 2026-07-10.`,
+    nameField: "Parcel_Num",
+    parcelFields: { parcelId: "Parcel_Num", owner: "OWNER_NAME", siteAddress: "PROPERTY_ADDRESS", mailingAddress: "OWNER_ADDRESS_1", acres: "DEEDED_ACRES", legalDescription: "LEGAL", taxYear: "TAX_YEAR" },
+    options: { layerId: 0, outFields: "Parcel_Num,OWNER_NAME,PROPERTY_ADDRESS,OWNER_ADDRESS_1,DEEDED_ACRES,LEGAL,TAX_YEAR", fillColor: "#ffffff", strokeColor: "#f2d48a", fillAlpha: 0.01, strokeWidth: 1, maxCameraHeight: 35_000 },
+  };
+}
+
+function createWadenaParcelLayer(): LayerDefinition {
+  return {
+    id: "wadena-parcels",
+    name: "Wadena tax parcels",
+    category: "parcels",
+    sourceType: "arcgis-featureserver",
+    url: "/api/gis-proxy/wadena/LinkPublic/MapServer",
+    sourceUrl: "https://gis.co.wadena.mn.us/arcgis/rest/services/LinkPublic/MapServer/0",
+    defaultVisible: false,
+    defaultOpacity: 0.8,
+    attribution: "Wadena County, Minnesota",
+    agency: "Wadena County GIS",
+    county: "Wadena",
+    bounds: bounds(-95.1641, 46.3684, -94.7280, 46.8055),
+    description: `Official public parcel polygons with parcel number, owner/taxpayer, address, acreage, and legal-description attributes. Anonymous GeoJSON queries, 11,821-record count, pagination support, and fields were verified ${verifiedAt}.`,
+    nameField: "PARCEL_NUM",
+    parcelFields: { parcelId: "PARCEL_NUM", owner: "OWNER_NAME", secondaryOwner: "TAXPAYER_NAME", siteAddress: "PHYSICAL_ADDRESS", mailingAddress: "OWNER_ADDRESS1", acres: "DEEDED_ACRES", legalDescription: "LEGAL_DESCRIPTION" },
+    options: { layerId: 0, outFields: "PARCEL_NUM,OWNER_NAME,TAXPAYER_NAME,PHYSICAL_ADDRESS,OWNER_ADDRESS1,DEEDED_ACRES,LEGAL_DESCRIPTION", fillColor: "#ffffff", strokeColor: "#f2d48a", fillAlpha: 0.01, strokeWidth: 1, maxCameraHeight: 35_000 },
+  };
 }

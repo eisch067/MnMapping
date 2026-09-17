@@ -69,7 +69,6 @@ export function SelectionMap({ active, selectedPoint, onPointSelect }: Selection
         const cartographic = viewer.scene.globe.ellipsoid.cartesianToCartographic(cartesian);
         selectRef.current(CesiumMath.toDegrees(cartographic.latitude), CesiumMath.toDegrees(cartographic.longitude));
       }, ScreenSpaceEventType.LEFT_CLICK);
-
     }).catch((error: unknown) => console.error("Unable to initialize the selection map", error));
 
     return () => {

@@ -7,9 +7,13 @@ const providerRoots = {
   "mngeo-dem": "https://enterprise.gisdata.mn.gov/agsimg/rest/services/",
   "mngeo-imagery": "https://imageserver.gisdata.mn.gov/cgi-bin/",
   "mngeo-features": "https://enterprise.gisdata.mn.gov/aghost/rest/services/",
+  "mngeo-boundaries": "https://feat.gisdata.mn.gov/arcgis/rest/services/",
   "douglas-open": "https://services2.arcgis.com/8iQOd6RvhPL17pJd/arcgis/rest/services/",
   "meeker-open": "https://services2.arcgis.com/pHb2Lre5eSy5plfE/arcgis/rest/services/",
   "goodhue-public": "https://publicmaps.co.goodhue.mn.us/arcgis/rest/services/",
+  wadena: "https://gis.co.wadena.mn.us/arcgis/rest/services/",
+  beltrami: "https://arcgis.co.beltrami.mn.us/arcgis/rest/services/",
+  brown: "https://gis.browncountymn.gov/server/rest/services/",
 } as const;
 
 type Provider = keyof typeof providerRoots;

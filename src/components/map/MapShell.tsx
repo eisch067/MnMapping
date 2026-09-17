@@ -8,11 +8,13 @@ import { LayerPanel } from "@/components/ui/LayerPanel";
 import { LayersIcon, LocateIcon, MapIcon, PinIcon, SearchIcon, TerrainIcon } from "@/components/ui/MapIcons";
 import { initialCountyForName, supportedCountiesInViewport, type MapLocation, type ViewportBounds } from "@/lib/location";
 import { restoreLayerOrder, restoreLayerState, restoreVerticalExaggeration, saveLayerPreferences } from "@/lib/map/layerState";
+import type { LayerRuntimeStateById } from "@/lib/map/layerRuntime";
 import { CesiumMap, type MapViewControls } from "./CesiumMap";
 import type { InteractionMode } from "./CesiumMap";
 import { LocationGate } from "./LocationGate";
 import { clearMyData, deleteMyItem, loadMyData, roughAreaSquareMeters, roughLengthMeters, saveMyItem, type MyMapItem } from "@/lib/myData";
 import { exportText, parseMapFile } from "@/lib/mapFormats";
+import { latestDisplayableImagery } from "@/lib/countyImagery";
 
 export function MapShell() {
   const [location, setLocation] = useState<MapLocation | null>(null);
@@ -31,9 +33,18 @@ export function MapShell() {
   const [myDataVisible, setMyDataVisible] = useState(true);
   const [showMyData, setShowMyData] = useState(false);
   const [layerPanelOpen, setLayerPanelOpen] = useState(false);
+  const [layerRuntimeState, setLayerRuntimeState] = useState<LayerRuntimeStateById>({});
+  const [layerRetryVersion, setLayerRetryVersion] = useState<Record<string, number>>({});
   const registerReset = useCallback((reset: () => void) => setResetCamera(() => reset), []);
   const registerViewControls = useCallback((controls: MapViewControls) => setViewControls(controls), []);
   const registerViewport = useCallback((bounds: ViewportBounds) => setViewportBounds(bounds), []);
+  const updateLayerStatus = useCallback((id: string, status: LayerRuntimeStateById[string]) => {
+    setLayerRuntimeState((current) => {
+      const previous = current[id];
+      if (previous?.status === status.status && previous.message === status.message && previous.featureCount === status.featureCount) return current;
+      return { ...current, [id]: status };
+    });
+  }, []);
   const terrainLayer = layerRegistry.find(isTerrainLayer);
   const selectedCounty = initialCountyForName(location?.county);
   const viewportCounties = useMemo(
@@ -111,6 +122,14 @@ export function MapShell() {
   };
 
   const chooseLocation = (nextLocation: MapLocation) => {
+    const latestImagery = nextLocation.county ? latestDisplayableImagery(nextLocation.county.replace(/\s+County$/i, "")) : undefined;
+    if (latestImagery) {
+      const imageryIds = new Set(layerRegistry.filter((layer) => layer.category === "imagery").map((layer) => layer.id));
+      setLayerState((current) => Object.fromEntries(Object.entries(current).map(([id, state]) => [
+        id,
+        imageryIds.has(id) ? { ...state, visible: id === latestImagery.id } : state,
+      ])));
+    }
     setViewportBounds(null);
     setLocation(nextLocation);
   };
@@ -158,6 +177,8 @@ export function MapShell() {
         myDataVisible={myDataVisible}
         onCoordinateClick={handleCoordinateClick}
         onCursorChange={(longitude, latitude) => setCursor([longitude, latitude])}
+        retryVersion={layerRetryVersion}
+        onLayerStatusChange={updateLayerStatus}
       />
       <header className="top-bar">
         <div className="brand"><PinIcon /><h1>MnMapping</h1><span>Personal Minnesota map viewer</span></div>
@@ -191,6 +212,8 @@ export function MapShell() {
         onMoveLayer={moveLayer}
         pendingParcelCounties={pendingParcelCounties}
         cameraHeight={cameraHeight}
+        runtimeState={layerRuntimeState}
+        onRetryLayer={(id) => setLayerRetryVersion((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }))}
       />
       <nav className="map-tools" aria-label="Map inspection and personal data tools">
         {(["inspect", "pin", "line", "polygon"] as const).map((tool) => <button key={tool} type="button" aria-pressed={mode === tool} onClick={() => { setMode(tool); setDraft([]); }}>{tool}</button>)}

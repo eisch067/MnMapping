@@ -1,6 +1,7 @@
 import type { LayerDefinition } from "../types";
 
 const imageryUrl = "/api/gis-proxy/mngeo-imagery/wmsll?";
+const imagerySourceUrl = "https://imageserver.gisdata.mn.gov/cgi-bin/wmsll?";
 const countyBounds = { west: -93.82, south: 46.15, east: -93.04, north: 47.03 } as const;
 
 const imageryLayers: LayerDefinition[] = [
@@ -12,6 +13,7 @@ const imageryLayers: LayerDefinition[] = [
   category: "imagery",
   sourceType: "wms",
   url: imageryUrl,
+  sourceUrl: imagerySourceUrl,
   defaultVisible: false,
   defaultOpacity: 1,
   minimumLevel: 5,

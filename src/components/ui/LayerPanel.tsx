@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { isLayerAvailableAtCameraHeight, isTerrainLayer, type LayerCategory, type LayerDefinition } from "@/config/layers/types";
 import type { LayerStateById } from "@/lib/map/layerState";
+import type { LayerRuntimeStateById } from "@/lib/map/layerRuntime";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, LayersIcon } from "./MapIcons";
 
 interface LayerPanelProps {
@@ -17,6 +18,8 @@ interface LayerPanelProps {
   cameraHeight: number;
   open: boolean;
   onClose: () => void;
+  runtimeState: LayerRuntimeStateById;
+  onRetryLayer: (id: string) => void;
 }
 
 const categoryLabels: Record<LayerCategory, string> = {
@@ -47,6 +50,8 @@ export function LayerPanel({
   cameraHeight,
   open,
   onClose,
+  runtimeState,
+  onRetryLayer,
 }: LayerPanelProps) {
   const [collapsed, setCollapsed] = useState<Set<string>>(
     () => new Set([
@@ -128,6 +133,7 @@ export function LayerPanel({
       opacity: layer.defaultOpacity,
     };
     const unavailable = Boolean(layer.unavailableMessage) && !isLayerAvailableAtCameraHeight(layer, cameraHeight);
+    const runtime = runtimeState[layer.id];
     return (
       <div className={`layer-row ${unavailable ? "is-scale-locked" : ""}`} key={layer.id}>
         <div className="layer-row-heading">
@@ -180,6 +186,15 @@ export function LayerPanel({
           <p>{layer.agency ?? layer.attribution}</p>
           <a href={layer.sourceUrl ?? layer.url} target="_blank" rel="noreferrer">Service metadata</a>
         </details>
+        {layerState.visible && runtime?.status === "loading" && (
+          <p className="layer-load-status is-loading" role="status">{runtime.message ?? "Loading…"}</p>
+        )}
+        {layerState.visible && runtime?.status === "error" && (
+          <div className="layer-load-status is-error" role="alert">
+            <span>{runtime.message ?? "This layer could not be loaded."}</span>
+            <button type="button" onClick={() => onRetryLayer(layer.id)}>Retry</button>
+          </div>
+        )}
         {unavailable && <div className="layer-scale-overlay">{layer.unavailableMessage}</div>}
       </div>
     );

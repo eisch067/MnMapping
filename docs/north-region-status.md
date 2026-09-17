@@ -11,28 +11,25 @@ All 43 counties assigned to the v1.0 North zone are recognized through the share
 | N1 | Aitkin, Benton, Carlton, Crow Wing, Itasca, Mille Lacs, Morrison, Otter Tail | Complete. Verified named imagery where available; parcels use a direct Aitkin service or MnGeo Open Parcels. |
 | N2 | Clay, Polk, Wilkin, Grant, Cook | Complete. Verified regional imagery coverage and MnGeo Open Parcels. |
 | N3 | Anoka, Hennepin, Ramsey, Washington, Wright, Sherburne, Isanti, Chisago, Stearns | Complete. Verified Metro and east-central imagery; parcels use one normalized MnGeo adapter. |
-| N4 | St. Louis, Lake, Cass, Clearwater, Mahnomen, Red Lake | Complete with Mahnomen parcels pending. Verified named regional imagery and coverage. |
+| N4 | St. Louis, Lake, Cass, Clearwater, Mahnomen, Red Lake | Complete. Verified named regional imagery and coverage; Mahnomen now uses its official anonymous parcel service. |
 | N5 | Kanabec, Kittson, Koochiching, Lake of the Woods, Marshall, Norman, Pennington, Pine, Roseau, Wadena | Complete with the parcel exceptions below. Every county remains usable with statewide layers. |
 
 ## Deferred parcel integrations
 
 These counties are recognized and retain statewide imagery, terrain, hillshade, and public-land coverage, but expose no parcel toggle:
 
-- Beltrami
 - Kanabec
 - Kittson
-- Mahnomen
 - Pine
 - Roseau
-- Wadena
 
-MnGeo's metadata layer lists each county, but its Open Parcels polygon layer returned no records for its county FIPS code at verification time. No other repeatable public query service was verified. They remain explicitly `pending`; no viewer scraping, expiring download URL, or access-control workaround was added.
+MnGeo's metadata layer lists each county, but its Open Parcels polygon layer returned no records for its county FIPS code at verification time. No other repeatable public query service was verified for these four counties. They remain explicitly `pending`; no viewer scraping, expiring download URL, or access-control workaround was added. Beltrami, Mahnomen, and Wadena were removed from this list on 2026-09-14 after stable official services were verified.
 
 ## Parcel implementation
 
 Thirty-one expansion counties use layer 1 of the statewide MnGeo Open Parcels FeatureServer. Each adapter filters by the five-digit county code and every request is also bounded to the visible map extent. The shared mapping exposes county parcel ID, owner names, first mailing-address line, deeded acres, abbreviated legal description, estimated market value, and tax year when supplied by the county.
 
-Aitkin, Douglas, Hubbard, and Todd retain their verified direct county adapters. Becker now uses the repeatable statewide adapter. Parcel layers are disabled by default and load only below 35 km camera height.
+Aitkin, Beltrami, Douglas, Hubbard, Mahnomen, Todd, and Wadena use verified direct county adapters. Becker uses the repeatable statewide adapter. Parcel layers are disabled by default and load only below 35 km camera height.
 
 ## Imagery implementation
 
