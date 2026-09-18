@@ -33,7 +33,7 @@ Aitkin, Beltrami, Douglas, Hubbard, Mahnomen, Todd, and Wadena use verified dire
 
 ## Imagery implementation
 
-The September 18 follow-up audit added Wadena County's public 2025 EagleView MapServer and Wilkin County's public 2026 EagleView MapServer. Wadena uses dynamic export because its cache is in a county coordinate system; Wilkin uses its native Web Mercator tiles. Todd's viewer also confirms a newer 2023 Pictometry layer, but it remains an external licensed WMTS option while the public 2020 MapServer stays integrated.
+The September 18 follow-up audit added Marshall County's public 2024 EagleView and 2020 MapServers, Wadena County's public 2025 EagleView MapServer, and Wilkin County's public 2026 EagleView MapServer. Marshall and Wilkin use native Web Mercator tiles; Wadena uses dynamic export because its cache is in a county coordinate system. Kittson's official Beacon viewer links to manually confirmed 2024 and 2019 imagery, while Norman's official viewer links to manually confirmed 2025 and 2022 EagleView imagery; neither viewer exposed a reusable public endpoint. Red Lake's public applications exposed no relevant local imagery, so it remains the sole statewide-only county.
 
 The expansion uses verified active MnGeo layers including 2025 Metro, 2024 Lake, 2021/2019 Carlton, 2020 Koochiching and Ramsey, 2018 Itasca and Hennepin, 2015 northern-border and Carlton, 2014 Polk–Beltrami, 2013 North 1-foot and Washington, 2012/2011 fall, 2010 north-metro, and 2009 Arrowhead/north-central coverage. Each definition retains the WMS-published coverage rectangle so partial regional imagery is not described or requested as countywide.
 

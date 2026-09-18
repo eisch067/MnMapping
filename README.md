@@ -108,6 +108,7 @@ Cloudflare configuration and GitHub deployment details are documented in [Cloudf
 - [Layer controls and persistence](docs/layer-controls.md)
 - [Imagery source inventory](docs/imagery-sources.md)
 - [County imagery research tracker](docs/imagery-research-tracker.md)
+- [MnDOT public map catalog](docs/mndot-map-catalog.md)
 - [Elevation and terrain](docs/elevation-sources.md)
 - [Public-land semantics and sources](docs/public-land-sources.md)
 - [Parcels and browser-local data](docs/parcels-and-local-data.md)

@@ -13,6 +13,10 @@ export type CoverageTier = (typeof coverageTiers)[number];
 export type ImageryResearchCategory = "statewide" | "county" | "other";
 
 const statewideOnlyCounties = new Set([
+  "Red Lake",
+]);
+
+const completedResearchCounties = new Set([
   "Kittson", "Marshall", "Norman", "Red Lake", "Stevens",
 ]);
 
@@ -79,7 +83,7 @@ export function createInitialResearchRecords(): CountyImageryResearchRecord[] {
         county: county.name,
         fips: county.fips,
         zone: county.zone,
-        status: researchLeads.length > 0 ? "Deep research" : "Needs review",
+        status: completedResearchCounties.has(county.name) ? "Complete" : researchLeads.length > 0 ? "Deep research" : "Needs review",
         lastVerified: "",
         nextAction: defaultNextAction(coverageTier),
         notes: county.notes?.join(" ") ?? "",
