@@ -1,6 +1,16 @@
 # Imagery source inventory
 
-Verified against live service metadata through September 17, 2026.
+Verified against live service metadata through September 18, 2026.
+
+## Public county ArcGIS REST imagery
+
+MnMapping now streams additional public ArcGIS MapServer and ImageServer layers from 31 counties, including newly verified 2026 McLeod, 2025 Wadena, and 2026 Wilkin imagery. Anoka contributes five vintages and Dakota contributes separate spring and fall 2025 acquisitions. The complete follow-up search of previously unknown counties is recorded in [`unknown-county-imagery-audit.md`](unknown-county-imagery-audit.md).
+
+Each endpoint was checked for anonymous metadata access and a real tile, dynamic map export, or image export response. Web Mercator caches use native ArcGIS tiles. Services cached in a county coordinate system, and uncached MapServers, use ArcGIS dynamic export so Cesium receives Web Mercator imagery. ImageServers use `exportImage`. Requests pass through fixed, read-only proxy roots; the browser cannot supply an arbitrary upstream host.
+
+These services remain hosted by their counties or ArcGIS Online. MnMapping does not copy the imagery, and the source link and county attribution remain attached to every layer. Public availability does not transfer ownership of commercial EagleView, Pictometry, Nearmap, or other third-party imagery.
+
+Some known sources remain external. WMTS-only sources require a separate capabilities-driven integration, Sibley's service is not anonymously tile-accessible, and Wright County's tile-only caches use a local projection that Cesium's ArcGIS provider does not support. Download-only imagery is also not treated as a streamable map layer.
 
 ## Statewide
 
@@ -73,13 +83,13 @@ Olmsted County's official 2023 ImageServer is integrated as two-inch imagery. Th
 
 Verified external options are listed for Mahnomen (2020), Mille Lacs (2026), Morrison (2020), Mower (2023), Nicollet (2020), Nobles (2024), Otter Tail (2024), Pennington (2023), Pipestone (2020), Polk (2025), Pope (2023), Redwood (2016), and Renville (Spring 2024). The linked official records establish the imagery year and, where published, resolution. They remain external because they are commercial EagleView/Pictometry products, require a paid request or signed agreement, contain an express use limitation, or publish no imagery-specific third-party reuse grant.
 
-McLeod's existing 2022 four-inch layer and Rice County's existing 2023 six-inch layer remain the best verified integrated county sources found in this pass. Official county viewers and Beacon links are retained in the research tracker as **Official viewer/research lead—date unknown**, including links for counties that also have implemented or date-confirmed imagery. This makes the interactive layer lists available for later manual review without assigning an unverified acquisition year. Marshall, Martin, Meeker, Murray, Norman, Pine, Red Lake, Rock, and Roseau still have no newer dated county acquisition confirmed from their submitted pages.
+McLeod now includes its verified public 2026 county tile service. Rice County's existing 2023 six-inch layer remains its newest verified source. Official county viewers and Beacon links remain in the research tracker for visual review. Marshall, Martin, Meeker, Murray, Norman, Pine, Red Lake, Rock, and Roseau still have no newer dated county acquisition confirmed after the ArcGIS-catalog and county-records searches.
 
 ## S–Z county research and external imagery
 
 Verified external options are listed for Scott (Spring 2026, approximately three inches), Sherburne (2024), Sibley (2023), St. Louis (2023 Pictometry), Stearns (Spring 2024), Steele (2025), Swift (2024 EagleView), Traverse (2022 Pictometry), Washington (2026), Wright (2025), and Yellow Medicine (2025 EagleView). Official services, applications, or county records establish these dates, but their imagery-specific metadata does not grant third-party embedding rights. Commercial Pictometry/EagleView acquisitions remain external unless the county publishes an applicable reuse grant.
 
-Wabasha's integrated 2025 two-inch layer remains its best verified public county source. Todd retains its integrated 2020 imagery, and the other existing regional and county layers remain unchanged. The submitted Stevens, Wadena, Waseca, Watonwan, Wilkin, and Winona sources did not establish a newer fixed acquisition date. Their official viewers—and the viewers for date-confirmed counties—are retained in the research tracker for manual review of layer names and dates. Counties with one of these unresolved viewer leads are seeded as **Deep research** and shown with a purple dot; other counties remain **Needs review** until signed off.
+Wabasha's integrated 2025 two-inch layer remains its best verified public county source. Wadena 2025 and Wilkin 2026 are now integrated from their official public MapServers. Todd's public viewer confirms 2023 Pictometry imagery and Watonwan's public web map confirms 2022 EagleView imagery; both remain external because they are commercial WMTS layers with no published third-party embedding grant. Stevens, Waseca, and Winona remain undated after both search passes. Counties with an unresolved viewer lead are seeded as **Deep research** and shown with a purple dot; other counties remain **Needs review** until signed off.
 
 ## Brown County
 

@@ -13,7 +13,7 @@ This checklist covers the 43 counties assigned to the north-of-I-94 v1.0 region.
 - [ ] Validate the 2-foot contour property-scale lock, disabled overlay, rendering performance, and automatic hiding after zooming out.
 - [x] Re-audit the 7 parcel-pending counties as a focused source batch (3 integrated; 4 remain pending with evidence).
 - [ ] Re-audit the 11 counties without MnGeo county-fee/tax-forfeit records as a focused public-land batch.
-- [ ] Re-audit the 8 counties currently limited to statewide imagery as a focused imagery batch.
+- [x] Re-audit the 8 counties limited to statewide imagery (Grant, Otter Tail, Pennington, and Stearns integrated; Kittson, Marshall, Norman, and Red Lake remain statewide-only).
 - [ ] Record evidence for every source decision: official URL, layer ID, fields, record count, acquisition/freshness date, access meaning, and verification date.
 
 ## County-by-county work
@@ -137,9 +137,9 @@ Current: FIPS 27041; Initial; county imagery configured; direct parcels; MnGeo c
 
 ### Grant County
 
-Current: FIPS 27051; N2; statewide imagery only; MnGeo parcels; MnGeo county-land records.
+Current: FIPS 27051; N2; county imagery configured; MnGeo parcels; MnGeo county-land records.
 
-- [ ] Search official county and MnGeo catalogs for a stable county imagery service; add verified coverage or document statewide-only imagery.
+- [ ] Visually verify the 2017 county ArcGIS imagery, bounds, label, and county-over-state rendering.
 - [ ] Verify the bounded MnGeo Open Parcels query, acquisition metadata, geometry, and normalized popup fields.
 - [ ] Verify the county-filtered County Fee/Tax Forfeit geometry, popup fields, and access warning from MnGeo Government Ownership.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.
@@ -272,18 +272,18 @@ Current: FIPS 27107; N5; statewide imagery only; MnGeo parcels; MnGeo county-lan
 
 ### Otter Tail County
 
-Current: FIPS 27111; N1; statewide imagery only; MnGeo parcels; MnGeo county-land records.
+Current: FIPS 27111; N1; county imagery configured; MnGeo parcels; MnGeo county-land records.
 
-- [ ] Search official county and MnGeo catalogs for a stable county imagery service; add verified coverage or document statewide-only imagery.
+- [ ] Visually verify the 2024 county ArcGIS imagery, bounds, label, and county-over-state rendering.
 - [ ] Verify the bounded MnGeo Open Parcels query, acquisition metadata, geometry, and normalized popup fields.
 - [ ] Verify the county-filtered County Fee/Tax Forfeit geometry, popup fields, and access warning from MnGeo Government Ownership.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.
 
 ### Pennington County
 
-Current: FIPS 27113; N5; statewide imagery only; MnGeo parcels; MnGeo county-land records.
+Current: FIPS 27113; N5; county imagery configured; MnGeo parcels; MnGeo county-land records.
 
-- [ ] Search official county and MnGeo catalogs for a stable county imagery service; add verified coverage or document statewide-only imagery.
+- [ ] Visually verify the 2023 county ArcGIS imagery, bounds, label, and county-over-state rendering.
 - [ ] Verify the bounded MnGeo Open Parcels query, acquisition metadata, geometry, and normalized popup fields.
 - [ ] Verify the county-filtered County Fee/Tax Forfeit geometry, popup fields, and access warning from MnGeo Government Ownership.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.
@@ -353,9 +353,9 @@ Current: FIPS 27137; N4; county imagery configured; MnGeo parcels; MnGeo county-
 
 ### Stearns County
 
-Current: FIPS 27145; N3; statewide imagery only; MnGeo parcels; county-land source gap.
+Current: FIPS 27145; N3; county imagery configured; MnGeo parcels; county-land source gap.
 
-- [ ] Search official county and MnGeo catalogs for a stable county imagery service; add verified coverage or document statewide-only imagery.
+- [ ] Visually verify the 2024 county ArcGIS imagery, bounds, label, and county-over-state rendering.
 - [ ] Verify the bounded MnGeo Open Parcels query, acquisition metadata, geometry, and normalized popup fields.
 - [ ] Search official county GIS for county-owned recreation land, tax-forfeited land, county forest, parks, or open-space polygons; integrate a clear source or record that none is suitable.
 - [ ] Run county sign-off: location search, initial camera, layer groups, imagery priority, parcel/public-land click details, 2-foot contour zoom lock, boundary crossing, and preference reload.

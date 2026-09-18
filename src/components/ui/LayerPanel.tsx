@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { isLayerAvailableAtCameraHeight, isTerrainLayer, type LayerCategory, type LayerDefinition } from "@/config/layers/types";
+import type { RestrictedImagerySource } from "@/config/restrictedImagery";
 import type { LayerStateById } from "@/lib/map/layerState";
 import type { LayerRuntimeStateById } from "@/lib/map/layerRuntime";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, LayersIcon } from "./MapIcons";
@@ -14,6 +15,7 @@ interface LayerPanelProps {
   onOpacityChange: (id: string, opacity: number) => void;
   onTerrainExaggerationChange: (exaggeration: number) => void;
   onMoveLayer: (id: string, direction: "up" | "down") => void;
+  externalImagery: readonly RestrictedImagerySource[];
   pendingParcelCounties: readonly string[];
   cameraHeight: number;
   open: boolean;
@@ -46,6 +48,7 @@ export function LayerPanel({
   onOpacityChange,
   onTerrainExaggerationChange,
   onMoveLayer,
+  externalImagery,
   pendingParcelCounties,
   cameraHeight,
   open,
@@ -303,6 +306,13 @@ export function LayerPanel({
                     ))}
                   </section>;
                 })}
+                {externalImagery.length > 0 && (
+                  <ExternalImagerySection
+                    sources={externalImagery}
+                    collapsed={collapsed.has("imagery-external")}
+                    onToggle={() => toggleSection("imagery-external")}
+                  />
+                )}
               </div>
             ) : (
               <div className="layer-list" id={`layer-section-${category}`}>
@@ -348,6 +358,49 @@ export function LayerPanel({
       </section>
     </aside>
   );
+}
+
+function ExternalImagerySection({
+  sources,
+  collapsed,
+  onToggle,
+}: {
+  sources: readonly RestrictedImagerySource[];
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  const counties = groupExternalImageryByCounty(sources);
+  return (
+    <section className="layer-scope external-imagery-scope">
+      <button className="layer-scope-heading" type="button" aria-expanded={!collapsed} aria-controls="layer-section-imagery-external" onClick={onToggle}>
+        <span>External imagery</span>
+        <span className="category-summary">{sources.length} link{sources.length === 1 ? "" : "s"} <ChevronDownIcon /></span>
+      </button>
+      {!collapsed && (
+        <div className="external-imagery-list" id="layer-section-imagery-external">
+          {Array.from(counties, ([county, countySources]) => (
+            <section className="external-imagery-county" key={county}>
+              <strong>{county} County</strong>
+              {countySources.map((source) => (
+                <article key={`${source.name}-${source.year}-${source.url}`}>
+                  <span><b>{source.name}</b><small>{[source.year, source.detail].filter(Boolean).join(" · ")}</small></span>
+                  <a href={source.url} target="_blank" rel="noreferrer" aria-label={`View ${source.name} imagery in a new tab`}>View imagery ↗</a>
+                  <p>{source.reason}</p>
+                </article>
+              ))}
+            </section>
+          ))}
+          <p className="external-imagery-note">These sources open outside MnMapping because licensing, access, or delivery restrictions prevent displaying them directly on this map.</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function groupExternalImageryByCounty(sources: readonly RestrictedImagerySource[]): Map<string, RestrictedImagerySource[]> {
+  const counties = new Map<string, RestrictedImagerySource[]>();
+  for (const source of sources) counties.set(source.county, [...(counties.get(source.county) ?? []), source]);
+  return counties;
 }
 
 function metadataLine(layer: LayerDefinition): string {

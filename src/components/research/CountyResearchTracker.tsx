@@ -8,8 +8,11 @@ import {
   mergeResearchExport,
   researchRecordsToCsv,
   researchStatuses,
+  outreachStatuses,
+  type CoverageTier,
   type CountyImageryResearchRecord,
   type ImageryResearchSource,
+  type OutreachStatus,
   type ResearchStatus,
 } from "@/lib/imageryResearch";
 import { ArrowLeftIcon, CheckIcon, SearchIcon } from "@/components/ui/MapIcons";
@@ -18,8 +21,9 @@ const storageKey = "mnmapping.imagery-research.v1";
 
 export function CountyResearchTracker() {
   const [records, setRecords] = useState(createInitialResearchRecords);
-  const [selectedId, setSelectedId] = useState(() => createInitialResearchRecords()[0]?.countyId ?? "");
+  const [selectedId, setSelectedId] = useState(() => createInitialResearchRecords().find((record) => record.coverageTier === "Statewide only")?.countyId ?? "");
   const [query, setQuery] = useState("");
+  const [scopeFilter, setScopeFilter] = useState<"All" | CoverageTier>("Statewide only");
   const [statusFilter, setStatusFilter] = useState<ResearchStatus | "All">("All");
   const [zoneFilter, setZoneFilter] = useState<"All" | "north" | "south">("All");
   const [hydrated, setHydrated] = useState(false);
@@ -46,18 +50,20 @@ export function CountyResearchTracker() {
   }, [hydrated, records]);
 
   const selected = records.find((record) => record.countyId === selectedId) ?? records[0];
-  const counts = useMemo(() => Object.fromEntries(researchStatuses.map((status) => [
-    status,
-    records.filter((record) => record.status === status).length,
-  ])) as Record<ResearchStatus, number>, [records]);
+  const recentCount = records.filter((record) => record.coverageTier === "Verified recent").length;
+  const olderCount = records.filter((record) => record.coverageTier === "Older / recency unverified").length;
+  const statewideOnlyCount = records.filter((record) => record.coverageTier === "Statewide only").length;
+  const contactedCount = records.filter((record) => record.requiresOutreach && !["Not contacted", "Drafting"].includes(record.outreachStatus)).length;
+  const respondedCount = records.filter((record) => record.outreachStatus === "Responded" || record.outreachStatus === "Closed").length;
   const visibleRecords = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return records.filter((record) => (
       (!normalized || record.county.toLowerCase().includes(normalized) || record.fips.includes(normalized))
+      && (scopeFilter === "All" || record.coverageTier === scopeFilter)
       && (statusFilter === "All" || record.status === statusFilter)
       && (zoneFilter === "All" || record.zone === zoneFilter)
     ));
-  }, [query, records, statusFilter, zoneFilter]);
+  }, [query, records, scopeFilter, statusFilter, zoneFilter]);
 
   const updateRecord = (countyId: string, patch: Partial<CountyImageryResearchRecord>) => {
     setRecords((current) => current.map((record) => record.countyId === countyId ? { ...record, ...patch } : record));
@@ -98,6 +104,17 @@ export function CountyResearchTracker() {
     }
   };
 
+  const copyRequest = async () => {
+    if (!selected) return;
+    const text = imageryRequestTemplate(selected);
+    await navigator.clipboard.writeText(text);
+    updateRecord(selected.countyId, {
+      outreachStatus: selected.outreachStatus === "Not contacted" ? "Drafting" : selected.outreachStatus,
+      status: selected.status === "Deep research" ? "In progress" : selected.status,
+    });
+    setNotice(`${selected.county} County request copied. Add your name and send it to the county GIS or Assessor contact.`);
+  };
+
   return (
     <main className="research-shell">
       <header className="research-topbar">
@@ -115,11 +132,11 @@ export function CountyResearchTracker() {
 
       <section className="research-summary" aria-label="Research progress">
         <div><strong>{records.length}</strong><span>Total counties</span></div>
-        <div><strong>{counts["In progress"]}</strong><span>In progress</span></div>
-        <div><strong>{counts["Needs review"]}</strong><span>Needs review</span></div>
-        <div className="is-deep-research"><strong>{counts["Deep research"]}</strong><span>Deep research</span></div>
-        <div className="is-complete"><strong>{counts.Complete}</strong><span>Complete</span></div>
-        <div><strong>{Math.round((counts.Complete / Math.max(records.length, 1)) * 100)}%</strong><span>Finished</span></div>
+        <div className="is-complete"><strong>{recentCount}</strong><span>Recent / usable</span></div>
+        <div className="is-priority"><strong>{statewideOnlyCount}</strong><span>Statewide only</span></div>
+        <div className="is-deep-research"><strong>{olderCount}</strong><span>Older / uncertain</span></div>
+        <div><strong>{contactedCount}</strong><span>Contacted</span></div>
+        <div><strong>{respondedCount}</strong><span>Responses</span></div>
       </section>
 
       {notice && <div className="research-notice" role="status"><span>{notice}</span><button type="button" onClick={() => setNotice("")} aria-label="Dismiss message">×</button></div>}
@@ -129,6 +146,9 @@ export function CountyResearchTracker() {
           <div className="research-filters">
             <label className="research-search"><SearchIcon /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="County or FIPS" /></label>
             <div>
+              <select value={scopeFilter} onChange={(event) => setScopeFilter(event.target.value as "All" | CoverageTier)} aria-label="Filter by research scope">
+                <option>All</option><option>Statewide only</option><option>Older / recency unverified</option><option>Verified recent</option>
+              </select>
               <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ResearchStatus | "All")} aria-label="Filter by status">
                 <option>All</option>{researchStatuses.map((status) => <option key={status}>{status}</option>)}
               </select>
@@ -140,7 +160,7 @@ export function CountyResearchTracker() {
           <div className="research-county-list" aria-label="Minnesota counties">
             {visibleRecords.map((record) => (
               <button type="button" className={record.countyId === selected?.countyId ? "is-selected" : ""} key={record.countyId} onClick={() => setSelectedId(record.countyId)}>
-                <span><strong>{record.county}</strong><small>FIPS {record.fips} · {record.zone}</small></span>
+                <span><strong>{record.county}</strong><small>FIPS {record.fips} · {record.zone} · {record.coverageTier}</small></span>
                 <i className={`research-status-dot status-${statusSlug(record.status)}`} title={record.status} />
               </button>
             ))}
@@ -151,12 +171,38 @@ export function CountyResearchTracker() {
         {selected && (
           <section key={selected.countyId} className="research-editor" aria-label={`${selected.county} County imagery research`}>
             <header className="research-editor-header">
-              <div><span className="eyebrow">{selected.zone} zone · FIPS {selected.fips}</span><h2>{selected.county} County</h2></div>
+              <div><span className="eyebrow">{selected.zone} zone · FIPS {selected.fips}</span><h2>{selected.county} County</h2><span className={`research-tier tier-${tierSlug(selected.coverageTier)}`}>{selected.coverageTier}</span></div>
               <div className="research-review-actions">
                 <label>Status<select value={selected.status} onChange={(event) => updateRecord(selected.countyId, { status: event.target.value as ResearchStatus })}>{researchStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
                 <button type="button" onClick={completeAndOpenNext}><CheckIcon />Mark complete &amp; next</button>
               </div>
             </header>
+
+            <section className={`research-outreach ${selected.requiresOutreach ? "is-required" : ""}`} aria-labelledby="county-outreach-heading">
+              <header>
+                <div>
+                  <span className="eyebrow">Next research step</span>
+                  <h3 id="county-outreach-heading">County outreach</h3>
+                  <p>{outreachGuidance(selected.coverageTier)}</p>
+                </div>
+                <button type="button" onClick={() => void copyRequest()}>Copy request template</button>
+              </header>
+              <div className="research-outreach-grid">
+                <label>Outreach status<select value={selected.outreachStatus} onChange={(event) => updateRecord(selected.countyId, { outreachStatus: event.target.value as OutreachStatus, status: event.target.value === "Not contacted" ? selected.status : "In progress" })}>{outreachStatuses.map((status) => <option key={status}>{status}</option>)}</select></label>
+                <label>Department<input value={selected.contactDepartment} onChange={(event) => updateRecord(selected.countyId, { contactDepartment: event.target.value })} placeholder="GIS / Assessor" /></label>
+                <label>Contact name<input value={selected.contactName} onChange={(event) => updateRecord(selected.countyId, { contactName: event.target.value })} placeholder="Name" /></label>
+                <label>Email<input type="email" value={selected.contactEmail} onChange={(event) => updateRecord(selected.countyId, { contactEmail: event.target.value })} placeholder="name@county.gov" /></label>
+                <label>Phone<input type="tel" value={selected.contactPhone} onChange={(event) => updateRecord(selected.countyId, { contactPhone: event.target.value })} placeholder="Phone number" /></label>
+                <label>Contact page<input type="url" value={selected.contactUrl} onChange={(event) => updateRecord(selected.countyId, { contactUrl: event.target.value })} placeholder="https://…" /></label>
+                <label>Request sent<input type="date" value={selected.requestDate} onChange={(event) => updateRecord(selected.countyId, { requestDate: event.target.value })} /></label>
+                <label>Follow up<input type="date" value={selected.followUpDate} onChange={(event) => updateRecord(selected.countyId, { followUpDate: event.target.value })} /></label>
+                <label className="research-wide-field">Response / findings<textarea value={selected.responseNotes} onChange={(event) => updateRecord(selected.countyId, { responseNotes: event.target.value })} rows={3} placeholder="Acquisition year, provider, resolution, viewer/download URL, ownership, and reuse terms…" /></label>
+              </div>
+              {(selected.contactEmail || selected.contactUrl) && <div className="research-contact-actions">
+                {selected.contactEmail && <a href={`mailto:${selected.contactEmail}?subject=${encodeURIComponent(`${selected.county} County aerial imagery information`)}&body=${encodeURIComponent(imageryRequestTemplate(selected))}`}>Draft email</a>}
+                {/^https?:\/\//.test(selected.contactUrl) && <a href={selected.contactUrl} target="_blank" rel="noreferrer">Open contact page</a>}
+              </div>}
+            </section>
 
             <label className="research-source-inbox">
               <span>{selected.county} County source inbox</span>
@@ -225,6 +271,34 @@ function dateStamp(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function imageryRequestTemplate(record: CountyImageryResearchRecord): string {
+  return `Hello,
+
+I am researching publicly available aerial imagery for ${record.county} County. Could you please help confirm:
+
+1. The acquisition year or exact capture dates of the county's most recent countywide orthogonal aerial imagery.
+2. The imagery provider or product name and ground resolution.
+3. A public viewer, ArcGIS REST/WMTS/WMS service, or download page where the imagery can be viewed.
+4. Whether the county owns the imagery or licenses it from a vendor such as EagleView/Pictometry, Nearmap, or another provider.
+5. Whether a third-party public map may display the county-hosted imagery with attribution, or whom I should contact for that permission.
+
+Historical acquisition years and links are also helpful. I am not requesting parcel-owner data.
+
+Thank you.`;
+}
+
 function statusSlug(status: ResearchStatus): string {
   return status.toLowerCase().replaceAll(" ", "-");
+}
+
+function tierSlug(tier: CoverageTier): string {
+  if (tier === "Statewide only") return "statewide";
+  if (tier === "Older / recency unverified") return "older";
+  return "recent";
+}
+
+function outreachGuidance(tier: CoverageTier): string {
+  if (tier === "Statewide only") return "No verified county or regional imagery is currently available beyond statewide sources. Find the county's imagery program or contact GIS first.";
+  if (tier === "Older / recency unverified") return "The verified imagery is older than roughly eight years, or a newer viewer appears likely but its date and reusable access are unconfirmed.";
+  return "A recent usable source is established; outreach can still document ownership, resolution, or reuse permission.";
 }

@@ -454,10 +454,51 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
     detail: "County aerial mosaic",
     reason: "The official service identifies commercial EagleView/Pictometry imagery but publishes no third-party reuse license.",
   },
+  {
+    county: "McLeod",
+    name: "McLeod County 2026 imagery",
+    year: 2026,
+    url: "https://tiles.arcgis.com/tiles/7sSDkfIZpd2ReAg5/arcgis/rest/services/2026_McLeod_County/MapServer",
+    detail: "County aerial mosaic",
+    reason: "The public county tile service is anonymously viewable but publishes no provider, copyright, or third-party reuse terms.",
+  },
+  {
+    county: "Todd",
+    name: "Todd County 2023 Pictometry",
+    year: 2023,
+    url: "https://www.arcgis.com/home/item.html?id=78e30997de2f4ade806aec6c0b0e47fa",
+    detail: "County aerial mosaic",
+    reason: "The public county-viewer web map references a commercial Pictometry WMTS endpoint and publishes no third-party embedding grant.",
+  },
+  {
+    county: "Wadena",
+    name: "Wadena County 2025 EagleView",
+    year: 2025,
+    url: "https://gis.co.wadena.mn.us/arcgis/rest/services/Pictometry/2025Eagleview/MapServer",
+    detail: "County aerial mosaic",
+    reason: "The official public service identifies commercial EagleView imagery but publishes no third-party reuse license.",
+  },
+  {
+    county: "Watonwan",
+    name: "Watonwan County 2022 EagleView",
+    year: 2022,
+    url: "https://www.arcgis.com/home/item.html?id=f049a777febe406a9f0dc4bf3f5254bd",
+    detail: "County aerial mosaic",
+    reason: "The public web map references a commercial EagleView/Pictometry WMTS endpoint and publishes no third-party embedding grant.",
+  },
+  {
+    county: "Wilkin",
+    name: "Wilkin County 2026 EagleView",
+    year: 2026,
+    url: "https://gisweb.co.wilkin.mn.us/arcgis/rest/services/EagleView_2026/MapServer",
+    detail: "County aerial mosaic",
+    reason: "The official public service identifies commercial EagleView/Pictometry imagery but publishes no third-party reuse license.",
+  },
 ] as const;
 
 export function restrictedImageryForCounty(countyName: string): readonly RestrictedImagerySource[] {
   return restrictedImagerySources
-    .filter((source) => source.county === countyName)
+    .filter((source) => source.county === countyName && !isIntegratedArcgisImagery(source.county, source.year, source.url))
     .toSorted((first, second) => second.year - first.year);
 }
+import { isIntegratedArcgisImagery } from "./layers/counties/arcgisImagery";

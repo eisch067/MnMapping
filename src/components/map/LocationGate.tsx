@@ -310,11 +310,14 @@ function ExternalImageryTable({ sources }: { sources: readonly RestrictedImagery
         {sources.length > 0 ? sources.map((source, index) => (
           <article className="imagery-source-row is-external" key={`${source.county}-${source.year}`}>
             <div className="imagery-source-primary">
-              <strong><a href={source.url} target="_blank" rel="noreferrer">{source.name}</a></strong>
+              <strong>{source.name}</strong>
               <span>{source.year}</span>
               <span>{source.detail ?? "Higher-detail imagery"}</span>
             </div>
-            <div className="imagery-source-badges"><small>{index === 0 ? "Best external imagery" : "External source"}</small></div>
+            <div className="imagery-source-badges">
+              <small>{index === 0 ? "Best external imagery" : "External source"}</small>
+              <a className="external-imagery-link" href={source.url} target="_blank" rel="noreferrer" aria-label={`View ${source.name} imagery in a new tab`}>View imagery ↗</a>
+            </div>
             <p><b>Notes:</b> {source.reason}</p>
           </article>
         )) : <p className="imagery-empty-state">No known higher-detail external imagery is currently documented.</p>}

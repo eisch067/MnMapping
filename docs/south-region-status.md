@@ -42,6 +42,8 @@ Twenty-five South counties use the same normalized MnGeo Open Parcels adapter as
 
 ## Imagery implementation
 
-The South catalog includes the verified `south11` and `south11ir` spring collection only in counties where its published footprint applies. Southeast counties can separately select the 2011 fall collection. Verified higher-resolution choices include 2025 Wabasha and Metro, 2024 Lyon, 2023 Dakota and Rice, 2022 McLeod and Steele, 2021 Dakota, Rice, and Le Sueur, plus relevant older county acquisitions.
+The September 18 ArcGIS REST audit added anonymous county imagery services for Big Stone, Blue Earth, Carver, Chippewa, Dakota, Dodge, Goodhue, Mower, Pipestone, Scott, Steele, and Yellow Medicine. Cached Web Mercator services use tiles; county-coordinate-system and uncached services use dynamic export, while Dakota's raster services use ImageServer export.
+
+The South catalog includes the verified `south11` and `south11ir` spring collection only in counties where its published footprint applies. Southeast counties can separately select the 2011 fall collection. Verified higher-resolution choices include 2026 McLeod, 2025 Wabasha and Metro, 2024 Lyon, 2023 Dakota and Rice, 2022 McLeod and Steele, 2021 Dakota, Rice, and Le Sueur, plus relevant older county acquisitions.
 
 Every imagery adapter retains the exact WMS-published rectangle. Brown County's public portal catalogs 2026 and 2023 EagleView mosaics, but its Connect Image Service contract is limited to internal organizational use and neither item grants third-party reuse rights. As with Douglas County's licensed EagleView imagery, the mosaics are linked as external alternatives rather than routed through MnMapping.

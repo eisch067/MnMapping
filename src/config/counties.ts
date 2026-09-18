@@ -5,6 +5,7 @@ import { douglasLayers } from "./layers/counties/douglas";
 import { hubbardLayers } from "./layers/counties/hubbard";
 import { toddLayers } from "./layers/counties/todd";
 import { northExpansionCounties } from "./layers/counties/northExpansion";
+import { arcgisImageryLayersForCounty } from "./layers/counties/arcgisImagery";
 import { createMnGeoCountyPublicLandLayer } from "./layers/counties/publicLand";
 import { createMnGeoParcelLayer } from "./layers/counties/shared";
 import { southExpansionCounties } from "./layers/counties/southExpansion";
@@ -23,7 +24,11 @@ const counties = [
 
 export const countyRegistry = counties.map((entry): CountyDefinition => {
   const publicLand = createMnGeoCountyPublicLandLayer(entry.id, entry.name, entry.fips, entry.bounds);
-  return publicLand ? { ...entry, layers: [...entry.layers, publicLand] } : entry;
+  const arcgisImagery = arcgisImageryLayersForCounty(entry);
+  const imagery = [...arcgisImagery, ...entry.layers.filter((layer) => layer.category === "imagery")]
+    .toSorted((first, second) => numericYear(second.year) - numericYear(first.year));
+  const otherLayers = entry.layers.filter((layer) => layer.category !== "imagery");
+  return { ...entry, layers: [...imagery, ...otherLayers, ...(publicLand ? [publicLand] : [])] };
 });
 
 export type SupportedCounty = (typeof countyRegistry)[number]["name"];
@@ -48,4 +53,10 @@ function county(
     parcels: { status, sourceType, verifiedAt: status === "available" ? "2026-09-14" : undefined },
     notes,
   };
+}
+
+function numericYear(year: string | number | undefined): number {
+  if (typeof year === "number") return year;
+  const parsed = Number.parseInt(year ?? "", 10);
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
 }

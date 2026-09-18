@@ -33,6 +33,10 @@ Aitkin, Beltrami, Douglas, Hubbard, Mahnomen, Todd, and Wadena use verified dire
 
 ## Imagery implementation
 
+The September 18 follow-up audit added Wadena County's public 2025 EagleView MapServer and Wilkin County's public 2026 EagleView MapServer. Wadena uses dynamic export because its cache is in a county coordinate system; Wilkin uses its native Web Mercator tiles. Todd's viewer also confirms a newer 2023 Pictometry layer, but it remains an external licensed WMTS option while the public 2020 MapServer stays integrated.
+
 The expansion uses verified active MnGeo layers including 2025 Metro, 2024 Lake, 2021/2019 Carlton, 2020 Koochiching and Ramsey, 2018 Itasca and Hennepin, 2015 northern-border and Carlton, 2014 Polk–Beltrami, 2013 North 1-foot and Washington, 2012/2011 fall, 2010 north-metro, and 2009 Arrowhead/north-central coverage. Each definition retains the WMS-published coverage rectangle so partial regional imagery is not described or requested as countywide.
+
+The September 18 ArcGIS REST audit added anonymous county imagery services for Aitkin, Anoka, Cass, Chisago, Clay, Clearwater, Crow Wing, Grant, Mille Lacs, Otter Tail, Pennington, Pope, Sherburne, Stearns, Traverse, and Washington. Cached Web Mercator services use tiles; county-coordinate-system and uncached services use dynamic export.
 
 County-specific imagery that was only mentioned through an interactive county map, download, or an unspecified DNR vintage was skipped until a stable service name and coverage can be verified.

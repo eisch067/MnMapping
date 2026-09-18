@@ -15,6 +15,7 @@ import { LocationGate } from "./LocationGate";
 import { clearMyData, deleteMyItem, loadMyData, roughAreaSquareMeters, roughLengthMeters, saveMyItem, type MyMapItem } from "@/lib/myData";
 import { exportText, parseMapFile } from "@/lib/mapFormats";
 import { latestDisplayableImagery } from "@/lib/countyImagery";
+import { restrictedImageryForCounty } from "@/config/restrictedImagery";
 
 export function MapShell() {
   const [location, setLocation] = useState<MapLocation | null>(null);
@@ -57,6 +58,10 @@ export function MapShell() {
       .filter((county) => visibleCounties.has(county.name) && county.parcels.status === "pending")
       .map((county) => county.name);
   }, [viewportCounties]);
+  const externalImagery = useMemo(
+    () => viewportCounties.flatMap((county) => restrictedImageryForCounty(county)),
+    [viewportCounties],
+  );
   const activeLayers = useMemo(
     () => {
       const countySet = new Set(viewportCounties);
@@ -210,6 +215,7 @@ export function MapShell() {
         }))}
         onTerrainExaggerationChange={setVerticalExaggeration}
         onMoveLayer={moveLayer}
+        externalImagery={externalImagery}
         pendingParcelCounties={pendingParcelCounties}
         cameraHeight={cameraHeight}
         runtimeState={layerRuntimeState}
