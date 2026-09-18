@@ -14,6 +14,9 @@ const providerRoots = {
   wadena: "https://gis.co.wadena.mn.us/arcgis/rest/services/",
   beltrami: "https://arcgis.co.beltrami.mn.us/arcgis/rest/services/",
   brown: "https://gis.browncountymn.gov/server/rest/services/",
+  "carlton-imagery": "https://svc.pictometry.com/Image/",
+  "olmsted-imagery": "https://public.gis.olmstedcounty.gov/arcgis/rest/services/",
+  "ramsey-imagery": "https://maps.co.ramsey.mn.us/arcgis/rest/services/",
 } as const;
 
 type Provider = keyof typeof providerRoots;

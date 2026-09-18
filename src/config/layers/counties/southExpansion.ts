@@ -84,7 +84,7 @@ const southCountyInputs: readonly SouthCountyInput[] = [
   { id: "dodge", name: "Dodge", fips: "039", batch: "S3", bounds: bounds(-93.0460, 43.8484, -92.6779, 44.1970), imagery: ["south11", "south11ir"], parcelLayer: directParcel("dodge", "Dodge", bounds(-93.0460, 43.8484, -92.6779, 44.1970), "/api/gis-proxy/goodhue-public/DodgeCounty/Dodge_Parcels/MapServer", "https://publicmaps.co.goodhue.mn.us/arcgis/rest/services/DodgeCounty/Dodge_Parcels/MapServer/1", 1, "PIN", { parcelId: "PIN", owner: "C0NAME1P", secondaryOwner: "C0NAME2P", siteAddress: "FULL_ADD", mailingAddress: "C0ADRLN1P", acres: "C0ACRES", legalDescription: "SHORTLEGAL" }) },
   { id: "goodhue", name: "Goodhue", fips: "049", batch: "S3", bounds: bounds(-93.0412, 44.1949, -92.2420, 44.7137), imagery: ["south11", "south11ir", "fall11", "fallcir11"], parcelLayer: directParcel("goodhue", "Goodhue", bounds(-93.0412, 44.1949, -92.2420, 44.7137), "/api/gis-proxy/goodhue-public/GoodhueCounty/ParcelsAGOL/MapServer", "https://publicmaps.co.goodhue.mn.us/arcgis/rest/services/GoodhueCounty/ParcelsAGOL/MapServer/0", 0, "PIN", { parcelId: "PIN", owner: "C0NAME1P", secondaryOwner: "C0NAME2P", siteAddress: "FULLSTREET", mailingAddress: "C0ADRLN1P", acres: "C0ACRES", legalDescription: "LEGAL" }) },
   { id: "lincoln", name: "Lincoln", fips: "081", batch: "S3", bounds: bounds(-96.4528, 44.1967, -96.0785, 44.6313), imagery: ["south11", "south11ir"] },
-  { id: "olmsted", name: "Olmsted", fips: "109", batch: "S3", bounds: bounds(-92.6894, 43.8338, -92.0789, 44.1956), imagery: ["south11", "south11ir", "fall11", "fallcir11"], parcelCount: 75_579, parcelAcquired: "2026-06-23" },
+  { id: "olmsted", name: "Olmsted", fips: "109", batch: "S3", bounds: bounds(-92.6894, 43.8338, -92.0789, 44.1956), imagery: ["south11", "south11ir", "fall11", "fallcir11"], additionalLayers: [createOlmsted2023ImageryLayer()], parcelCount: 75_579, parcelAcquired: "2026-06-23" },
   { id: "sibley", name: "Sibley", fips: "143", batch: "S3", bounds: bounds(-94.6295, 44.4559, -93.7638, 44.7179), imagery: ["south11", "south11ir"] },
   { id: "kandiyohi", name: "Kandiyohi", fips: "067", batch: "S3", bounds: bounds(-95.2553, 44.8913, -94.7568, 45.4130), imagery: ["south11", "south11ir"] },
   { id: "rock", name: "Rock", fips: "133", batch: "S3", bounds: bounds(-96.4535, 43.5002, -96.0523, 43.8496), imagery: ["south11", "south11ir"] },
@@ -110,9 +110,12 @@ const southCountyInputs: readonly SouthCountyInput[] = [
 
 export const southExpansionCounties: readonly CountyDefinition[] = southCountyInputs.map((input) => {
   const hasParcels = input.parcelCount !== undefined || input.parcelLayer !== undefined;
-  const layers = [
+  const imageryLayers = [
     ...(input.imagery ?? []).map((key) => createImageryLayer(input.id, input.name, imageryPresets[key])),
     ...(input.additionalLayers ?? []),
+  ].toSorted((first, second) => Number(second.year ?? 0) - Number(first.year ?? 0));
+  const layers = [
+    ...imageryLayers,
     ...(input.parcelLayer ? [input.parcelLayer] : input.parcelCount !== undefined ? [createMnGeoParcelLayer(input.id, input.name, input.fips, input.bounds, input.parcelCount, input.parcelAcquired)] : []),
   ];
   return {
@@ -187,6 +190,28 @@ function createBrownParksLayer(): LayerDefinition {
     nameField: "name",
     popupFields: [{ field: "name", label: "Park" }, { field: "park_type", label: "Type" }, { field: "city", label: "City" }, { field: "address", label: "Address" }],
     options: { layerId: 4, where: "park_type IN ('CITY','COUNTY','STATE')", outFields: "name,park_type,city,address", fillColor: "#65b96e", strokeColor: "#c9f2cf", fillAlpha: 0.24, strokeWidth: 2 },
+  };
+}
+
+function createOlmsted2023ImageryLayer(): LayerDefinition {
+  return {
+    id: "olmsted-imagery-2023",
+    name: "2023 Olmsted County",
+    category: "imagery",
+    sourceType: "arcgis-imageserver",
+    url: "/api/gis-proxy/olmsted-imagery/OLMSTED_COUNTY_2023_Aerial_Imagery_Tiled_NAD83/ImageServer",
+    sourceUrl: "https://public.gis.olmstedcounty.gov/arcgis/rest/services/OLMSTED_COUNTY_2023_Aerial_Imagery_Tiled_NAD83/ImageServer",
+    defaultVisible: false,
+    defaultOpacity: 1,
+    minimumLevel: 5,
+    bounds: bounds(-92.6894, 43.8338, -92.0789, 44.1956),
+    attribution: "Olmsted County GIS",
+    agency: "Olmsted County GIS",
+    county: "Olmsted",
+    year: 2023,
+    resolution: "2 inches",
+    description: "Official Olmsted County 2023 aerial imagery. The county describes its GIS data as open source; ImageServer metadata and anonymous image export were verified 2026-09-17.",
+    options: { format: "jpg", transparent: false },
   };
 }
 

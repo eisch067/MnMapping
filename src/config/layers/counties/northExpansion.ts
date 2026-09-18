@@ -62,11 +62,12 @@ type NorthCountyInput = {
   parcelCount?: number;
   parcelAcquired?: string;
   directParcel?: LayerDefinition;
+  additionalLayers?: readonly LayerDefinition[];
 };
 
 const northCountyInputs: readonly NorthCountyInput[] = [
   { id: "benton", name: "Benton", fips: "009", batch: "N1", bounds: bounds(-94.3531, 45.5590, -93.7593, 45.8243), imagery: ["fall11"], parcelCount: 20_313, parcelAcquired: "2026-02-17" },
-  { id: "carlton", name: "Carlton", fips: "017", batch: "N1", bounds: bounds(-93.0645, 46.4173, -92.2916, 46.7691), imagery: ["carlton21", "carl19", "carl19cir", "carl15_9", "nc13ft"], parcelCount: 34_068, parcelAcquired: "2026-07-16" },
+  { id: "carlton", name: "Carlton", fips: "017", batch: "N1", bounds: bounds(-93.0645, 46.4173, -92.2916, 46.7691), imagery: ["carlton21", "carl19", "carl19cir", "carl15_9", "nc13ft"], additionalLayers: [createCarlton2024ImageryLayer()], parcelCount: 34_068, parcelAcquired: "2026-07-16" },
   { id: "crow-wing", name: "Crow Wing", fips: "035", batch: "N1", bounds: bounds(-94.3952, 46.1559, -93.7760, 46.8054), imagery: ["fall12", "fallcir12"], parcelCount: 76_486, parcelAcquired: "2026-07-19" },
   { id: "itasca", name: "Itasca", fips: "061", batch: "N1", bounds: bounds(-94.4192, 47.0253, -93.0557, 47.8991), imagery: ["itas18", "itas18cir", "nc13ft", "nc13ftcir"], parcelCount: 80_651, parcelAcquired: "2026-06-26" },
   { id: "mille-lacs", name: "Mille Lacs", fips: "095", batch: "N1", bounds: bounds(-93.8108, 45.5587, -93.4297, 46.2472), imagery: ["nc13ft", "nc13ftcir", "fall11", "fallcir11"], parcelCount: 20_928, parcelAcquired: "2026-02-24" },
@@ -81,7 +82,7 @@ const northCountyInputs: readonly NorthCountyInput[] = [
 
   { id: "anoka", name: "Anoka", fips: "003", batch: "N3", bounds: bounds(-93.5125, 45.0355, -93.0185, 45.4148), imagery: ["met25", "met25cir", "fall11", "fallcir11"], parcelCount: 140_221, parcelAcquired: "2026-08-04" },
   { id: "hennepin", name: "Hennepin", fips: "053", batch: "N3", bounds: bounds(-93.7678, 44.7853, -93.1767, 45.2470), imagery: ["met25", "met25cir", "hen22", "hen21", "hen18"], parcelCount: 447_044, parcelAcquired: "2026-08-04" },
-  { id: "ramsey", name: "Ramsey", fips: "123", batch: "N3", bounds: bounds(-93.2279, 44.8873, -92.9841, 45.1245), imagery: ["met25", "met25cir", "rams20", "rams20cir"], parcelCount: 172_178, parcelAcquired: "2026-08-04" },
+  { id: "ramsey", name: "Ramsey", fips: "123", batch: "N3", bounds: bounds(-93.2279, 44.8873, -92.9841, 45.1245), imagery: ["met25", "met25cir", "rams20", "rams20cir"], additionalLayers: [createRamsey2022ImageryLayer()], parcelCount: 172_178, parcelAcquired: "2026-08-04" },
   { id: "washington", name: "Washington", fips: "163", batch: "N3", bounds: bounds(-93.0226, 44.7457, -92.7409, 45.2969), imagery: ["met25", "met25cir", "wash13", "fall11"], parcelCount: 119_096, parcelAcquired: "2026-08-04" },
   { id: "wright", name: "Wright", fips: "171", batch: "N3", bounds: bounds(-94.2615, 44.9777, -93.5147, 45.4238), imagery: ["smet10", "smet10cir"], parcelCount: 75_691, parcelAcquired: "2026-07-01" },
   { id: "sherburne", name: "Sherburne", fips: "141", batch: "N3", bounds: bounds(-94.1504, 45.2461, -93.5098, 45.5602), imagery: ["fall11", "fallcir11", "smet10", "smet10cir"], parcelCount: 44_573, parcelAcquired: "2026-04-08" },
@@ -110,8 +111,12 @@ const northCountyInputs: readonly NorthCountyInput[] = [
 
 export const northExpansionCounties: readonly CountyDefinition[] = northCountyInputs.map((input) => {
   const hasParcels = input.parcelCount !== undefined || input.directParcel !== undefined;
-  const layers = [
+  const imageryLayers = [
+    ...(input.additionalLayers ?? []),
     ...(input.imagery ?? []).map((key) => createImageryLayer(input.id, input.name, imageryPresets[key])),
+  ].toSorted((first, second) => Number(second.year ?? 0) - Number(first.year ?? 0));
+  const layers = [
+    ...imageryLayers,
     ...(input.directParcel ? [input.directParcel] : input.parcelCount !== undefined ? [createMnGeoParcelLayer(input.id, input.name, input.fips, input.bounds, input.parcelCount, input.parcelAcquired)] : []),
   ];
   const notes = hasParcels
@@ -170,6 +175,50 @@ function preset(
 
 function bounds(west: number, south: number, east: number, north: number): LayerBounds {
   return { west, south, east, north };
+}
+
+function createCarlton2024ImageryLayer(): LayerDefinition {
+  return {
+    id: "carlton-imagery-2024",
+    name: "2024 Carlton EagleView",
+    category: "imagery",
+    sourceType: "wms",
+    url: "/api/gis-proxy/carlton-imagery/F244BDF4-3688-1040-2C2F-33486C6D4B05/wms?",
+    sourceUrl: "https://svc.pictometry.com/Image/F244BDF4-3688-1040-2C2F-33486C6D4B05/wms",
+    defaultVisible: false,
+    defaultOpacity: 1,
+    minimumLevel: 5,
+    bounds: bounds(-93.0679, 46.4166, -92.2893, 46.7709),
+    attribution: "Carlton County and EagleView (Pictometry)",
+    agency: "Carlton County GIS",
+    county: "Carlton",
+    year: 2024,
+    resolution: "Resolution not published",
+    description: "Spring 2024 countywide natural-color mosaic captured April 10–May 3. Carlton County explicitly publishes this service for GIS software; its WMS capabilities report no fees or access constraints. Service metadata and access terms verified 2026-09-17.",
+    options: { layers: "PICT-MNCARL24-uXwUjeOUhi", format: "image/jpeg", transparent: false, version: "1.3.0" },
+  };
+}
+
+function createRamsey2022ImageryLayer(): LayerDefinition {
+  return {
+    id: "ramsey-imagery-2022",
+    name: "2022 Ramsey County",
+    category: "imagery",
+    sourceType: "arcgis-imageserver",
+    url: "/api/gis-proxy/ramsey-imagery/OrthoPhotos/Aerial2022/ImageServer",
+    sourceUrl: "https://maps.co.ramsey.mn.us/arcgis/rest/services/OrthoPhotos/Aerial2022/ImageServer",
+    defaultVisible: false,
+    defaultOpacity: 1,
+    minimumLevel: 5,
+    bounds: bounds(-93.2279, 44.8873, -92.9841, 45.1245),
+    attribution: "Ramsey County GIS",
+    agency: "Ramsey County GIS",
+    county: "Ramsey",
+    year: 2022,
+    resolution: "3 inches",
+    description: "Spring 2022 aerial imagery. Ramsey County explicitly makes the imagery available for public download and use without fee or licensure; ImageServer metadata and anonymous image export were verified 2026-09-17.",
+    options: { format: "jpg", transparent: false },
+  };
 }
 
 function createMahnomenParcelLayer(): LayerDefinition {

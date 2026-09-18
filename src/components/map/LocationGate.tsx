@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import Link from "next/link";
 import { countyRegistry } from "@/config/counties";
 import { restrictedImageryForCounty } from "@/config/restrictedImagery";
 import type { RestrictedImagerySource } from "@/config/restrictedImagery";
@@ -255,6 +256,7 @@ export function LocationGate({ onLocationSelect }: LocationGateProps) {
             </button>
           </div>
           <p className="privacy-note">No location is stored. You can change areas at any time.</p>
+          <Link className="research-entry-link" href="/research">Open county imagery research tracker</Link>
         </section>
       </section>
     </main>
@@ -301,7 +303,7 @@ function ExternalImageryTable({ sources }: { sources: readonly RestrictedImagery
     <section className="imagery-source-table other-imagery-table" aria-labelledby="other-imagery-heading">
       <ImageryTableHeading
         title="Other Imagery"
-        information="We have identified better-quality imagery available through a public website, but it cannot be displayed here because of licensing restrictions. Select the external link to view it."
+        information="We have identified other detailed imagery available through a public website, but it cannot be displayed here because of licensing, access, or delivery restrictions. Select the external link to view it."
       />
       <div className="imagery-source-columns" aria-hidden="true"><span>Imagery Name</span><span>Year</span><span>Detail</span></div>
       <div className="imagery-source-rows">
@@ -310,7 +312,7 @@ function ExternalImageryTable({ sources }: { sources: readonly RestrictedImagery
             <div className="imagery-source-primary">
               <strong><a href={source.url} target="_blank" rel="noreferrer">{source.name}</a></strong>
               <span>{source.year}</span>
-              <span>Higher-detail imagery</span>
+              <span>{source.detail ?? "Higher-detail imagery"}</span>
             </div>
             <div className="imagery-source-badges"><small>{index === 0 ? "Best external imagery" : "External source"}</small></div>
             <p><b>Notes:</b> {source.reason}</p>

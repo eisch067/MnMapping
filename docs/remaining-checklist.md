@@ -10,6 +10,7 @@ Each regional checklist starts with work that spans many counties, then lists im
 ## Application-wide release work
 
 - [x] Add a statewide clickable county start map with newest-displayable imagery selection and clearly explained links to known restricted imagery.
+- [x] Add an exportable 87-county imagery research tracker with structured statewide, county-wide, and external source records.
 - [x] Add shared ArcGIS pagination or truncation handling for parcel and public-land services.
 - [ ] Add visible loading, retry, and failure states for all remote map layers.
 - [x] Prevent stale viewport requests from replacing newer feature results.
