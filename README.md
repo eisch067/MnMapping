@@ -1,95 +1,125 @@
-# MnMapping Build Specs
+# MnMapping
 
-MnMapping is a lightweight, personal-use-first Minnesota mapping viewer. The project should stay simple, client-heavy, and easy to expand county by county without rebuilding the application.
+MnMapping is an interactive Minnesota mapping application for comparing current and historical aerial imagery, inspecting parcels and public-land boundaries, exploring elevation, and working with personal map data. It combines statewide public GIS services with verified county sources in one Cesium-based 3D map.
+
+**Live application:** [mnmapping.eischens-brad.workers.dev](https://mnmapping.eischens-brad.workers.dev)
+
+## What you can do
+
+MnMapping opens with three ways to begin:
+
+1. **Enter a location** — search for an address, coordinates, city, ZIP code, county, or place name.
+2. **Select on a map** — choose an exact point using a lightweight street map before loading the full viewer.
+3. **Explore available imagery** — select any of Minnesota's 87 counties and compare its statewide, county-level, and externally hosted imagery sources.
+
+Once the main map opens, you can:
+
+- Compare statewide NAIP, color-infrared, regional, county, and historical imagery.
+- Automatically open the newest verified imagery MnMapping can display for the selected county.
+- Follow clearly labeled external links when newer imagery is publicly viewable but cannot be embedded because of licensing or delivery restrictions.
+- View compatible imagery over interactive 3D terrain and adjust terrain exaggeration.
+- Display statewide lidar hillshade and 10-foot or property-scale 2-foot contours.
+- Inspect parcel boundaries and available assessment attributes at parcel scale.
+- View Minnesota DNR management areas, state parks, forests, county-fee land, tax-forfeit land, and verified county supplements.
+- Reorder layers, adjust opacity, disable active layers, and monitor browser-reported request and transfer activity.
+- Add pins and drawings, then import or export GPX, KML, and GeoJSON files.
+
+## Coverage and source approach
+
+All 87 Minnesota counties are represented in the shared county registry. Statewide imagery and reference layers are available everywhere their source services provide coverage. County imagery is added only after its year, coverage, resolution, service behavior, and reuse conditions have been checked.
+
+Parcel layers currently use repeatable public services in 68 counties; counties without a dependable anonymous parcel source remain clearly marked as pending. County-fee and tax-forfeit ownership records are available for the 56 counties represented in MnGeo's current government-ownership service.
+
+MnMapping streams authoritative public services rather than copying large GIS datasets. Sources include Minnesota Geospatial Information Office, Minnesota DNR, USDA NAIP, county GIS departments, and other official public agencies. Source decisions and limitations are documented in [Imagery sources](docs/imagery-sources.md), [Elevation sources](docs/elevation-sources.md), [Public-land sources](docs/public-land-sources.md), and [Parcels and local data](docs/parcels-and-local-data.md).
+
+Public-land and parcel boundaries are reference information. A management or ownership polygon does not by itself establish legal access, and parcel geometry is not a survey. Verify current ownership, rules, and conditions with the responsible agency before relying on the map in the field.
+
+## Privacy and local data
+
+MnMapping does not require an account. Searches are sent to the public ArcGIS geocoder, but MnMapping does not persist the query or selected location.
+
+Layer preferences are stored in browser `localStorage`. Pins, drawings, and imported geometry are stored locally in IndexedDB and are not uploaded by MnMapping. Users can hide, delete, import, or export this data from the **My Data** panel.
+
+## County imagery research
+
+The built-in [`/research`](https://mnmapping.eischens-brad.workers.dev/research) workspace tracks imagery research for every county without a database or account. It provides:
+
+- A separate source inbox for each county.
+- Implemented, date-confirmed external, and unresolved research categories.
+- Status filtering, including a purple **Deep research** status for sources requiring manual viewer inspection.
+- JSON session export and import for reliable round trips.
+- CSV export for spreadsheet review.
+
+See the [research tracker guide](docs/imagery-research-tracker.md) for the workflow.
 
 ## Development
 
-The implementation lives alongside these numbered build specifications.
+Requirements: a current Node.js installation and npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. Useful checks are `npm run typecheck`, `npm run lint`, and `npm run build`. Cesium's runtime assets are copied from the installed package into the ignored `public/cesium/` directory automatically before development and production builds.
+Open [http://localhost:3000](http://localhost:3000). Cesium runtime assets are copied automatically into the ignored `public/cesium/` directory before development and production builds.
 
-The production target is Cloudflare Workers. The checked-in vinext configuration preserves the application's server route handlers and supports automatic deployment from GitHub. Follow the exact account setup in [`docs/cloudflare-deployment.md`](docs/cloudflare-deployment.md).
+Run the project checks with:
 
-Production: [mnmapping.eischens-brad.workers.dev](https://mnmapping.eischens-brad.workers.dev)
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run build
+```
 
-County imagery research can be tracked and exported from `/research`; see [`docs/imagery-research-tracker.md`](docs/imagery-research-tracker.md).
+For a repeatable local screenshot, start the development server and run:
 
-Current imagery services and source-selection decisions are recorded in [`docs/imagery-sources.md`](docs/imagery-sources.md).
-Elevation source roles and vertical-reference details are recorded in [`docs/elevation-sources.md`](docs/elevation-sources.md).
-The location-first startup and lazy-loading behavior are recorded in [`docs/location-start.md`](docs/location-start.md).
-Layer ordering and preference persistence are recorded in [`docs/layer-controls.md`](docs/layer-controls.md).
-Public-land semantics and sources are recorded in [`docs/public-land-sources.md`](docs/public-land-sources.md).
-Parcel adapters, inspection, and browser-local data are recorded in [`docs/parcels-and-local-data.md`](docs/parcels-and-local-data.md).
-The optional onX-compatible export workflow is recorded in [`docs/onx-handoff.md`](docs/onx-handoff.md).
+```bash
+npm run screenshot
+```
 
-### Automated screenshots
+The default capture is written to `screenshots/localhost.png`. You can provide another URL and output path with `npm run screenshot -- <url> <output-path>`.
 
-With Microsoft Edge installed and `npm run dev` running, use `npm run screenshot` to capture `http://localhost:3000` into `screenshots/localhost.png`. You can also ask Codex in VS Code to run this command and inspect the image; no browser extension or manual capture is needed.
+## Architecture
 
-An optional URL and output path can be supplied: `npm run screenshot -- http://localhost:3000 screenshots/review.png`. Captures use a fresh browser session at 1440 × 1000, so saved locations and other preferences from your normal browser are not included. Generated screenshots are ignored by Git.
+- Next.js, React, and TypeScript
+- CesiumJS for the map and 3D globe
+- Public WMS, WMTS, ArcGIS REST, FeatureServer, ImageServer, and terrain services
+- Thin county configuration and adapter modules
+- Browser-local storage for preferences and personal geometry
+- Cloudflare Workers production hosting through vinext
 
-## Product principles
+County-specific behavior belongs in the layer registry and small adapters rather than the shared map UI. Remote-service proxies are read-only and restricted to allowlisted government or verified imagery hosts.
 
-- Prefer statewide public services over self-hosting large datasets.
-- Keep county-specific logic in small adapters/config files.
-- No Supabase, hosted database, accounts, or backend unless a later need clearly justifies them.
-- Store personal settings and map data locally in the browser first.
-- Prioritize clarity, imagery quality, lidar, public land, and easy layer comparison.
-- Build useful increments; every step should leave the app in a working state.
+## Deployment
 
-## Initial county set
+Production is deployed to Cloudflare Workers from the checked-in vinext configuration. Build and deploy manually with:
 
-1. Hubbard
-2. Beltrami
-3. Becker
-4. Todd
-5. Douglas
+```bash
+npm run build:vinext
+npm run deploy:vinext
+```
 
-These counties are primarily needed for county-specific imagery and parcel/ownership adapters. Statewide imagery, lidar, MnTOPO, and public-land layers should work across Minnesota wherever services are available.
+Cloudflare configuration and GitHub deployment details are documented in [Cloudflare deployment](docs/cloudflare-deployment.md).
 
-The v1.0 county expansion recognizes all 87 Minnesota counties through the shared registry. Verified named imagery and repeatable parcel sources are integrated; counties without a repeatable parcel service remain explicitly pending in the Layers UI. County-fee and tax-forfeit ownership parcels are available for the 56 counties represented in MnGeo's current government-ownership service. See the [`North status`](docs/north-region-status.md), [`South status`](docs/south-region-status.md), [`North checklist`](docs/north-of-i94-checklist.md), [`South checklist`](docs/south-of-i94-checklist.md), and [`shared release checklist`](docs/remaining-checklist.md) for implementation details and follow-up work.
+## Project documentation
 
-## Planned stack
+- [Location-first startup and loading](docs/location-start.md)
+- [Layer controls and persistence](docs/layer-controls.md)
+- [Imagery source inventory](docs/imagery-sources.md)
+- [County imagery research tracker](docs/imagery-research-tracker.md)
+- [Elevation and terrain](docs/elevation-sources.md)
+- [Public-land semantics and sources](docs/public-land-sources.md)
+- [Parcels and browser-local data](docs/parcels-and-local-data.md)
+- [onX-compatible handoff](docs/onx-handoff.md)
+- [North region status](docs/north-region-status.md)
+- [South region status](docs/south-region-status.md)
+- [Remaining release work](docs/remaining-checklist.md)
 
-- Next.js
-- TypeScript
-- CesiumJS
-- Browser `localStorage` for small preferences
-- Browser IndexedDB for pins, drawings, and imported user data
-- Public WMS / WMTS / ArcGIS REST / FeatureServer / ImageServer sources
-- Cloudflare Workers with vinext for production hosting
+## Project principles
 
-## Build order
-
-1. [Core application and map shell](specs/original/01-core-map-shell.md)
-2. [Layer registry and source adapters](specs/original/02-layer-registry.md)
-3. [Statewide imagery](specs/original/03-statewide-imagery.md)
-4. [County high-resolution imagery](specs/original/04-county-imagery.md)
-5. [Statewide lidar](specs/original/05-statewide-lidar.md)
-6. [3D terrain and elevation exaggeration](specs/original/06-3d-terrain.md)
-7. [MnTOPO, hillshade, and contours](specs/original/07-mntopo.md)
-8. [Layer controls, opacity, ordering, and comparison](specs/original/08-layer-controls.md)
-9. [Statewide public-land boundaries](specs/original/09-public-land.md)
-10. [County public-land supplements](specs/original/10-county-public-land.md)
-11. [Private parcel architecture](specs/original/11-parcel-architecture.md)
-12. [Initial five county parcel adapters](specs/original/12-initial-county-parcels.md)
-13. [Coordinates, identify, and map inspection](specs/original/13-map-inspection.md)
-14. [Pins, drawings, and local browser storage](specs/original/14-local-user-data.md)
-15. [GPX/KML import and export](specs/original/15-import-export.md)
-16. [OnX-oriented export workflow and later enhancements](specs/original/16-onx-and-later.md)
-
-## Non-goals for the first version
-
-- User accounts
-- Cloud sync
-- Multi-user collaboration
-- Hosted spatial database
-- Self-hosting all Minnesota imagery or lidar
-- Mobile app
-- Complex editing workflows
-- Guaranteed commercial-scale infrastructure
+- Prefer authoritative public services over self-hosting large datasets.
+- Verify service metadata and licensing before integrating a source.
+- Keep county-specific logic in small, maintainable adapters.
+- Keep personal map data in the browser unless a future requirement justifies accounts or cloud storage.
+- Expose uncertainty and coverage gaps instead of presenting unverified data as complete.
