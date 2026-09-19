@@ -17,12 +17,12 @@ const statewideOnlyCounties = new Set([
 ]);
 
 const completedResearchCounties = new Set([
-  "Kittson", "Marshall", "Norman", "Red Lake", "Stevens",
+  "Cottonwood", "Freeborn", "Grant", "Isanti", "Kanabec", "Kittson", "Lac qui Parle", "Lake of the Woods", "Lincoln",
+  "Marshall", "Martin", "Meeker", "Murray", "Norman", "Pine", "Red Lake", "Redwood", "Rock", "Roseau", "Stevens", "Waseca", "Winona",
 ]);
 
 const olderOrUnverifiedCounties = new Set([
-  "Cottonwood", "Freeborn", "Grant", "Isanti", "Kanabec", "Lac qui Parle", "Lake of the Woods", "Lincoln", "Martin",
-  "Meeker", "Murray", "Pine", "Redwood", "Rock", "Roseau", "Waseca", "Winona",
+  "Cottonwood", "Roseau",
 ]);
 
 export interface ImageryResearchSource {

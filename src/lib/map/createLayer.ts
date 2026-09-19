@@ -65,6 +65,7 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
           style: stringOption(layer, "style") ?? "default",
           format: stringOption(layer, "format") ?? "image/png",
           tileMatrixSetID: requiredOption(layer, "tileMatrixSetID"),
+          rectangle,
           ...levelOptions(layer),
         }),
         common,

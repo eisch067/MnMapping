@@ -112,6 +112,15 @@ function testCountyImagerySummary() {
   assert.equal(latestDisplayableImagery("McLeod")?.id, "mcleod-arcgis-imagery-2026");
   assert.equal(latestDisplayableImagery("Wadena")?.id, "wadena-arcgis-imagery-2025-eagleview");
   assert.equal(latestDisplayableImagery("Wilkin")?.id, "wilkin-arcgis-imagery-2026-eagleview");
+  const polk2025 = latestDisplayableImagery("Polk");
+  assert.equal(polk2025?.id, "polk-imagery-2025-eagleview");
+  assert.equal(polk2025?.sourceType, "wmts");
+  assert.equal(polk2025?.options?.layer, "PICT-MNPOLK25-bwELhvEqES");
+  assert.equal(polk2025?.options?.tileMatrixSetID, "GoogleMapsCompatible");
+  assert.ok(displayableImageryForCounty("Grant").some((layer) => layer.id === "grant-arcgis-imagery-2024-eagleview"));
+  assert.ok(displayableImageryForCounty("Meeker").some((layer) => layer.id === "meeker-imagery-2024-eagleview"));
+  assert.ok(displayableImageryForCounty("Lac qui Parle").some((layer) => layer.id === "lac-qui-parle-imagery-2024-eagleview"));
+  assert.equal(latestDisplayableImagery("Lincoln")?.id, "lincoln-imagery-2026-eagleview");
   assert.ok(displayableImageryForCounty("Marshall").some((layer) => layer.id === "marshall-arcgis-imagery-2024-eagleview"));
   assert.ok(displayableImageryForCounty("Stevens").some((layer) => layer.id === "stevens-arcgis-imagery-2020-pictometry"));
   assert.deepEqual(restrictedImageryForCounty("Brown").map((source) => source.year), [2026, 2023]);
@@ -139,9 +148,9 @@ function testCountyImagerySummary() {
   assert.deepEqual(restrictedImageryForCounty("Otter Tail"), []);
   assert.deepEqual(restrictedImageryForCounty("Pennington"), []);
   assert.deepEqual(restrictedImageryForCounty("Pipestone"), []);
-  assert.deepEqual(restrictedImageryForCounty("Polk").map((source) => source.year), [2025]);
+  assert.deepEqual(restrictedImageryForCounty("Polk"), []);
   assert.deepEqual(restrictedImageryForCounty("Pope"), []);
-  assert.deepEqual(restrictedImageryForCounty("Redwood").map((source) => source.year), [2016]);
+  assert.deepEqual(restrictedImageryForCounty("Redwood").map((source) => source.year), [2026, 2023, 2020, 2016]);
   assert.deepEqual(restrictedImageryForCounty("Renville").map((source) => source.year), [2024]);
   assert.deepEqual(restrictedImageryForCounty("Scott"), []);
   assert.deepEqual(restrictedImageryForCounty("Sherburne"), []);
@@ -164,24 +173,35 @@ function testCountyImagerySummary() {
   assert.deepEqual(restrictedImageryForCounty("Marshall"), []);
   assert.deepEqual(restrictedImageryForCounty("Norman").map((source) => source.year), [2025, 2022]);
   assert.deepEqual(restrictedImageryForCounty("Stevens").map((source) => source.year), [2026, 2023]);
+  assert.deepEqual(restrictedImageryForCounty("Freeborn").map((source) => source.year), [2020]);
+  assert.deepEqual(restrictedImageryForCounty("Isanti").map((source) => source.year), [2025, 2025, 2023, 2023, 2022, 2021, 2020]);
+  assert.deepEqual(restrictedImageryForCounty("Kanabec").map((source) => source.year), [2024, 2021, 2018]);
+  assert.deepEqual(restrictedImageryForCounty("Lake of the Woods").map((source) => source.year), [2024, 2021, 2018]);
+  assert.deepEqual(restrictedImageryForCounty("Martin").map((source) => source.year), [2026, 2023, 2020, 2019]);
+  assert.deepEqual(restrictedImageryForCounty("Meeker").map((source) => source.year), [2021]);
+  assert.deepEqual(restrictedImageryForCounty("Murray").map((source) => source.year), [2024, 2022, 2019]);
+  assert.deepEqual(restrictedImageryForCounty("Pine").map((source) => source.year), [2023, 2018]);
+  assert.deepEqual(restrictedImageryForCounty("Rock").map((source) => source.year), [2025, 2022, 2019]);
+  assert.deepEqual(restrictedImageryForCounty("Waseca").map((source) => source.year), [2025, 2021]);
+  assert.deepEqual(restrictedImageryForCounty("Winona").map((source) => source.year), [2026, 2022, 2020]);
 }
 
 function testImageryResearchTracker() {
   const records = createInitialResearchRecords();
   assert.equal(records.length, 87);
-  assert.equal(records.filter((record) => record.requiresOutreach).length, 18);
+  assert.equal(records.filter((record) => record.requiresOutreach).length, 3);
   assert.equal(records.filter((record) => record.coverageTier === "Statewide only").length, 1);
-  assert.equal(records.filter((record) => record.coverageTier === "Older / recency unverified").length, 17);
-  assert.equal(records.filter((record) => record.coverageTier === "Verified recent").length, 69);
-  assert.equal(records.find((record) => record.county === "Freeborn")?.requiresOutreach, true);
+  assert.equal(records.filter((record) => record.coverageTier === "Older / recency unverified").length, 2);
+  assert.equal(records.filter((record) => record.coverageTier === "Verified recent").length, 84);
+  assert.equal(records.find((record) => record.county === "Freeborn")?.requiresOutreach, false);
   assert.equal(records.find((record) => record.county === "Kittson")?.coverageTier, "Verified recent");
   assert.equal(records.find((record) => record.county === "Red Lake")?.coverageTier, "Statewide only");
   assert.equal(records.find((record) => record.county === "Cottonwood")?.coverageTier, "Older / recency unverified");
   assert.equal(records.find((record) => record.county === "Todd")?.requiresOutreach, false);
-  assert.equal(records.filter((record) => record.status === "Deep research").length, 41);
-  assert.equal(records.filter((record) => record.status === "Needs review").length, 41);
-  assert.equal(records.filter((record) => record.status === "Complete").length, 5);
-  assert.equal(records.find((record) => record.county === "Freeborn")?.status, "Deep research");
+  assert.equal(records.filter((record) => record.status === "Deep research").length, 26);
+  assert.equal(records.filter((record) => record.status === "Needs review").length, 39);
+  assert.equal(records.filter((record) => record.status === "Complete").length, 22);
+  assert.equal(records.find((record) => record.county === "Freeborn")?.status, "Complete");
   assert.equal(records.find((record) => record.county === "Becker")?.status, "Needs review");
   assert.equal(records.find((record) => record.county === "Brown")?.other.length, 2);
   assert.equal(records.find((record) => record.county === "Carlton")?.countySources[0]?.year, "2024");
@@ -196,7 +216,7 @@ function testImageryResearchTracker() {
   assert.match(records.find((record) => record.county === "Winona")?.researchLeads[0]?.url ?? "", /beacon\.schneidercorp\.com/);
   assert.match(records.find((record) => record.county === "Meeker")?.researchLeads[0]?.url ?? "", /beacon\.schneidercorp\.com/);
   assert.equal(records.find((record) => record.county === "Marshall")?.researchLeads[0]?.year, "");
-  for (const county of ["Kittson", "Marshall", "Norman", "Red Lake", "Stevens"]) {
+  for (const county of ["Cottonwood", "Freeborn", "Grant", "Isanti", "Kanabec", "Kittson", "Lac qui Parle", "Lake of the Woods", "Lincoln", "Marshall", "Martin", "Meeker", "Murray", "Norman", "Pine", "Red Lake", "Redwood", "Rock", "Roseau", "Stevens", "Waseca", "Winona"]) {
     assert.equal(records.find((record) => record.county === county)?.status, "Complete");
   }
   assert.equal(records.find((record) => record.county === "Hubbard")?.countySources[0]?.year, "2026");

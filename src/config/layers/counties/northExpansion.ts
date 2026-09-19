@@ -75,7 +75,7 @@ const northCountyInputs: readonly NorthCountyInput[] = [
   { id: "otter-tail", name: "Otter Tail", fips: "111", batch: "N1", bounds: bounds(-96.2813, 46.1068, -95.1457, 46.7182), parcelCount: 67_033, parcelAcquired: "2026-02-25" },
 
   { id: "clay", name: "Clay", fips: "027", batch: "N2", bounds: bounds(-96.8402, 46.6286, -96.1725, 47.1515), imagery: ["nc13ft", "nc13ftcir"], parcelCount: 31_368, parcelAcquired: "2026-08-06" },
-  { id: "polk", name: "Polk", fips: "119", batch: "N2", bounds: bounds(-97.1475, 47.4986, -95.5514, 48.1741), imagery: ["polk", "polkcir"], parcelCount: 28_885, parcelAcquired: "2026-06-16" },
+  { id: "polk", name: "Polk", fips: "119", batch: "N2", bounds: bounds(-97.1475, 47.4986, -95.5514, 48.1741), imagery: ["polk", "polkcir"], additionalLayers: [createPolk2025ImageryLayer()], parcelCount: 28_885, parcelAcquired: "2026-06-16" },
   { id: "wilkin", name: "Wilkin", fips: "167", batch: "N2", bounds: bounds(-96.7914, 46.0216, -96.2649, 46.6308), imagery: ["nc13ft", "nc13ftcir"], parcelCount: 8_572, parcelAcquired: "2026-07-20" },
   { id: "grant", name: "Grant", fips: "051", batch: "N2", bounds: bounds(-96.2665, 45.7592, -95.7584, 46.1087), parcelCount: 7_726, parcelAcquired: "2026-08-04" },
   { id: "cook", name: "Cook", fips: "031", batch: "N2", bounds: bounds(-91.0320, 47.4650, -89.4918, 48.2460), imagery: ["neclr2009", "neir2009", "bwca09"], parcelCount: 12_695, parcelAcquired: "2026-02-03" },
@@ -196,6 +196,29 @@ function createCarlton2024ImageryLayer(): LayerDefinition {
     resolution: "Resolution not published",
     description: "Spring 2024 countywide natural-color mosaic captured April 10–May 3. Carlton County explicitly publishes this service for GIS software; its WMS capabilities report no fees or access constraints. Service metadata and access terms verified 2026-09-17.",
     options: { layers: "PICT-MNCARL24-uXwUjeOUhi", format: "image/jpeg", transparent: false, version: "1.3.0" },
+  };
+}
+
+function createPolk2025ImageryLayer(): LayerDefinition {
+  return {
+    id: "polk-imagery-2025-eagleview",
+    name: "2025 Polk County EagleView",
+    category: "imagery",
+    sourceType: "wmts",
+    url: "https://svc.pictometry.com/Image/98AF9924-7080-15F7-B6F4-685FAB863751/wmts",
+    sourceUrl: "https://svc.pictometry.com/Image/98AF9924-7080-15F7-B6F4-685FAB863751/wmts?SERVICE=WMTS&REQUEST=GetCapabilities",
+    defaultVisible: false,
+    defaultOpacity: 1,
+    minimumLevel: 5,
+    maximumLevel: 30,
+    bounds: bounds(-97.14934298, 47.494481814, -95.544672003, 48.177524112),
+    attribution: "Polk County and EagleView (Pictometry)",
+    agency: "Polk County GIS",
+    county: "Polk",
+    year: 2025,
+    resolution: "Resolution not published",
+    description: "Countywide natural-color EagleView mosaic. The public WMTS capabilities report no fees or access constraints, and an anonymous PNG tile response was verified 2026-09-18.",
+    options: { layer: "PICT-MNPOLK25-bwELhvEqES", style: "default", format: "image/png", tileMatrixSetID: "GoogleMapsCompatible" },
   };
 }
 

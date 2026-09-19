@@ -335,14 +335,6 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
     reason: "The official county item identifies commercial Pictometry imagery but does not publish a license granting third-party embedding rights.",
   },
   {
-    county: "Polk",
-    name: "Polk County 2025 EagleView",
-    year: 2025,
-    url: "https://www.arcgis.com/home/item.html?id=14aa1a1b3d484ebdb9135651da71e10a",
-    detail: "County aerial mosaic",
-    reason: "The official county viewer identifies EagleView imagery, but no third-party reuse grant was found for the commercial imagery.",
-  },
-  {
     county: "Pope",
     name: "Pope County 2023 Pictometry",
     year: 2023,
@@ -566,11 +558,68 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
     detail: "County aerial mosaic",
     reason: "The official public Pictometry service publishes no third-party reuse license.",
   },
+  ...viewerImageryEntries("Freeborn", "https://beacon.schneidercorp.com/Application.aspx?AppID=333&LayerID=3791&PageTypeID=1&PageID=2405", [
+    { year: 2020 },
+  ]),
+  ...viewerImageryEntries("Isanti", "https://experience.arcgis.com/experience/afa4f0f2b20e4a11814c824a9a85f6c5", [
+    { year: 2025, label: "spring" },
+    { year: 2025, label: "fall" },
+    { year: 2023, label: "spring" },
+    { year: 2023, label: "fall" },
+    { year: 2022, label: "fall" },
+    { year: 2021, label: "fall" },
+    { year: 2020, label: "spring" },
+  ]),
+  ...viewerImageryEntries("Kanabec", "https://beacon.schneidercorp.com/Application.aspx?AppID=453&LayerID=6582&PageTypeID=1&PageID=4283", [
+    { year: 2024 }, { year: 2021 }, { year: 2018 },
+  ]),
+  ...viewerImageryEntries("Lake of the Woods", "https://beacon.schneidercorp.com/Application.aspx?App=LakeoftheWoodsCountyMN&PageType=Map", [
+    { year: 2024 }, { year: 2021 }, { year: 2018 },
+  ]),
+  ...viewerImageryEntries("Martin", "https://beacon.schneidercorp.com/Application.aspx?AppID=139&LayerID=1771&PageTypeID=1&PageID=1679", [
+    { year: 2026 }, { year: 2023 }, { year: 2020 }, { year: 2019 },
+  ]),
+  ...viewerImageryEntries("Meeker", "https://beacon.schneidercorp.com/Application.aspx?AppID=585&LayerID=8946&PageTypeID=1", [
+    { year: 2021 },
+  ]),
+  ...viewerImageryEntries("Murray", "https://beacon.schneidercorp.com/Application.aspx?AppID=1153&LayerID=30832&PageTypeID=1&PageID=12498", [
+    { year: 2024 }, { year: 2022 }, { year: 2019 },
+  ]),
+  ...viewerImageryEntries("Pine", "https://beacon.schneidercorp.com/Application.aspx?AppID=197", [
+    { year: 2023 }, { year: 2018 },
+  ]),
+  ...viewerImageryEntries("Redwood", "https://beacon.schneidercorp.com/Application.aspx?AppID=800&LayerID=12803&PageTypeID=1&PageID=5979", [
+    { year: 2026 }, { year: 2023 }, { year: 2020 },
+  ]),
+  ...viewerImageryEntries("Rock", "https://beacon.schneidercorp.com/Application.aspx?AppID=1275&LayerID=43613&PageTypeID=1&PageID=15912", [
+    { year: 2025 }, { year: 2022 }, { year: 2019 },
+  ]),
+  ...viewerImageryEntries("Waseca", "https://beacon.schneidercorp.com/Application.aspx?AppID=1041&LayerID=22741&PageTypeID=1&PageID=0", [
+    { year: 2025 }, { year: 2021 },
+  ]),
+  ...viewerImageryEntries("Winona", "https://beacon.schneidercorp.com/Application.aspx?AppID=597&LayerID=9787&PageTypeID=1", [
+    { year: 2026 }, { year: 2022 }, { year: 2020 },
+  ]),
 ] as const;
 
 export function restrictedImageryForCounty(countyName: string): readonly RestrictedImagerySource[] {
   return restrictedImagerySources
     .filter((source) => source.county === countyName && !isIntegratedArcgisImagery(source.county, source.year, source.url))
     .toSorted((first, second) => second.year - first.year);
+}
+
+function viewerImageryEntries(
+  county: string,
+  url: string,
+  entries: readonly { year: number; label?: string }[],
+): RestrictedImagerySource[] {
+  return entries.map(({ year, label }) => ({
+    county,
+    name: `${county} County ${year}${label ? ` ${label}` : ""} imagery`,
+    year,
+    url,
+    detail: "County viewer imagery",
+    reason: "Manual review of the official county viewer confirms this dated imagery choice, but no reusable public endpoint or third-party embedding grant was found.",
+  }));
 }
 import { isIntegratedArcgisImagery } from "./layers/counties/arcgisImagery";

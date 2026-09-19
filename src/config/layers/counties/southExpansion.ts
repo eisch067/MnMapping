@@ -70,8 +70,12 @@ const southCountyInputs: readonly SouthCountyInput[] = [
   { id: "big-stone", name: "Big Stone", fips: "011", batch: "S2", bounds: bounds(-96.8355, 45.1767, -96.1037, 45.5861), imagery: ["south11", "south11ir"], parcelCount: 7_899, parcelAcquired: "2026-07-30" },
   { id: "brown", name: "Brown", fips: "015", batch: "S2", bounds: bounds(-95.1086, 44.1078, -94.3688, 44.4981), imagery: ["south11", "south11ir"], parcelLayer: directParcel("brown", "Brown", bounds(-95.1086, 44.1078, -94.3688, 44.4981), "/api/gis-proxy/brown/GISNEW/Brown_County_Production_Public_Parcels/FeatureServer", "https://gis.browncountymn.gov/server/rest/services/GISNEW/Brown_County_Production_Public_Parcels/FeatureServer/0", 0, "PIN", { parcelId: "PIN" }, "Official public county parcel geometry and parcel identifiers. Brown County labels the public dataset as containing no owner information. The anonymous service, fields, pagination support, and 18,481-record count were verified 2026-09-14."), additionalLayers: [createBrownParksLayer()] },
   { id: "chippewa", name: "Chippewa", fips: "023", batch: "S2", bounds: bounds(-96.0370, 44.7511, -95.2465, 45.1528), imagery: ["south11", "south11ir"], parcelCount: 11_962, parcelAcquired: "2026-03-23" },
-  { id: "lac-qui-parle", name: "Lac qui Parle", fips: "073", batch: "S2", bounds: bounds(-96.4530, 44.8048, -95.7366, 45.2694), imagery: ["south11", "south11ir"], parcelCount: 8_876, parcelAcquired: "2025-12-10" },
-  { id: "meeker", name: "Meeker", fips: "093", batch: "S2", bounds: bounds(-94.7635, 44.8919, -94.2556, 45.3266), imagery: ["meek13"], parcelLayer: directParcel("meeker", "Meeker", bounds(-94.7635, 44.8919, -94.2556, 45.3266), "/api/gis-proxy/meeker-open/Parcels_hub/FeatureServer", "https://services2.arcgis.com/pHb2Lre5eSy5plfE/arcgis/rest/services/Parcels_hub/FeatureServer/0", 0, "PID", { parcelId: "PID", owner: "NAME", mailingAddress: "MAILING", acres: "DEED_AC", legalDescription: "LEGAL1" }) },
+  { id: "lac-qui-parle", name: "Lac qui Parle", fips: "073", batch: "S2", bounds: bounds(-96.4530, 44.8048, -95.7366, 45.2694), imagery: ["south11", "south11ir"], additionalLayers: [
+    createSouthwestEagleViewLayer("lac-qui-parle", "Lac qui Parle", 2024, "https://svc.pictometry.com/Image/DE0EA214-2CBE-9B5F-8453-9DEC73CEE63D/wmts", "PICT-MNLACQ24-wp7cA3GPJI", bounds(-96.457205114, 44.802310822, -95.730066739, 45.273426645)),
+    createSouthwestEagleViewLayer("lac-qui-parle", "Lac qui Parle", 2020, "https://svc.pictometry.com/Image/DE0EA214-2CBE-9B5F-8453-9DEC73CEE63D/wmts", "PICT-MNLACQ20-pyxWu8buGk", bounds(-96.459951, 44.799879793, -95.720457743, 45.277771168)),
+    createSouthwestEagleViewLayer("lac-qui-parle", "Lac qui Parle", 2017, "https://svc.pictometry.com/Image/DE0EA214-2CBE-9B5F-8453-9DEC73CEE63D/wmts", "PICT-MNLACQ17-pbUk8BJhz1", bounds(-96.501154879, 44.770624173, -95.699844, 45.306767999)),
+  ], parcelCount: 8_876, parcelAcquired: "2025-12-10" },
+  { id: "meeker", name: "Meeker", fips: "093", batch: "S2", bounds: bounds(-94.7635, 44.8919, -94.2556, 45.3266), imagery: ["meek13"], parcelLayer: directParcel("meeker", "Meeker", bounds(-94.7635, 44.8919, -94.2556, 45.3266), "/api/gis-proxy/meeker-open/Parcels_hub/FeatureServer", "https://services2.arcgis.com/pHb2Lre5eSy5plfE/arcgis/rest/services/Parcels_hub/FeatureServer/0", 0, "PID", { parcelId: "PID", owner: "NAME", mailingAddress: "MAILING", acres: "DEED_AC", legalDescription: "LEGAL1" }), additionalLayers: [createMeekerImageryLayer(2024), createMeekerImageryLayer(2018)] },
   { id: "mower", name: "Mower", fips: "099", batch: "S2", bounds: bounds(-93.0496, 43.4997, -92.4490, 43.8487), imagery: ["south11", "south11ir"], parcelCount: 22_956, parcelAcquired: "2026-07-10" },
   { id: "pipestone", name: "Pipestone", fips: "117", batch: "S2", bounds: bounds(-96.4535, 43.8486, -96.0637, 44.1975), imagery: ["south11", "south11ir"], parcelCount: 8_359, parcelAcquired: "2026-08-06" },
   { id: "pope", name: "Pope", fips: "121", batch: "S2", bounds: bounds(-95.7587, 45.4119, -95.1314, 45.7599), parcelCount: 14_006, parcelAcquired: "2026-06-22" },
@@ -83,7 +87,12 @@ const southCountyInputs: readonly SouthCountyInput[] = [
 
   { id: "dodge", name: "Dodge", fips: "039", batch: "S3", bounds: bounds(-93.0460, 43.8484, -92.6779, 44.1970), imagery: ["south11", "south11ir"], parcelLayer: directParcel("dodge", "Dodge", bounds(-93.0460, 43.8484, -92.6779, 44.1970), "/api/gis-proxy/goodhue-public/DodgeCounty/Dodge_Parcels/MapServer", "https://publicmaps.co.goodhue.mn.us/arcgis/rest/services/DodgeCounty/Dodge_Parcels/MapServer/1", 1, "PIN", { parcelId: "PIN", owner: "C0NAME1P", secondaryOwner: "C0NAME2P", siteAddress: "FULL_ADD", mailingAddress: "C0ADRLN1P", acres: "C0ACRES", legalDescription: "SHORTLEGAL" }) },
   { id: "goodhue", name: "Goodhue", fips: "049", batch: "S3", bounds: bounds(-93.0412, 44.1949, -92.2420, 44.7137), imagery: ["south11", "south11ir", "fall11", "fallcir11"], parcelLayer: directParcel("goodhue", "Goodhue", bounds(-93.0412, 44.1949, -92.2420, 44.7137), "/api/gis-proxy/goodhue-public/GoodhueCounty/ParcelsAGOL/MapServer", "https://publicmaps.co.goodhue.mn.us/arcgis/rest/services/GoodhueCounty/ParcelsAGOL/MapServer/0", 0, "PIN", { parcelId: "PIN", owner: "C0NAME1P", secondaryOwner: "C0NAME2P", siteAddress: "FULLSTREET", mailingAddress: "C0ADRLN1P", acres: "C0ACRES", legalDescription: "LEGAL" }) },
-  { id: "lincoln", name: "Lincoln", fips: "081", batch: "S3", bounds: bounds(-96.4528, 44.1967, -96.0785, 44.6313), imagery: ["south11", "south11ir"] },
+  { id: "lincoln", name: "Lincoln", fips: "081", batch: "S3", bounds: bounds(-96.4528, 44.1967, -96.0785, 44.6313), imagery: ["south11", "south11ir"], additionalLayers: [
+    createSouthwestEagleViewLayer("lincoln", "Lincoln", 2026, "https://svc.pictometry.com/Image/B87D3650-B05B-04A6-D816-184043FEA0A4/wmts", "PICT-MNLINC26-Jf5kHa0zly", bounds(-96.492919922, 44.162504183, -96.023254395, 44.674512553)),
+    createSouthwestEagleViewLayer("lincoln", "Lincoln", 2023, "https://svc.pictometry.com/Image/B87D3650-B05B-04A6-D816-184043FEA0A4/wmts", "PICT-MNLINC23-rvP2ZWvVL7", bounds(-96.515147913, 44.161117704, -96.016557613, 44.670879549)),
+    createSouthwestEagleViewLayer("lincoln", "Lincoln", 2020, "https://svc.pictometry.com/Image/B87D3650-B05B-04A6-D816-184043FEA0A4/wmts", "PICT-MNLINC20-dNMUWuHGmi", bounds(-96.464763, 44.182204, -96.060333002, 44.645696777)),
+    createSouthwestEagleViewLayer("lincoln", "Lincoln", 2017, "https://svc.pictometry.com/Image/B87D3650-B05B-04A6-D816-184043FEA0A4/wmts", "PICT-MNLINC17-x0QW6QJ4Hb", bounds(-96.486042595, 44.163995441, -96.051407, 44.666208003)),
+  ] },
   { id: "olmsted", name: "Olmsted", fips: "109", batch: "S3", bounds: bounds(-92.6894, 43.8338, -92.0789, 44.1956), imagery: ["south11", "south11ir", "fall11", "fallcir11"], additionalLayers: [createOlmsted2023ImageryLayer()], parcelCount: 75_579, parcelAcquired: "2026-06-23" },
   { id: "sibley", name: "Sibley", fips: "143", batch: "S3", bounds: bounds(-94.6295, 44.4559, -93.7638, 44.7179), imagery: ["south11", "south11ir"] },
   { id: "kandiyohi", name: "Kandiyohi", fips: "067", batch: "S3", bounds: bounds(-95.2553, 44.8913, -94.7568, 45.4130), imagery: ["south11", "south11ir"] },
@@ -212,6 +221,72 @@ function createOlmsted2023ImageryLayer(): LayerDefinition {
     resolution: "2 inches",
     description: "Official Olmsted County 2023 aerial imagery. The county describes its GIS data as open source; ImageServer metadata and anonymous image export were verified 2026-09-17.",
     options: { format: "jpg", transparent: false },
+  };
+}
+
+function createMeekerImageryLayer(year: 2024 | 2018): LayerDefinition {
+  const current = year === 2024;
+  return {
+    id: `meeker-imagery-${year}-eagleview`,
+    name: `${year} Meeker County EagleView`,
+    category: "imagery",
+    sourceType: "wmts",
+    url: "https://svc.pictometry.com/Image/F35F6850-E352-2E77-4AA7-A1E920BCEFAE/wmts",
+    sourceUrl: "https://svc.pictometry.com/Image/F35F6850-E352-2E77-4AA7-A1E920BCEFAE/wmts?SERVICE=WMTS&REQUEST=GetCapabilities",
+    defaultVisible: false,
+    defaultOpacity: 1,
+    minimumLevel: 5,
+    maximumLevel: 30,
+    bounds: current
+      ? bounds(-94.836032348, 44.853246291, -94.182893773, 45.379726919)
+      : bounds(-94.791401328, 44.858792854, -94.225621581, 45.361790753),
+    attribution: "Meeker County and EagleView (Pictometry)",
+    agency: "Meeker County GIS",
+    county: "Meeker",
+    year,
+    resolution: "Resolution not published",
+    description: `${current ? "March 18–April 24, 2024" : "April 23–May 10, 2018"} countywide EagleView mosaic. The public WMTS capabilities report no fees or access constraints, and an anonymous PNG tile response was verified 2026-09-19.`,
+    options: {
+      layer: current ? "PICT-MNMEEK24-A4BP2KbCqG" : "PICT-MNMEEK18-XiCuJMhkwC",
+      style: "default",
+      format: "image/png",
+      tileMatrixSetID: "GoogleMapsCompatible",
+    },
+  };
+}
+
+function createSouthwestEagleViewLayer(
+  countyId: "lac-qui-parle" | "lincoln",
+  countyName: "Lac qui Parle" | "Lincoln",
+  year: number,
+  url: string,
+  identifier: string,
+  layerBounds: LayerBounds,
+): LayerDefinition {
+  return {
+    id: `${countyId}-imagery-${year}-eagleview`,
+    name: `${year} ${countyName} County EagleView`,
+    category: "imagery",
+    sourceType: "wmts",
+    url,
+    sourceUrl: `${url}?SERVICE=WMTS&REQUEST=GetCapabilities`,
+    defaultVisible: false,
+    defaultOpacity: 1,
+    minimumLevel: 5,
+    maximumLevel: 30,
+    bounds: layerBounds,
+    attribution: `${countyName} County and EagleView (Pictometry)`,
+    agency: `${countyName} County GIS`,
+    county: countyName,
+    year,
+    resolution: "Resolution not published",
+    description: `Official countywide ${year} EagleView mosaic. The county-owned ArcGIS catalog is public, the WMTS capabilities report no fees or access constraints, and an anonymous PNG tile with browser CORS was verified 2026-09-19.`,
+    options: {
+      layer: identifier,
+      style: "default",
+      format: "image/png",
+      tileMatrixSetID: "GoogleMapsCompatible",
+    },
   };
 }
 
