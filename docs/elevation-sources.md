@@ -16,7 +16,7 @@ The authoritative source is MnGeo's **Second-Generation Seamless Lidar DEM**:
 
 The application displays this service through a server-rendered hillshade. Its analytical service definition is stored separately so future point elevation, profile, slope, aspect, contour, and area-statistics tools can use the authoritative values without treating a visualization tile as measurement data.
 
-The contour overlays are generated on demand from the same source and are visualizations derived from the DEM rather than separately surveyed contour datasets. The 10-foot layer uses a 3.048-meter interval for neighborhood and property-scale interpretation. The 2-foot layer uses a 0.6096-meter interval and is restricted to property-scale views below a 10-kilometer camera height; the Layers panel keeps it disabled with a zoom prompt at broader scales.
+The contour overlays are generated on demand from the same source and are visualizations derived from the DEM rather than separately surveyed contour datasets. The 10-foot layer uses a 3.048-meter interval for neighborhood and property-scale interpretation and is restricted to views below a 40-kilometer camera height, since each visible tile triggers a server-side raster computation rather than a cached tile. The 2-foot layer uses a 0.6096-meter interval and is restricted to property-scale views below a 10-kilometer camera height. Both are kept disabled with a zoom prompt in the Layers panel at broader scales.
 
 The ImageServer does not provide CORS headers, so it uses the same read-only, allowlisted proxy pattern as the county services. No statewide elevation files are downloaded or bundled.
 

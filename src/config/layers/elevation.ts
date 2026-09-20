@@ -55,6 +55,7 @@ export const elevationLayers: LayerDefinition[] = [
     sourceUrl: authoritativeElevationSource.serviceUrl,
     defaultVisible: false,
     defaultOpacity: 0.82,
+    minimumLevel: 11,
     maximumLevel: 18,
     attribution: "Minnesota second-generation lidar DEM",
     agency: authoritativeElevationSource.agency,
@@ -62,10 +63,12 @@ export const elevationLayers: LayerDefinition[] = [
     year: authoritativeElevationSource.acquisitionYears,
     resolution: "10-foot interval, dynamically derived",
     description: "Ten-foot-equivalent contours generated on demand from the authoritative 0.5 m lidar DEM (3.048 m source interval). Best used at neighborhood and property scales.",
+    unavailableMessage: "zoom in to access 10' contours",
     options: {
       format: "png32",
       transparent: true,
       renderingRuleJson: "{\"rasterFunction\":\"Contour\",\"rasterFunctionArguments\":{\"ContourType\":0,\"ZBase\":0,\"ZFactor\":1,\"ContourInterval\":3.048}}",
+      maxCameraHeight: 40_000,
     },
   },
   {

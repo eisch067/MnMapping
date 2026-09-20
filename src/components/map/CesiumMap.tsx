@@ -95,7 +95,7 @@ export function CesiumMap({
     const failedDataExtents = failedDataExtentRef.current;
     const dataAborts = dataAbortRef.current;
 
-    void import("cesium").then(({ Cartesian3, Math: CesiumMath, ScreenSpaceEventHandler, ScreenSpaceEventType, Viewer }) => {
+    void import("cesium").then(({ Cartesian3, Math: CesiumMath, SceneMode, ScreenSpaceEventHandler, ScreenSpaceEventType, Viewer }) => {
       if (cancelled || !containerRef.current) return;
       const height = cameraHeightForLocation(location.kind);
       const mapView = {
@@ -115,6 +115,11 @@ export function CesiumMap({
         homeButton: false,
         infoBox: true,
         navigationHelpButton: false,
+        // Cesium's 3D globe mode tessellates terrain geometry continuously even without a
+        // terrain provider selected. Starting in 2D (a flat orthographic projection with no
+        // globe/terrain work) keeps the common case cheap; morphTo3D is only triggered once
+        // someone asks for the tilted terrain view or enables the 3D Terrain layer.
+        sceneMode: SceneMode.SCENE2D,
         sceneModePicker: true,
         selectionIndicator: true,
         timeline: false,
@@ -125,8 +130,14 @@ export function CesiumMap({
       viewer.camera.setView(mapView);
       onResetReady(() => viewer.camera.flyTo({ ...mapView, duration: 0.8 }));
       onViewControlsReady({
-        showMapView: () => viewer.camera.flyTo({ ...mapView, duration: 1.1 }),
-        showTerrainView: () => viewer.camera.flyTo({ ...terrainView, duration: 1.4 }),
+        showMapView: () => {
+          viewer.scene.morphTo2D(0);
+          viewer.camera.flyTo({ ...mapView, duration: 1.1 });
+        },
+        showTerrainView: () => {
+          viewer.scene.morphTo3D(0);
+          viewer.camera.flyTo({ ...terrainView, duration: 1.4 });
+        },
       });
       const reportViewport = () => {
         const rectangle = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
@@ -375,20 +386,26 @@ export function CesiumMap({
     const terrainEnabled = terrainDefinition ? layerState[terrainDefinition.id]?.visible : false;
     if (!terrainEnabled) {
       if (ellipsoidTerrainRef.current) viewer.terrainProvider = ellipsoidTerrainRef.current;
-    } else if (terrainRef.current) {
-      viewer.terrainProvider = terrainRef.current;
-    } else if (terrainDefinition && !pendingTerrainRef.current) {
-      pendingTerrainRef.current = true;
-      void createLayerResource(terrainDefinition).then((resource) => {
-        pendingTerrainRef.current = false;
-        const currentViewer = viewerRef.current;
-        if (!currentViewer || currentViewer.isDestroyed() || !("requestTileGeometry" in resource)) return;
-        terrainRef.current = resource;
-        if (layerStateRef.current[terrainDefinition.id]?.visible) currentViewer.terrainProvider = resource;
-      }).catch((error: unknown) => {
-        pendingTerrainRef.current = false;
-        console.error(`Unable to load ${terrainDefinition.name}`, error);
-      });
+    } else {
+      // Selecting the 3D Terrain layer directly from the Layers panel (rather than the
+      // "Terrain view" button) should still switch out of 2D mode, since the mesh terrain has
+      // nothing to render in a flat, top-down projection.
+      viewer.scene.morphTo3D(0);
+      if (terrainRef.current) {
+        viewer.terrainProvider = terrainRef.current;
+      } else if (terrainDefinition && !pendingTerrainRef.current) {
+        pendingTerrainRef.current = true;
+        void createLayerResource(terrainDefinition).then((resource) => {
+          pendingTerrainRef.current = false;
+          const currentViewer = viewerRef.current;
+          if (!currentViewer || currentViewer.isDestroyed() || !("requestTileGeometry" in resource)) return;
+          terrainRef.current = resource;
+          if (layerStateRef.current[terrainDefinition.id]?.visible) currentViewer.terrainProvider = resource;
+        }).catch((error: unknown) => {
+          pendingTerrainRef.current = false;
+          console.error(`Unable to load ${terrainDefinition.name}`, error);
+        });
+      }
     }
     synchronizeImageryOrder(viewer, layers, imageryRef.current);
     synchronizeDataSourceOrder(viewer, layers, dataSourcesRef.current);
