@@ -317,7 +317,7 @@ function ExternalImageryTable({ sources }: { sources: readonly RestrictedImagery
       <div className="imagery-source-columns" aria-hidden="true"><span>Imagery Name</span><span>Year</span><span>Detail</span></div>
       <div className="imagery-source-rows">
         {sources.length > 0 ? sources.map((source, index) => (
-          <article className="imagery-source-row is-external" key={`${source.county}-${source.year}`}>
+          <article className="imagery-source-row is-external" key={`${source.county}-${source.year}-${source.name}`}>
             <div className="imagery-source-primary">
               <strong>{source.name}</strong>
               <span>{source.year}</span>
