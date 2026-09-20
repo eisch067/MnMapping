@@ -2,7 +2,7 @@
 
 MnMapping is an interactive Minnesota mapping application for comparing current and historical aerial imagery, inspecting parcels and public-land boundaries, exploring elevation, and working with personal map data. It combines statewide public GIS services with verified county sources in one Cesium-based 3D map.
 
-**Live application:** [mnmapping.eischens-brad.workers.dev](https://mnmapping.eischens-brad.workers.dev)
+**Live application:** [publicmnmapping.eischens-brad.workers.dev](https://publicmnmapping.eischens-brad.workers.dev)
 
 ## What you can do
 
@@ -42,7 +42,7 @@ Layer preferences are stored in browser `localStorage`. Pins, drawings, and impo
 
 ## County imagery research
 
-The built-in [`/research`](https://mnmapping.eischens-brad.workers.dev/research) workspace tracks imagery research for every county without a database or account. It provides:
+The built-in [`/research`](https://publicmnmapping.eischens-brad.workers.dev/research) workspace tracks imagery research for every county without a database or account. It provides:
 
 - A separate source inbox for each county.
 - Implemented, date-confirmed external, and unresolved research categories.
@@ -97,7 +97,7 @@ Production is deployed to Cloudflare Workers from the checked-in vinext configur
 
 ```bash
 npm run build:vinext
-npm run deploy:vinext
+npm run deploy:vinext:public
 ```
 
 Cloudflare configuration and GitHub deployment details are documented in [Cloudflare deployment](docs/cloudflare-deployment.md).
