@@ -71,6 +71,7 @@ export interface LayerDefinition {
   sourceUrl?: string;
   county?: string;
   bounds?: LayerBounds;
+  recordsUrl?: string;
   year?: number | string;
   resolution?: string;
   description?: string;

@@ -1,4 +1,5 @@
 import type { LayerDefinition } from "../types";
+import { isPersonalMode } from "../../appMode";
 
 const proxyRoot = "/api/gis-proxy/todd/Imagery";
 const sourceRoot = "https://gis.mytoddcounty.com/toddcounty/rest/services/Imagery";
@@ -12,23 +13,31 @@ const vintages = [
   { service: "2008County", year: 2008, scope: "County", resolution: "12 inches", season: "Not published" },
 ] as const;
 
-const imageryLayers: LayerDefinition[] = vintages.map((vintage) => ({
-  id: `todd-imagery-${vintage.year}-${vintage.scope.toLowerCase()}`,
-  name: `${vintage.year} Todd ${vintage.scope}`,
-  category: "imagery",
-  sourceType: "arcgis-mapserver",
-  url: `${proxyRoot}/${vintage.service}/MapServer`,
-  sourceUrl: `${sourceRoot}/${vintage.service}/MapServer`,
-  defaultVisible: false,
-  defaultOpacity: 1,
-  attribution: "Todd County GIS / Pictometry",
-  agency: "Todd County GIS; imagery by Pictometry",
-  county: "Todd",
-  year: vintage.year,
-  resolution: vintage.resolution,
-  description: `${vintage.season} ${vintage.scope.toLowerCase()} acquisition. Dynamic export is used because the published tile cache uses a county coordinate system.`,
-  options: { enablePickFeatures: false, usePreCachedTilesIfAvailable: false },
-}));
+// Todd County's imagery vintages (2020/2018/2017/2013/2008) are Pictometry-flown per the
+// county's own attribution, proxied through the county's own MapServer. The 2026-09 licensing
+// audit (docs/licensing/RISK-REGISTER.md, item B1) found no third-party reuse license for this
+// imagery, so it's only embedded in the personal build. In the public build, entries in
+// src/config/restrictedImagery.ts surface it as an "External imagery" link instead, matching
+// every other county in that finding.
+const imageryLayers: LayerDefinition[] = isPersonalMode
+  ? vintages.map((vintage) => ({
+    id: `todd-imagery-${vintage.year}-${vintage.scope.toLowerCase()}`,
+    name: `${vintage.year} Todd ${vintage.scope}`,
+    category: "imagery",
+    sourceType: "arcgis-mapserver",
+    url: `${proxyRoot}/${vintage.service}/MapServer`,
+    sourceUrl: `${sourceRoot}/${vintage.service}/MapServer`,
+    defaultVisible: false,
+    defaultOpacity: 1,
+    attribution: "Todd County GIS / Pictometry",
+    agency: "Todd County GIS; imagery by Pictometry",
+    county: "Todd",
+    year: vintage.year,
+    resolution: vintage.resolution,
+    description: `${vintage.season} ${vintage.scope.toLowerCase()} acquisition. Dynamic export is used because the published tile cache uses a county coordinate system.`,
+    options: { enablePickFeatures: false, usePreCachedTilesIfAvailable: false },
+  }))
+  : [];
 
 const parcelLayer: LayerDefinition = {
   id: "todd-parcels",

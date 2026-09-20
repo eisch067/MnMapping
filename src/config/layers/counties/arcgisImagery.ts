@@ -1,4 +1,5 @@
 import type { CountyDefinition, LayerBounds, LayerDefinition, LayerSourceType } from "../types";
+import { isPersonalMode } from "../../appMode";
 
 const verifiedAt = "2026-09-18";
 
@@ -15,7 +16,17 @@ type ArcGisImagerySpec = {
   dynamic?: boolean;
 };
 
-const specs: readonly ArcGisImagerySpec[] = [
+// Every source in fullSpecs (EagleView/Pictometry, Nearmap, Kucera, and several
+// unbranded-but-unlicensed county mosaics) was found by the 2026-09 licensing audit
+// (docs/licensing/RISK-REGISTER.md, item B1) to have no confirmed third-party reuse license.
+// In the public build (the default), they are left out of live embedding and instead
+// surfaced as "External imagery" links via src/config/restrictedImagery.ts — the same
+// treatment already used for Itasca, Wright, Brown, and other counties whose imagery
+// could not be confirmed as licensed. They are only embedded in the personal build
+// (NEXT_PUBLIC_APP_MODE=personal), a password-gated deployment for the operator's own use.
+// Move a county into the public build only after written permission is obtained from the
+// county and/or the imagery vendor.
+const fullSpecs: readonly ArcGisImagerySpec[] = [
   map("aitkin", "2024-pictometry", "2024 Aitkin County Pictometry", 2024, "aitkin-imagery/2024PictometryImagery/MapServer", "https://gisweb.co.aitkin.mn.us/arcgis/rest/services/2024PictometryImagery/MapServer", "Not published", "Official county aerial mosaic."),
   map("anoka", "2026-spring", "2026 Anoka County spring", 2026, "anoka-imagery/Aerials/MapServer", "https://gis.anokacountymn.gov/anoka_gis/rest/services/Aerials/MapServer", "6 inches", "Spring county aerial mosaic.", true),
   map("anoka", "2025-fall", "2025 Anoka County fall", 2025, "anoka-imagery/Aerials_Fall/MapServer", "https://gis.anokacountymn.gov/anoka_gis/rest/services/Aerials_Fall/MapServer", "6 inches", "Fall county aerial mosaic.", true),
@@ -58,6 +69,8 @@ const specs: readonly ArcGisImagerySpec[] = [
   map("wilkin", "2026-eagleview", "2026 Wilkin County EagleView", 2026, "wilkin-imagery/EagleView_2026/MapServer", "https://gisweb.co.wilkin.mn.us/arcgis/rest/services/EagleView_2026/MapServer", "Not published", "Official county aerial mosaic."),
   map("yellow-medicine", "2025-eagleview", "2025 Yellow Medicine County EagleView", 2025, "yellow-medicine-imagery/Pictometry/2025_Eagleview/MapServer", "https://gis.co.ym.mn.gov/arcgis/rest/services/Pictometry/2025_Eagleview/MapServer", "Not published", "Official county aerial mosaic."),
 ] as const;
+
+const specs: readonly ArcGisImagerySpec[] = isPersonalMode ? fullSpecs : [];
 
 export function arcgisImageryLayersForCounty(county: Pick<CountyDefinition, "id" | "name" | "bounds">): readonly LayerDefinition[] {
   return specs

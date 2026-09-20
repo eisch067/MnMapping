@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 
+// This suite exercises the full (personal-mode) imagery registry, including vendor imagery
+// that's only embedded when NEXT_PUBLIC_APP_MODE=personal (see src/config/appMode.ts). The
+// public build's reduced registry is covered separately by `npm run audit:registry`.
+process.env.NEXT_PUBLIC_APP_MODE = "personal";
+
 const built = await build({
   stdin: {
     contents: `

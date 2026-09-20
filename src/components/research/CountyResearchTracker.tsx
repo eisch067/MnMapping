@@ -123,6 +123,7 @@ export function CountyResearchTracker() {
           <div><span className="eyebrow">MnMapping research workspace</span><h1>County imagery tracker</h1></div>
         </div>
         <div className="research-actions">
+          <Link href="/research/licensing" className="research-back-link">Licensing &amp; commercial-use audit</Link>
           <input ref={importRef} type="file" accept="application/json,.json" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importJson(file); }} />
           <button type="button" onClick={() => importRef.current?.click()}>Import JSON</button>
           <button type="button" onClick={exportCsv}>Export CSV</button>

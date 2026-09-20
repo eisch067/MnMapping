@@ -1,5 +1,6 @@
 import type { CountyDefinition, LayerBounds, LayerDefinition } from "../types";
 import { createMnGeoParcelLayer } from "./shared";
+import { isPersonalMode } from "../../appMode";
 
 const imageryUrl = "/api/gis-proxy/mngeo-imagery/wmsll?";
 const imagerySourceUrl = "https://imageserver.gisdata.mn.gov/cgi-bin/wmsll?";
@@ -67,7 +68,7 @@ type NorthCountyInput = {
 
 const northCountyInputs: readonly NorthCountyInput[] = [
   { id: "benton", name: "Benton", fips: "009", batch: "N1", bounds: bounds(-94.3531, 45.5590, -93.7593, 45.8243), imagery: ["fall11"], parcelCount: 20_313, parcelAcquired: "2026-02-17" },
-  { id: "carlton", name: "Carlton", fips: "017", batch: "N1", bounds: bounds(-93.0645, 46.4173, -92.2916, 46.7691), imagery: ["carlton21", "carl19", "carl19cir", "carl15_9", "nc13ft"], additionalLayers: [createCarlton2024ImageryLayer()], parcelCount: 34_068, parcelAcquired: "2026-07-16" },
+  { id: "carlton", name: "Carlton", fips: "017", batch: "N1", bounds: bounds(-93.0645, 46.4173, -92.2916, 46.7691), imagery: ["carlton21", "carl19", "carl19cir", "carl15_9", "nc13ft"], additionalLayers: isPersonalMode ? [createCarlton2024ImageryLayer()] : undefined, parcelCount: 34_068, parcelAcquired: "2026-07-16" },
   { id: "crow-wing", name: "Crow Wing", fips: "035", batch: "N1", bounds: bounds(-94.3952, 46.1559, -93.7760, 46.8054), imagery: ["fall12", "fallcir12"], parcelCount: 76_486, parcelAcquired: "2026-07-19" },
   { id: "itasca", name: "Itasca", fips: "061", batch: "N1", bounds: bounds(-94.4192, 47.0253, -93.0557, 47.8991), imagery: ["itas18", "itas18cir", "nc13ft", "nc13ftcir"], parcelCount: 80_651, parcelAcquired: "2026-06-26" },
   { id: "mille-lacs", name: "Mille Lacs", fips: "095", batch: "N1", bounds: bounds(-93.8108, 45.5587, -93.4297, 46.2472), imagery: ["nc13ft", "nc13ftcir", "fall11", "fallcir11"], parcelCount: 20_928, parcelAcquired: "2026-02-24" },
@@ -75,7 +76,7 @@ const northCountyInputs: readonly NorthCountyInput[] = [
   { id: "otter-tail", name: "Otter Tail", fips: "111", batch: "N1", bounds: bounds(-96.2813, 46.1068, -95.1457, 46.7182), parcelCount: 67_033, parcelAcquired: "2026-02-25" },
 
   { id: "clay", name: "Clay", fips: "027", batch: "N2", bounds: bounds(-96.8402, 46.6286, -96.1725, 47.1515), imagery: ["nc13ft", "nc13ftcir"], parcelCount: 31_368, parcelAcquired: "2026-08-06" },
-  { id: "polk", name: "Polk", fips: "119", batch: "N2", bounds: bounds(-97.1475, 47.4986, -95.5514, 48.1741), imagery: ["polk", "polkcir"], additionalLayers: [createPolk2025ImageryLayer()], parcelCount: 28_885, parcelAcquired: "2026-06-16" },
+  { id: "polk", name: "Polk", fips: "119", batch: "N2", bounds: bounds(-97.1475, 47.4986, -95.5514, 48.1741), imagery: ["polk", "polkcir"], additionalLayers: isPersonalMode ? [createPolk2025ImageryLayer()] : undefined, parcelCount: 28_885, parcelAcquired: "2026-06-16" },
   { id: "wilkin", name: "Wilkin", fips: "167", batch: "N2", bounds: bounds(-96.7914, 46.0216, -96.2649, 46.6308), imagery: ["nc13ft", "nc13ftcir"], parcelCount: 8_572, parcelAcquired: "2026-07-20" },
   { id: "grant", name: "Grant", fips: "051", batch: "N2", bounds: bounds(-96.2665, 45.7592, -95.7584, 46.1087), parcelCount: 7_726, parcelAcquired: "2026-08-04" },
   { id: "cook", name: "Cook", fips: "031", batch: "N2", bounds: bounds(-91.0320, 47.4650, -89.4918, 48.2460), imagery: ["neclr2009", "neir2009", "bwca09"], parcelCount: 12_695, parcelAcquired: "2026-02-03" },
@@ -258,10 +259,17 @@ function createMahnomenParcelLayer(): LayerDefinition {
     agency: "Mahnomen County GIS",
     county: "Mahnomen",
     bounds: bounds(-96.0676, 47.1502, -95.5503, 47.5001),
-    description: `Official county tax-parcel polygons with owner, address, acreage, legal-description, and tax-year attributes. Anonymous GeoJSON queries, 6,222-record count, service metadata, fields, and data freshness were verified ${verifiedAt}; data last edited 2026-07-10.`,
+    recordsUrl: isPersonalMode ? undefined : "https://www.mahnomencounty.gov/department/departments_a_h/assessor/index.php",
+    description: isPersonalMode
+      ? `Official county tax-parcel polygons with owner, address, acreage, legal-description, and tax-year attributes. Anonymous GeoJSON queries, 6,222-record count, service metadata, fields, and data freshness were verified ${verifiedAt}; data last edited 2026-07-10.`
+      : `Official county tax-parcel polygons (shape, address, acreage, and legal description only). Anonymous GeoJSON queries, 6,222-record count, service metadata, fields, and data freshness were verified ${verifiedAt}; data last edited 2026-07-10. Owner name, taxpayer name, and mailing address exist on the source service but are intentionally not shown here pending county confirmation — use the linked Assessor's site for that information.`,
     nameField: "Parcel_Num",
-    parcelFields: { parcelId: "Parcel_Num", owner: "OWNER_NAME", siteAddress: "PROPERTY_ADDRESS", mailingAddress: "OWNER_ADDRESS_1", acres: "DEEDED_ACRES", legalDescription: "LEGAL", taxYear: "TAX_YEAR" },
-    options: { layerId: 0, outFields: "Parcel_Num,OWNER_NAME,PROPERTY_ADDRESS,OWNER_ADDRESS_1,DEEDED_ACRES,LEGAL,TAX_YEAR", fillColor: "#ffffff", strokeColor: "#f2d48a", fillAlpha: 0.01, strokeWidth: 1, maxCameraHeight: 35_000 },
+    parcelFields: isPersonalMode
+      ? { parcelId: "Parcel_Num", owner: "OWNER_NAME", siteAddress: "PROPERTY_ADDRESS", mailingAddress: "OWNER_ADDRESS_1", acres: "DEEDED_ACRES", legalDescription: "LEGAL", taxYear: "TAX_YEAR" }
+      : { parcelId: "Parcel_Num", siteAddress: "PROPERTY_ADDRESS", acres: "DEEDED_ACRES", legalDescription: "LEGAL" },
+    options: isPersonalMode
+      ? { layerId: 0, outFields: "Parcel_Num,OWNER_NAME,PROPERTY_ADDRESS,OWNER_ADDRESS_1,DEEDED_ACRES,LEGAL,TAX_YEAR", fillColor: "#ffffff", strokeColor: "#f2d48a", fillAlpha: 0.01, strokeWidth: 1, maxCameraHeight: 35_000 }
+      : { layerId: 0, outFields: "Parcel_Num,PROPERTY_ADDRESS,DEEDED_ACRES,LEGAL", fillColor: "#ffffff", strokeColor: "#f2d48a", fillAlpha: 0.01, strokeWidth: 1, maxCameraHeight: 35_000 },
   };
 }
 

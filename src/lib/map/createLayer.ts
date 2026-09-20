@@ -209,6 +209,7 @@ function decorateGeoJson(
       return [`<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(String(value))}</td></tr>`];
     });
     rows.push(`<tr><th>Source</th><td>${escapeHtml(layer.agency ?? layer.attribution)}</td></tr>`);
+    if (layer.recordsUrl) rows.push(`<tr><th>Ownership &amp; tax records</th><td><a href="${escapeHtml(layer.recordsUrl)}" target="_blank" rel="noreferrer">Look up on the county site ↗</a></td></tr>`);
     const accessNote = accessMeaningLabel(layer.accessMeaning);
     if (accessNote) rows.push(`<tr><th>Boundary meaning</th><td>${escapeHtml(accessNote)}</td></tr>`);
     entity.description = new ConstantProperty(`<table class="cesium-infoBox-defaultTable"><tbody>${rows.join("")}</tbody></table>`);

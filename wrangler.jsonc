@@ -1,5 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Default environment (no --env flag / CLOUDFLARE_ENV unset): the "personal" build. Deployed
+  // as the Worker named "mn-mapping" — this keeps the existing production URL. See
+  // docs/two-versions.md for the full personal-vs-public deployment setup, including the
+  // build-time NEXT_PUBLIC_APP_MODE and CLOUDFLARE_ENV variables each Cloudflare app must set.
   "name": "mn-mapping",
   "compatibility_date": "2026-09-14",
   "compatibility_flags": [
@@ -16,5 +20,28 @@
   },
   "version_metadata": {
     "binding": "CF_VERSION_METADATA"
+  },
+  // The "public" (sharing) environment. Wrangler environments don't inherit top-level fields,
+  // so everything except `name` is repeated here on purpose.
+  "env": {
+    "public": {
+      "name": "public-mn-mapping",
+      "compatibility_date": "2026-09-14",
+      "compatibility_flags": [
+        "nodejs_compat"
+      ],
+      "main": "vinext/server/fetch-handler",
+      "assets": {
+        "directory": "dist/client",
+        "not_found_handling": "none",
+        "binding": "ASSETS"
+      },
+      "cache": {
+        "enabled": true
+      },
+      "version_metadata": {
+        "binding": "CF_VERSION_METADATA"
+      }
+    }
   }
 }

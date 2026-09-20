@@ -95,6 +95,14 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
     reason: "The imagery is publicly viewable, but EagleView retains copyright and no license authorizes MnMapping to embed it.",
   },
   {
+    county: "Carlton",
+    name: "Carlton County 2024 EagleView",
+    year: 2024,
+    url: "https://www.carltoncountymn.gov/185/GIS-Mapping",
+    detail: "County aerial mosaic",
+    reason: "The county publishes this WMS directly from Pictometry's own servers for GIS software use; the layer abstract itself reads \"Copyright Pictometry 2024,\" and no third-party web-embedding grant was found.",
+  },
+  {
     county: "Carver",
     name: "Carver County 2026 Kucera imagery",
     year: 2026,
@@ -216,6 +224,22 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
   },
   {
     county: "Grant",
+    name: "Grant County 2024 EagleView",
+    year: 2024,
+    url: "https://gis.co.grant.mn.us/arcgis/rest/services/Grant/EagleView2024/MapServer",
+    detail: "County aerial mosaic",
+    reason: "The county exposes a public cached EagleView mosaic, but the service publishes no copyright statement or third-party reuse license.",
+  },
+  {
+    county: "Grant",
+    name: "Grant County 2021 Pictometry",
+    year: 2021,
+    url: "https://gis.co.grant.mn.us/arcgis/rest/services/Grant/Pictometry2021/MapServer",
+    detail: "County aerial mosaic",
+    reason: "The county exposes a public cached Pictometry mosaic, but the service publishes no copyright statement or third-party reuse license.",
+  },
+  {
+    county: "Grant",
     name: "Grant County 2017 Pictometry",
     year: 2017,
     url: "https://gis.co.grant.mn.us/arcgis/rest/services/Grant/Pictometry2017/MapServer",
@@ -333,6 +357,14 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
     url: "https://www.arcgis.com/home/item.html?id=ea7d0c37011e4187a19c8d32f38b3eeb",
     detail: "County aerial mosaic",
     reason: "The official county item identifies commercial Pictometry imagery but does not publish a license granting third-party embedding rights.",
+  },
+  {
+    county: "Polk",
+    name: "Polk County 2025 EagleView",
+    year: 2025,
+    url: "https://svc.pictometry.com/Image/98AF9924-7080-15F7-B6F4-685FAB863751/wmts?SERVICE=WMTS&REQUEST=GetCapabilities",
+    detail: "County aerial mosaic",
+    reason: "This WMTS is served directly from Pictometry's own infrastructure, not a Polk County server; the layer abstract reads \"Copyright Pictometry 2025,\" and no third-party web-embedding grant was found.",
   },
   {
     county: "Pope",
@@ -462,6 +494,14 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
     detail: "County aerial mosaic",
     reason: "The public county-viewer web map references a commercial Pictometry WMTS endpoint and publishes no third-party embedding grant.",
   },
+  ...toddImageryEntries([
+    { service: "2020County", year: 2020, scope: "County", resolution: "Not published" },
+    { service: "2018City", year: 2018, scope: "Cities", resolution: "4 inches" },
+    { service: "2017County", year: 2017, scope: "County", resolution: "9 inches" },
+    { service: "2013City", year: 2013, scope: "Cities", resolution: "6 inches" },
+    { service: "2013County", year: 2013, scope: "County", resolution: "9 inches" },
+    { service: "2008County", year: 2008, scope: "County", resolution: "12 inches" },
+  ]),
   {
     county: "Wadena",
     name: "Wadena County 2025 EagleView",
@@ -573,6 +613,8 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
   ...viewerImageryEntries("Kanabec", "https://beacon.schneidercorp.com/Application.aspx?AppID=453&LayerID=6582&PageTypeID=1&PageID=4283", [
     { year: 2024 }, { year: 2021 }, { year: 2018 },
   ]),
+  ...eagleViewWmtsEntries("Lac qui Parle", "https://svc.pictometry.com/Image/DE0EA214-2CBE-9B5F-8453-9DEC73CEE63D/wmts?SERVICE=WMTS&REQUEST=GetCapabilities", [2024, 2020, 2017]),
+  ...eagleViewWmtsEntries("Lincoln", "https://svc.pictometry.com/Image/B87D3650-B05B-04A6-D816-184043FEA0A4/wmts?SERVICE=WMTS&REQUEST=GetCapabilities", [2026, 2023, 2020, 2017]),
   ...viewerImageryEntries("Lake of the Woods", "https://beacon.schneidercorp.com/Application.aspx?App=LakeoftheWoodsCountyMN&PageType=Map", [
     { year: 2024 }, { year: 2021 }, { year: 2018 },
   ]),
@@ -582,6 +624,7 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
   ...viewerImageryEntries("Meeker", "https://beacon.schneidercorp.com/Application.aspx?AppID=585&LayerID=8946&PageTypeID=1", [
     { year: 2021 },
   ]),
+  ...eagleViewWmtsEntries("Meeker", "https://svc.pictometry.com/Image/F35F6850-E352-2E77-4AA7-A1E920BCEFAE/wmts?SERVICE=WMTS&REQUEST=GetCapabilities", [2024, 2018]),
   ...viewerImageryEntries("Murray", "https://beacon.schneidercorp.com/Application.aspx?AppID=1153&LayerID=30832&PageTypeID=1&PageID=12498", [
     { year: 2024 }, { year: 2022 }, { year: 2019 },
   ]),
@@ -602,10 +645,47 @@ export const restrictedImagerySources: readonly RestrictedImagerySource[] = [
   ]),
 ] as const;
 
+// These counties' vendor imagery lives outside arcgisImagery.ts's own `specs` (it's defined
+// inline in northExpansion.ts, southExpansion.ts, and todd.ts instead), so
+// isIntegratedArcgisImagery can't see it. In the personal build that imagery is embedded live
+// just like everything in `specs`, so its matching "External imagery" entries above need the
+// same suppression, keyed by county + year since the two sets of URLs don't otherwise match.
+const personalModeEmbeddedExtraYears: ReadonlySet<string> = new Set([
+  "Carlton|2024",
+  "Polk|2025",
+  "Todd|2020", "Todd|2018", "Todd|2017", "Todd|2013", "Todd|2008",
+  "Lac qui Parle|2024", "Lac qui Parle|2020", "Lac qui Parle|2017",
+  "Lincoln|2026", "Lincoln|2023", "Lincoln|2020", "Lincoln|2017",
+  "Meeker|2024", "Meeker|2018",
+]);
+
 export function restrictedImageryForCounty(countyName: string): readonly RestrictedImagerySource[] {
   return restrictedImagerySources
-    .filter((source) => source.county === countyName && !isIntegratedArcgisImagery(source.county, source.year, source.url))
+    .filter((source) => source.county === countyName && !isIntegratedArcgisImagery(source.county, source.year, source.url)
+      && !(isPersonalMode && personalModeEmbeddedExtraYears.has(`${source.county}|${source.year}`)))
     .toSorted((first, second) => second.year - first.year);
+}
+
+function toddImageryEntries(vintages: readonly { service: string; year: number; scope: string; resolution: string }[]): RestrictedImagerySource[] {
+  return vintages.map(({ service, year, scope, resolution }) => ({
+    county: "Todd",
+    name: `${year} Todd ${scope} Pictometry`,
+    year,
+    url: `https://gis.mytoddcounty.com/toddcounty/rest/services/Imagery/${service}/MapServer`,
+    detail: `${scope} aerial mosaic, ${resolution}`,
+    reason: "Todd County's own layer attribution names Pictometry as the imagery provider, and no third-party reuse license was found for this county-proxied service.",
+  }));
+}
+
+function eagleViewWmtsEntries(county: string, capabilitiesUrl: string, years: readonly number[]): RestrictedImagerySource[] {
+  return years.map((year) => ({
+    county,
+    name: `${county} County ${year} EagleView`,
+    year,
+    url: capabilitiesUrl,
+    detail: "County aerial mosaic",
+    reason: "This WMTS is served directly from Pictometry's own infrastructure rather than a county server, and its per-layer copyright notice names Pictometry as the rights holder; no third-party web-embedding grant was found.",
+  }));
 }
 
 function viewerImageryEntries(
@@ -623,3 +703,4 @@ function viewerImageryEntries(
   }));
 }
 import { isIntegratedArcgisImagery } from "./layers/counties/arcgisImagery";
+import { isPersonalMode } from "./appMode";

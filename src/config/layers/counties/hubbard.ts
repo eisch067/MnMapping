@@ -1,4 +1,5 @@
 import type { LayerDefinition } from "../types";
+import { isPersonalMode } from "../../appMode";
 
 const proxyRoot = "/api/gis-proxy/hubbard/Imagery";
 const sourceRoot = "https://gis.co.hubbard.mn.us/arcgis/rest/services/Imagery";
@@ -42,10 +43,17 @@ const parcelLayer: LayerDefinition = {
   attribution: "Hubbard County GIS",
   agency: "Hubbard County GIS",
   county: "Hubbard",
-  description: "Official tax-parcel geometry and published assessment attributes. Loads only at parcel-scale zoom.",
+  recordsUrl: isPersonalMode ? undefined : "https://publicaccess.co.hubbard.mn.us/",
+  description: isPersonalMode
+    ? "Official tax-parcel geometry and published assessment attributes. Loads only at parcel-scale zoom."
+    : "Official tax-parcel geometry (shape and boundary only). Loads only at parcel-scale zoom. The source service's own copyrightText names the county Recorder's and Assessor's Offices as rights holders with no reuse grant, so owner name, mailing address, and tax year are intentionally not shown here — use the linked county site for that information.",
   nameField: "hubbgis_GIS_Parcels_PIN",
-  parcelFields: { parcelId: "hubbgis_GIS_Parcels_PIN", owner: "PINAME1", secondaryOwner: "PINAME2", siteAddress: "PAADRLN1", mailingAddress: "PIADRLN1", acres: "hubbgis_GIS_Parcels_Acres", legalDescription: "LGDSC", taxYear: "PYPYEAR" },
-  options: { layerId: 0, outFields: "hubbgis_GIS_Parcels_PIN,PINAME1,PINAME2,PAADRLN1,PIADRLN1,hubbgis_GIS_Parcels_Acres,LGDSC,PYPYEAR", fillColor: "#ffffff", strokeColor: "#f2d48a", fillAlpha: 0.01, strokeWidth: 1, maxCameraHeight: 35000 },
+  parcelFields: isPersonalMode
+    ? { parcelId: "hubbgis_GIS_Parcels_PIN", owner: "PINAME1", secondaryOwner: "PINAME2", siteAddress: "PAADRLN1", mailingAddress: "PIADRLN1", acres: "hubbgis_GIS_Parcels_Acres", legalDescription: "LGDSC", taxYear: "PYPYEAR" }
+    : { parcelId: "hubbgis_GIS_Parcels_PIN", siteAddress: "PAADRLN1", acres: "hubbgis_GIS_Parcels_Acres", legalDescription: "LGDSC" },
+  options: isPersonalMode
+    ? { layerId: 0, outFields: "hubbgis_GIS_Parcels_PIN,PINAME1,PINAME2,PAADRLN1,PIADRLN1,hubbgis_GIS_Parcels_Acres,LGDSC,PYPYEAR", fillColor: "#ffffff", strokeColor: "#f2d48a", fillAlpha: 0.01, strokeWidth: 1, maxCameraHeight: 35000 }
+    : { layerId: 0, outFields: "hubbgis_GIS_Parcels_PIN,PAADRLN1,hubbgis_GIS_Parcels_Acres,LGDSC", fillColor: "#ffffff", strokeColor: "#f2d48a", fillAlpha: 0.01, strokeWidth: 1, maxCameraHeight: 35000 },
 };
 
 export const hubbardLayers: LayerDefinition[] = [...imageryLayers, parcelLayer];
