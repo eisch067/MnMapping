@@ -379,6 +379,22 @@ export function LayerPanel({
                   />
                   <span><strong>{category === "public-land" ? "All public lands" : "All parcels"}</strong><small>Turn every {category === "public-land" ? "public-land" : "parcel"} layer in the current area on or off. New layers that come into view while every layer is on will join them automatically.</small></span>
                 </label>}
+                {(category === "public-land" || category === "parcels") && categoryLayers.length > 0 && <label className="opacity-control category-master-opacity">
+                  <span>All opacities</span>
+                  <input
+                    aria-label={`${category === "public-land" ? "All public lands" : "All parcels"} opacity`}
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={Math.round(averageOpacity(categoryLayers, state) * 100)}
+                    onChange={(event) => {
+                      const opacity = Number(event.target.value) / 100;
+                      categoryLayers.forEach((layer) => onOpacityChange(layer.id, opacity));
+                    }}
+                  />
+                  <output>{Math.round(averageOpacity(categoryLayers, state) * 100)}%</output>
+                </label>}
                 {renderLayerRows(categoryLayers)}
                 {category === "parcels" && pendingParcelCounties.map((county) => (
                   <p className="layer-availability-note" key={county}>
@@ -509,6 +525,12 @@ function groupByCounty(layers: readonly LayerDefinition[]): Map<string, LayerDef
     counties.set(layer.county, [...(counties.get(layer.county) ?? []), layer]);
   }
   return new Map([...counties].toSorted(([first], [second]) => first.localeCompare(second)));
+}
+
+function averageOpacity(layers: readonly LayerDefinition[], state: LayerStateById): number {
+  if (layers.length === 0) return 1;
+  const total = layers.reduce((sum, layer) => sum + (state[layer.id]?.opacity ?? layer.defaultOpacity), 0);
+  return total / layers.length;
 }
 
 function metadataLine(layer: LayerDefinition): string {

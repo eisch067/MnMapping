@@ -8,6 +8,7 @@ import { LayerPanel } from "@/components/ui/LayerPanel";
 import { LayersIcon, LocateIcon, MapIcon, PinIcon, SearchIcon, TerrainIcon } from "@/components/ui/MapIcons";
 import { initialCountyForName, supportedCountiesInViewport, type MapLocation, type ViewportBounds } from "@/lib/location";
 import { restoreLayerOrder, restoreLayerState, restoreVerticalExaggeration, saveLayerPreferences } from "@/lib/map/layerState";
+import { recordRecentLocation } from "@/lib/locationHistory";
 import type { LayerRuntimeStateById } from "@/lib/map/layerRuntime";
 import { CesiumMap, type MapViewControls } from "./CesiumMap";
 import type { InteractionMode } from "./CesiumMap";
@@ -180,6 +181,7 @@ export function MapShell() {
     })));
     setViewportBounds(null);
     setLocation(nextLocation);
+    recordRecentLocation(nextLocation);
   };
 
   const changeArea = () => {

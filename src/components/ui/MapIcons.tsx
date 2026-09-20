@@ -53,3 +53,11 @@ export function ChevronDownIcon(props: IconProps) {
 export function CloseIcon(props: IconProps) {
   return <IconFrame {...props}><path d="m6 6 12 12M18 6 6 18" /></IconFrame>;
 }
+
+export function StarIcon({ filled, ...props }: IconProps & { filled?: boolean }) {
+  return (
+    <IconFrame fill={filled ? "currentColor" : "none"} {...props}>
+      <path d="m12 3.5 2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.2 6.1-.7Z" />
+    </IconFrame>
+  );
+}

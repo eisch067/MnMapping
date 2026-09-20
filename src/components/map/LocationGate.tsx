@@ -9,7 +9,15 @@ import type { RestrictedImagerySource } from "@/config/restrictedImagery";
 import type { LayerDefinition } from "@/config/layers/types";
 import { displayableImageryForCounty, latestDisplayableImagery } from "@/lib/countyImagery";
 import { isInMinnesota, parseCoordinates, type MapLocation } from "@/lib/location";
-import { ArrowLeftIcon, CheckIcon, MapIcon, PinIcon, SearchIcon } from "@/components/ui/MapIcons";
+import {
+  clearRecentLocations,
+  isLocationSaved,
+  loadRecentLocations,
+  loadSavedLocations,
+  removeSavedLocation,
+  saveLocation,
+} from "@/lib/locationHistory";
+import { ArrowLeftIcon, CheckIcon, MapIcon, PinIcon, SearchIcon, StarIcon } from "@/components/ui/MapIcons";
 import { CountyImageryMap } from "./CountyImageryMap";
 import { SelectionMap } from "./SelectionMap";
 
@@ -31,6 +39,8 @@ export function LocationGate({ onLocationSelect }: LocationGateProps) {
   const [resolvingPoint, setResolvingPoint] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [recentLocations, setRecentLocations] = useState<MapLocation[]>(() => loadRecentLocations());
+  const [savedLocations, setSavedLocations] = useState<MapLocation[]>(() => loadSavedLocations());
 
   useEffect(() => {
     const browserWindow = window as typeof window & {
@@ -139,6 +149,15 @@ export function LocationGate({ onLocationSelect }: LocationGateProps) {
     setMessage("");
   };
 
+  const toggleSaved = (location: MapLocation) => {
+    setSavedLocations(isLocationSaved(location.id, savedLocations) ? removeSavedLocation(location.id) : saveLocation(location));
+  };
+
+  const clearRecent = () => {
+    clearRecentLocations();
+    setRecentLocations([]);
+  };
+
   return (
     <main className="location-start-shell">
       {pointMapWarm && (
@@ -230,6 +249,29 @@ export function LocationGate({ onLocationSelect }: LocationGateProps) {
             <h1 id="location-title">Where would you like to explore?</h1>
             <p>Search by address, coordinates, city, ZIP code, county, or place name.</p>
           </div>
+          {(savedLocations.length > 0 || recentLocations.length > 0) && (
+            <div className="location-quickjump">
+              {savedLocations.length > 0 && (
+                <QuickJumpGroup
+                  label="Saved locations"
+                  locations={savedLocations}
+                  savedLocations={savedLocations}
+                  onSelect={onLocationSelect}
+                  onToggleSaved={toggleSaved}
+                />
+              )}
+              {recentLocations.length > 0 && (
+                <QuickJumpGroup
+                  label="Recent locations"
+                  locations={recentLocations}
+                  savedLocations={savedLocations}
+                  onSelect={onLocationSelect}
+                  onToggleSaved={toggleSaved}
+                  onClear={clearRecent}
+                />
+              )}
+            </div>
+          )}
           <form className="location-search" onSubmit={(event) => void search(event)}>
             <SearchIcon />
             <input
@@ -264,11 +306,53 @@ export function LocationGate({ onLocationSelect }: LocationGateProps) {
               <span><strong>3 · Explore available imagery</strong><small>Browse all 87 counties, compare years, and find restricted external sources.</small></span>
             </button>
           </div>
-          <p className="privacy-note">No location is stored. You can change areas at any time.</p>
+          <p className="privacy-note">Recent and saved locations are stored only in this browser, never on a server. You can change areas at any time.</p>
           <Link className="research-entry-link" href="/research">Open county imagery research tracker</Link>
         </section>
       </section>
     </main>
+  );
+}
+
+interface QuickJumpGroupProps {
+  label: string;
+  locations: readonly MapLocation[];
+  savedLocations: readonly MapLocation[];
+  onSelect: (location: MapLocation) => void;
+  onToggleSaved: (location: MapLocation) => void;
+  onClear?: () => void;
+}
+
+function QuickJumpGroup({ label, locations, savedLocations, onSelect, onToggleSaved, onClear }: QuickJumpGroupProps) {
+  return (
+    <div className="location-quickjump-group">
+      <div className="location-quickjump-header">
+        <span className="location-quickjump-label">{label}</span>
+        {onClear && <button type="button" className="location-quickjump-clear" onClick={onClear}>Clear</button>}
+      </div>
+      <div className="location-results">
+        {locations.map((location) => {
+          const saved = isLocationSaved(location.id, savedLocations);
+          return (
+            <div className="location-result-row" key={location.id}>
+              <button type="button" className="location-result" onClick={() => onSelect(location)}>
+                <PinIcon />
+                <span><strong>{location.label}</strong><small>{[location.kind, location.county].filter(Boolean).join(" · ")}</small></span>
+              </button>
+              <button
+                type="button"
+                className={`location-star ${saved ? "is-saved" : ""}`}
+                aria-label={saved ? `Remove ${location.label} from saved locations` : `Save ${location.label}`}
+                aria-pressed={saved}
+                onClick={() => onToggleSaved(location)}
+              >
+                <StarIcon filled={saved} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
