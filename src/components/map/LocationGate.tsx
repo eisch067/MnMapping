@@ -37,11 +37,20 @@ export function LocationGate({ onLocationSelect }: LocationGateProps) {
       requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
       cancelIdleCallback?: (id: number) => void;
     };
-    const idleId = browserWindow.requestIdleCallback?.(() => setPointMapWarm(true), { timeout: 1200 });
-    const timeoutId = idleId === undefined ? window.setTimeout(() => setPointMapWarm(true), 350) : undefined;
+    // Warm both maps shortly after the landing page loads, so they've already booted Cesium,
+    // fetched the basemap, and (for the county map) loaded and colored the county boundaries by
+    // the time the user clicks through — instead of starting that work only on click. The county
+    // map is staggered slightly behind the point map so the two don't compete for bandwidth/CPU
+    // at the same instant right after the page itself finishes loading.
+    const idleId1 = browserWindow.requestIdleCallback?.(() => setPointMapWarm(true), { timeout: 1200 });
+    const timeoutId1 = idleId1 === undefined ? window.setTimeout(() => setPointMapWarm(true), 350) : undefined;
+    const idleId2 = browserWindow.requestIdleCallback?.(() => setImageryMapWarm(true), { timeout: 2200 });
+    const timeoutId2 = idleId2 === undefined ? window.setTimeout(() => setImageryMapWarm(true), 900) : undefined;
     return () => {
-      if (idleId !== undefined) browserWindow.cancelIdleCallback?.(idleId);
-      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+      if (idleId1 !== undefined) browserWindow.cancelIdleCallback?.(idleId1);
+      if (timeoutId1 !== undefined) window.clearTimeout(timeoutId1);
+      if (idleId2 !== undefined) browserWindow.cancelIdleCallback?.(idleId2);
+      if (timeoutId2 !== undefined) window.clearTimeout(timeoutId2);
     };
   }, []);
 

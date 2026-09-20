@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Cartesian2, GeoJsonDataSource, Viewer } from "cesium";
+import type { Cartesian2, Entity, Viewer } from "cesium";
 import { countyRegistry } from "@/config/counties";
 import { minnesotaBounds } from "@/lib/location";
 
@@ -13,11 +13,15 @@ interface CountyImageryMapProps {
 
 const countyBoundaryUrl = "/api/gis-proxy/mngeo-boundaries/MnGeo/mn_counties/FeatureServer/0/query?where=1%3D1&outFields=county_name%2Ccounty_fips55_code&returnGeometry=true&outSR=4326&f=geojson";
 const countyPalette = ["#356859", "#5a7152", "#436d7b", "#75664a", "#4f657e", "#6f5d74", "#3f725f", "#706a48"] as const;
+const selectedFillColor = "#e78a58";
+const selectedOutlineColor = "#fff0d6";
+const defaultOutlineColor = "#F8F9FF";
 
 export function CountyImageryMap({ active, selectedCounty, onCountySelect }: CountyImageryMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
-  const countiesRef = useRef<GeoJsonDataSource | null>(null);
+  const countyEntitiesRef = useRef<Map<string, Entity>>(new Map());
+  const selectedEntityNameRef = useRef<string | null>(null);
   const selectRef = useRef(onCountySelect);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [retryVersion, setRetryVersion] = useState(0);
@@ -41,6 +45,7 @@ export function CountyImageryMap({ active, selectedCounty, onCountySelect }: Cou
       ArcGisMapServerImageryProvider,
       Cartesian3,
       Color,
+      ColorMaterialProperty,
       ConstantProperty,
       GeoJsonDataSource,
       HorizontalOrigin,
@@ -78,22 +83,30 @@ export function CountyImageryMap({ active, selectedCounty, onCountySelect }: Cou
         minnesotaBounds.north,
       ) });
 
-      const countyData = await GeoJsonDataSource.load(countyBoundaryUrl, {
-        clampToGround: false,
-        fill: Color.fromCssColorString(countyPalette[0]).withAlpha(0.4),
-        stroke: Color.fromCssColorString("#F8F9FF").withAlpha(0.96),
-        strokeWidth: 1.7,
-      });
+      const countyData = await GeoJsonDataSource.load(countyBoundaryUrl, { clampToGround: false });
       if (cancelled || viewer.isDestroyed()) return;
-      countiesRef.current = countyData;
+      const entitiesByName = new Map<string, Entity>();
       for (const entity of countyData.entities.values) {
         const countyName = entity.properties?.county_name?.getValue() as string | undefined;
-        if (countyName) entity.name = countyName;
+        if (countyName) { entity.name = countyName; entitiesByName.set(countyName, entity); }
         if (entity.polygon) {
           entity.polygon.height = new ConstantProperty(0);
           entity.polygon.outline = new ConstantProperty(true);
+          // Color each county's final look up front, in the same pass that first draws it,
+          // instead of drawing a flat placeholder color and re-styling every entity again once
+          // "ready" — that second full pass over ~87 complex polygons was the visible few-second
+          // jump from "labeled" to "colored" after the boundaries first appeared.
+          const isSelected = countyName === selectedCounty;
+          entity.polygon.material = new ColorMaterialProperty(
+            Color.fromCssColorString(isSelected ? selectedFillColor : colorForCounty(countyName ?? "")).withAlpha(isSelected ? 0.68 : 0.42),
+          );
+          entity.polygon.outlineColor = new ConstantProperty(
+            Color.fromCssColorString(isSelected ? selectedOutlineColor : defaultOutlineColor).withAlpha(0.98),
+          );
         }
       }
+      countyEntitiesRef.current = entitiesByName;
+      selectedEntityNameRef.current = selectedCounty;
       await viewer.dataSources.add(countyData);
       for (const county of countyRegistry) {
         viewer.entities.add({
@@ -129,30 +142,39 @@ export function CountyImageryMap({ active, selectedCounty, onCountySelect }: Cou
 
     return () => {
       cancelled = true;
-      countiesRef.current = null;
+      countyEntitiesRef.current = new Map();
+      selectedEntityNameRef.current = null;
       const viewer = viewerRef.current;
       viewerRef.current = null;
       if (viewer && !viewer.isDestroyed()) viewer.destroy();
     };
+    // selectedCounty is only read here for the initial paint; later changes are handled by the
+    // selection effect below (via countyEntitiesRef/selectedEntityNameRef), not by reloading.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryVersion]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
-    const countyData = countiesRef.current;
-    if (!viewer || !countyData || viewer.isDestroyed()) return;
+    const entitiesByName = countyEntitiesRef.current;
+    if (!viewer || viewer.isDestroyed() || entitiesByName.size === 0) return;
+    if (selectedEntityNameRef.current === selectedCounty) return;
+    // Only the previously-selected and newly-selected counties actually need re-styling here —
+    // touching all 87 entities on every selection change (as before) is unnecessary work.
     void import("cesium").then(({ Color, ColorMaterialProperty, ConstantProperty }) => {
       if (!viewerRef.current || viewer.isDestroyed()) return;
-      for (const entity of countyData.entities.values) {
-        if (!entity.polygon) continue;
-        const isSelected = entity.name === selectedCounty;
+      const restyle = (entity: Entity | undefined, isSelected: boolean) => {
+        if (!entity?.polygon) return;
         entity.polygon.material = new ColorMaterialProperty(
-          Color.fromCssColorString(isSelected ? "#e78a58" : colorForCounty(entity.name ?? "")).withAlpha(isSelected ? 0.68 : 0.42),
+          Color.fromCssColorString(isSelected ? selectedFillColor : colorForCounty(entity.name ?? "")).withAlpha(isSelected ? 0.68 : 0.42),
         );
         entity.polygon.outlineColor = new ConstantProperty(
-          Color.fromCssColorString(isSelected ? "#fff0d6" : "#F8F9FF").withAlpha(0.98),
+          Color.fromCssColorString(isSelected ? selectedOutlineColor : defaultOutlineColor).withAlpha(0.98),
         );
-        entity.polygon.outline = new ConstantProperty(true);
-      }
+      };
+      const previousName = selectedEntityNameRef.current;
+      if (previousName) restyle(entitiesByName.get(previousName), false);
+      if (selectedCounty) restyle(entitiesByName.get(selectedCounty), true);
+      selectedEntityNameRef.current = selectedCounty;
       viewer.scene.requestRender();
     });
   }, [loadState, selectedCounty]);
@@ -165,8 +187,8 @@ export function CountyImageryMap({ active, selectedCounty, onCountySelect }: Cou
         County colors separate boundaries
       </div>
       {loadState !== "ready" && (
-        <div className={`county-overlay-status ${loadState === "error" ? "is-error" : ""}`} role="status">
-          {loadState === "loading" ? "Loading county boundaries…" : (
+        <div className={`map-loading-overlay ${loadState === "error" ? "is-error" : ""}`} role="status">
+          {loadState === "loading" ? (<><span className="spinner" aria-hidden="true" /><span>Loading county map…</span></>) : (
             <><span>County boundaries could not be loaded.</span><button type="button" onClick={() => setRetryVersion((value) => value + 1)}>Retry</button></>
           )}
         </div>

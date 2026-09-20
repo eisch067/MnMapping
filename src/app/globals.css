@@ -254,9 +254,13 @@ svg { flex: 0 0 auto; }
 .imagery-source-row > p { margin: 0; padding: 0 7px 8px; color: var(--muted); font-size: 8px; line-height: 1.4; }
 .imagery-source-row > p b { color: #B7BEDD; }
 .imagery-empty-state { margin: 0; padding: 14px 10px; color: var(--muted); font-size: 9px; line-height: 1.45; }
-.county-overlay-status { position: absolute; z-index: 2; top: 82px; left: 50%; display: flex; gap: 8px; align-items: center; padding: 7px 10px; border-radius: 5px; background: rgba(9, 6, 40, .9); color: var(--muted); font-size: 10px; transform: translateX(-50%); }
-.county-overlay-status.is-error { color: #efad91; }
-.county-overlay-status button { border: 0; padding: 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
+.map-loading-overlay { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; gap: 12px; background: #07041F; color: var(--text); transition: opacity .18s ease; }
+.map-loading-overlay .spinner { width: 30px; height: 30px; border: 3px solid rgba(153,116,255,.22); border-top-color: var(--accent); border-radius: 50%; animation: map-loading-spin .75s linear infinite; }
+.map-loading-overlay span:not(.spinner) { color: var(--muted); font-size: 12px; }
+.map-loading-overlay.is-error span:not(.spinner) { color: #efad91; }
+.map-loading-overlay button { border: 1px solid var(--panel-border); border-radius: 5px; padding: 6px 13px; background: rgba(255,255,255,.06); color: var(--text); cursor: pointer; font-size: 11px; font-weight: 700; }
+.map-loading-overlay button:hover { background: rgba(153,116,255,.14); }
+@keyframes map-loading-spin { to { transform: rotate(360deg); } }
 .county-color-legend { position: absolute; z-index: 2; top: 84px; left: 12px; display: grid; gap: 5px; padding: 7px 9px; border: 1px solid rgba(255,255,255,.16); border-radius: 5px; background: rgba(9, 6, 40, .88); color: #B7BEDD; font-size: 9px; box-shadow: 0 5px 16px rgba(0,0,0,.2); }
 .county-color-legend > span { display: flex; gap: 3px; }
 .county-color-legend i { display: block; width: 18px; height: 5px; border-radius: 1px; }

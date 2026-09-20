@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Cartesian2, Viewer } from "cesium";
 import { minnesotaBounds } from "@/lib/location";
 
@@ -14,6 +14,8 @@ export function SelectionMap({ active, selectedPoint, onPointSelect }: Selection
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const selectRef = useRef(onPointSelect);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
+  const [retryVersion, setRetryVersion] = useState(0);
 
   useEffect(() => { selectRef.current = onPointSelect; }, [onPointSelect]);
 
@@ -28,6 +30,7 @@ export function SelectionMap({ active, selectedPoint, onPointSelect }: Selection
     if (!containerRef.current) return;
     window.CESIUM_BASE_URL = "/cesium";
     let cancelled = false;
+    setLoadState("loading");
 
     void import("cesium").then(async ({
       ArcGisMapServerImageryProvider,
@@ -69,7 +72,11 @@ export function SelectionMap({ active, selectedPoint, onPointSelect }: Selection
         const cartographic = viewer.scene.globe.ellipsoid.cartesianToCartographic(cartesian);
         selectRef.current(CesiumMath.toDegrees(cartographic.latitude), CesiumMath.toDegrees(cartographic.longitude));
       }, ScreenSpaceEventType.LEFT_CLICK);
-    }).catch((error: unknown) => console.error("Unable to initialize the selection map", error));
+      setLoadState("ready");
+    }).catch((error: unknown) => {
+      console.error("Unable to initialize the selection map", error);
+      if (!cancelled) setLoadState("error");
+    });
 
     return () => {
       cancelled = true;
@@ -77,7 +84,7 @@ export function SelectionMap({ active, selectedPoint, onPointSelect }: Selection
       viewerRef.current = null;
       if (viewer && !viewer.isDestroyed()) viewer.destroy();
     };
-  }, []);
+  }, [retryVersion]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -93,5 +100,16 @@ export function SelectionMap({ active, selectedPoint, onPointSelect }: Selection
     });
   }, [selectedPoint]);
 
-  return <div className="map-canvas selection-map-canvas" ref={containerRef} aria-label="Transportation map for selecting a Minnesota location" />;
+  return (
+    <>
+      <div className="map-canvas selection-map-canvas" ref={containerRef} aria-label="Transportation map for selecting a Minnesota location" />
+      {loadState !== "ready" && (
+        <div className={`map-loading-overlay ${loadState === "error" ? "is-error" : ""}`} role="status">
+          {loadState === "loading" ? (<><span className="spinner" aria-hidden="true" /><span>Loading map…</span></>) : (
+            <><span>The map could not be loaded.</span><button type="button" onClick={() => setRetryVersion((value) => value + 1)}>Retry</button></>
+          )}
+        </div>
+      )}
+    </>
+  );
 }
