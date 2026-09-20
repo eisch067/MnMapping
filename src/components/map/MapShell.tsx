@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { countyRegistry } from "@/config/counties";
 import { layerRegistry } from "@/config/layers";
 import { isTerrainLayer } from "@/config/layers/types";
@@ -16,6 +16,9 @@ import { clearMyData, deleteMyItem, loadMyData, roughAreaSquareMeters, roughLeng
 import { exportText, parseMapFile } from "@/lib/mapFormats";
 import { latestDisplayableImagery } from "@/lib/countyImagery";
 import { restrictedImageryForCounty } from "@/config/restrictedImagery";
+
+const layerRegistryById = new Map(layerRegistry.map((layer) => [layer.id, layer]));
+const masterToggleCategories = ["public-land", "parcels"] as const;
 
 export function MapShell() {
   const [location, setLocation] = useState<MapLocation | null>(null);
@@ -58,6 +61,16 @@ export function MapShell() {
       .filter((county) => visibleCounties.has(county.name) && county.parcels.status === "pending")
       .map((county) => county.name);
   }, [viewportCounties]);
+  const pendingPublicLandCounties = useMemo(() => {
+    const visibleCounties = new Set(viewportCounties);
+    // Minnesota's statewide government-ownership service (plan_gov_own_open) only covers 56 of
+    // 87 counties today; there's no separate per-county source to fall back to yet, so this is
+    // surfaced the same way an unverified parcel source is, rather than just silently omitting
+    // the layer with no explanation.
+    return countyRegistry
+      .filter((county) => visibleCounties.has(county.name) && !county.layers.some((layer) => layer.category === "public-land"))
+      .map((county) => county.name);
+  }, [viewportCounties]);
   const externalImagery = useMemo(
     () => viewportCounties.flatMap((county) => restrictedImageryForCounty(county)),
     [viewportCounties],
@@ -66,12 +79,39 @@ export function MapShell() {
     () => {
       const countySet = new Set(viewportCounties);
       const order = new Map(layerOrder.map((id, index) => [id, index]));
+      // A layer already turned on stays available even if the viewport's computed rectangle no
+      // longer overlaps its county's bounding box (e.g. zoomed in tight near a shared border, or
+      // a tilted terrain-view camera skewing the visible footprint) — that box check is only a
+      // coarse proxy for "is this county relevant right now" and shouldn't silently undo an
+      // explicit choice the user already made.
       return layerRegistry
-        .filter((layer) => !layer.county || countySet.has(layer.county))
+        .filter((layer) => !layer.county || countySet.has(layer.county) || layerState[layer.id]?.visible)
         .toSorted((first, second) => (order.get(first.id) ?? 0) - (order.get(second.id) ?? 0));
     },
-    [layerOrder, viewportCounties],
+    [layerOrder, viewportCounties, layerState],
   );
+
+  const previousMasterToggleIdsRef = useRef<Record<typeof masterToggleCategories[number], Set<string>>>({ "public-land": new Set(), parcels: new Set() });
+  useEffect(() => {
+    // Public-land and parcel layers each have an "All ___" master toggle in the layer panel. If
+    // every layer in one of those categories is currently on and panning/zooming brings a new
+    // county's layer into view, that new layer should join them automatically instead of
+    // silently starting off and quietly breaking the "all on" state the user chose.
+    setLayerState((current) => {
+      let next = current;
+      for (const category of masterToggleCategories) {
+        const currentIds = new Set(activeLayers.filter((layer) => layer.category === category).map((layer) => layer.id));
+        const previousIds = previousMasterToggleIdsRef.current[category];
+        const newIds = [...currentIds].filter((id) => !previousIds.has(id));
+        if (newIds.length > 0 && previousIds.size > 0 && [...previousIds].every((id) => next[id]?.visible)) {
+          if (next === current) next = { ...current };
+          for (const id of newIds) next[id] = { ...next[id], visible: true };
+        }
+        previousMasterToggleIdsRef.current[category] = currentIds;
+      }
+      return next;
+    });
+  }, [activeLayers]);
 
   useEffect(() => {
     saveLayerPreferences(layerState, layerOrder, verticalExaggeration);
@@ -128,13 +168,16 @@ export function MapShell() {
 
   const chooseLocation = (nextLocation: MapLocation) => {
     const latestImagery = nextLocation.county ? latestDisplayableImagery(nextLocation.county.replace(/\s+County$/i, "")) : undefined;
-    if (latestImagery) {
-      const imageryIds = new Set(layerRegistry.filter((layer) => layer.category === "imagery").map((layer) => layer.id));
-      setLayerState((current) => Object.fromEntries(Object.entries(current).map(([id, state]) => [
-        id,
-        imageryIds.has(id) ? { ...state, visible: id === latestImagery.id } : state,
-      ])));
-    }
+    const imageryIds = new Set(layerRegistry.filter((layer) => layer.category === "imagery").map((layer) => layer.id));
+    // A fresh location search is a deliberate "start over," not incremental panning, so
+    // county-scoped layers reset to their defaults here — otherwise a layer left on near the
+    // previous search (kept visible even off-viewport by the edge-case fix in activeLayers)
+    // would keep rendering indefinitely after jumping somewhere unrelated.
+    setLayerState((current) => Object.fromEntries(Object.entries(current).map(([id, state]) => {
+      if (imageryIds.has(id)) return [id, latestImagery ? { ...state, visible: id === latestImagery.id } : state];
+      const layer = layerRegistryById.get(id);
+      return layer?.county ? [id, { ...state, visible: layer.defaultVisible }] : [id, state];
+    })));
     setViewportBounds(null);
     setLocation(nextLocation);
   };
@@ -217,6 +260,7 @@ export function MapShell() {
         onMoveLayer={moveLayer}
         externalImagery={externalImagery}
         pendingParcelCounties={pendingParcelCounties}
+        pendingPublicLandCounties={pendingPublicLandCounties}
         cameraHeight={cameraHeight}
         runtimeState={layerRuntimeState}
         onRetryLayer={(id) => setLayerRetryVersion((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }))}

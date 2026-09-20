@@ -17,6 +17,7 @@ interface LayerPanelProps {
   onMoveLayer: (id: string, direction: "up" | "down") => void;
   externalImagery: readonly RestrictedImagerySource[];
   pendingParcelCounties: readonly string[];
+  pendingPublicLandCounties: readonly string[];
   cameraHeight: number;
   open: boolean;
   onClose: () => void;
@@ -50,6 +51,7 @@ export function LayerPanel({
   onMoveLayer,
   externalImagery,
   pendingParcelCounties,
+  pendingPublicLandCounties,
   cameraHeight,
   open,
   onClose,
@@ -72,6 +74,7 @@ export function LayerPanel({
   const terrainLayers = layers.filter(isTerrainLayer);
   const categories = groupLayers(layers.filter((layer) => !isTerrainLayer(layer)));
   if (pendingParcelCounties.length > 0 && !categories.has("parcels")) categories.set("parcels", []);
+  if (pendingPublicLandCounties.length > 0 && !categories.has("public-land")) categories.set("public-land", []);
   const visibleLayers = layers
     .filter((layer) => (state[layer.id]?.visible ?? layer.defaultVisible) && isLayerAvailableAtCameraHeight(layer, cameraHeight))
     .toSorted((left, right) => (transferByLayer[right.id]?.bytes ?? 0) - (transferByLayer[left.id]?.bytes ?? 0));
@@ -211,9 +214,17 @@ export function LayerPanel({
       </header>
       <p className="panel-note">Choose what appears on the map and arrange the display order.</p>
       {terrainLayers.length > 0 && <section className="layer-category">
-        <button className="layer-category-heading" type="button" aria-expanded={!collapsed.has("terrain")} aria-controls="layer-section-terrain" onClick={() => toggleSection("terrain")}>
-          <span>3D terrain</span><span className="category-summary">{terrainLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
-        </button>
+        <div className="layer-category-heading">
+          <GroupHeading
+            id="layer-section-terrain"
+            label="3D terrain"
+            layers={terrainLayers}
+            state={state}
+            onVisibilityChange={onVisibilityChange}
+            expanded={!collapsed.has("terrain")}
+            onToggleExpand={() => toggleSection("terrain")}
+          />
+        </div>
         {!collapsed.has("terrain") && <div className="layer-list" id="layer-section-terrain">{terrainLayers.map((layer) => {
         const layerState = state[layer.id] ?? { visible: false, opacity: 1 };
         return (
@@ -265,10 +276,17 @@ export function LayerPanel({
       <div className="layer-categories">
         {Array.from(categories, ([category, categoryLayers]) => (
           <section className="layer-category" key={category}>
-            <button className="layer-category-heading" type="button" aria-expanded={!collapsed.has(category)} aria-controls={`layer-section-${category}`} onClick={() => toggleSection(category)}>
-              <span>{categoryLabels[category]}</span>
-              <span className="category-summary">{categoryLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
-            </button>
+            <div className="layer-category-heading">
+              <GroupHeading
+                id={`layer-section-${category}`}
+                label={categoryLabels[category]}
+                layers={categoryLayers}
+                state={state}
+                onVisibilityChange={onVisibilityChange}
+                expanded={!collapsed.has(category)}
+                onToggleExpand={() => toggleSection(category)}
+              />
+            </div>
             {!collapsed.has(category) && (category === "imagery" ? (
               <div className="layer-scopes" id={`layer-section-${category}`}>
                 {([true, false] as const).map((isCounty) => {
@@ -276,13 +294,38 @@ export function LayerPanel({
                   const scopeLayers = categoryLayers.filter((layer) => Boolean(layer.county) === isCounty);
                   if (scopeLayers.length === 0) return null;
                   return <section className="layer-scope" key={scopeId}>
-                    <button className="layer-scope-heading" type="button" aria-expanded={!collapsed.has(scopeId)} aria-controls={`layer-section-${scopeId}`} onClick={() => toggleSection(scopeId)}>
-                      <span>{isCounty ? "County" : "Statewide"}</span>
-                      <span className="category-summary">{scopeLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
-                    </button>
+                    <div className="layer-scope-heading">
+                      <GroupHeading
+                        id={`layer-section-${scopeId}`}
+                        label={isCounty ? "County" : "Statewide"}
+                        layers={scopeLayers}
+                        state={state}
+                        onVisibilityChange={onVisibilityChange}
+                        expanded={!collapsed.has(scopeId)}
+                        onToggleExpand={() => toggleSection(scopeId)}
+                      />
+                    </div>
                     {!collapsed.has(scopeId) && (isCounty ? (
                       <div className="layer-list" id={`layer-section-${scopeId}`}>
-                        {renderLayerRows(sortImageryNewestFirst(scopeLayers), false)}
+                        <div className="layer-subscopes">
+                          {Array.from(groupByCounty(scopeLayers), ([countyName, countyLayers]) => {
+                            const countyScopeId = `${scopeId}-${countyName.toLowerCase().replaceAll(" ", "-")}`;
+                            return <section className="layer-scope" key={countyScopeId}>
+                              <div className="layer-scope-heading">
+                                <GroupHeading
+                                  id={`layer-section-${countyScopeId}`}
+                                  label={countyName}
+                                  layers={countyLayers}
+                                  state={state}
+                                  onVisibilityChange={onVisibilityChange}
+                                  expanded={!collapsed.has(countyScopeId)}
+                                  onToggleExpand={() => toggleSection(countyScopeId)}
+                                />
+                              </div>
+                              {!collapsed.has(countyScopeId) && <div className="layer-list" id={`layer-section-${countyScopeId}`}>{renderLayerRows(sortImageryNewestFirst(countyLayers), false)}</div>}
+                            </section>;
+                          })}
+                        </div>
                       </div>
                     ) : (
                       <div className="layer-list" id={`layer-section-${scopeId}`}>
@@ -293,10 +336,17 @@ export function LayerPanel({
                             const groupLayers = sortImageryNewestFirst(scopeLayers.filter((layer) => layer.imageryGroup === group));
                             if (groupLayers.length === 0) return null;
                             return <section className="layer-scope" key={groupId}>
-                              <button className="layer-scope-heading" type="button" aria-expanded={!collapsed.has(groupId)} aria-controls={`layer-section-${groupId}`} onClick={() => toggleSection(groupId)}>
-                                <span>{group === "naip" ? "NAIP" : "CIR"}</span>
-                                <span className="category-summary">{groupLayers.filter((layer) => state[layer.id]?.visible).length} on <ChevronDownIcon /></span>
-                              </button>
+                              <div className="layer-scope-heading">
+                                <GroupHeading
+                                  id={`layer-section-${groupId}`}
+                                  label={group === "naip" ? "NAIP" : "CIR"}
+                                  layers={groupLayers}
+                                  state={state}
+                                  onVisibilityChange={onVisibilityChange}
+                                  expanded={!collapsed.has(groupId)}
+                                  onToggleExpand={() => toggleSection(groupId)}
+                                />
+                              </div>
                               {!collapsed.has(groupId) && <div className="layer-list" id={`layer-section-${groupId}`}>{renderLayerRows(groupLayers, false)}</div>}
                             </section>;
                           })}
@@ -316,7 +366,7 @@ export function LayerPanel({
               </div>
             ) : (
               <div className="layer-list" id={`layer-section-${category}`}>
-                {category === "public-land" && categoryLayers.length > 0 && <label className="category-master-toggle">
+                {(category === "public-land" || category === "parcels") && categoryLayers.length > 0 && <label className="category-master-toggle">
                   <input
                     type="checkbox"
                     checked={categoryLayers.every((layer) => state[layer.id]?.visible ?? layer.defaultVisible)}
@@ -327,12 +377,17 @@ export function LayerPanel({
                     }}
                     onChange={(event) => categoryLayers.forEach((layer) => onVisibilityChange(layer.id, event.target.checked))}
                   />
-                  <span><strong>All public lands</strong><small>Turn every public-land layer in the current area on or off.</small></span>
+                  <span><strong>{category === "public-land" ? "All public lands" : "All parcels"}</strong><small>Turn every {category === "public-land" ? "public-land" : "parcel"} layer in the current area on or off. New layers that come into view while every layer is on will join them automatically.</small></span>
                 </label>}
                 {renderLayerRows(categoryLayers)}
                 {category === "parcels" && pendingParcelCounties.map((county) => (
                   <p className="layer-availability-note" key={county}>
                     <strong>{county} County parcels pending.</strong> No stable, repeatable public query source has been verified yet.
+                  </p>
+                ))}
+                {category === "public-land" && pendingPublicLandCounties.map((county) => (
+                  <p className="layer-availability-note" key={county}>
+                    <strong>{county} County public-land data pending.</strong> Minnesota&apos;s statewide government-ownership service does not include this county yet.
                   </p>
                 ))}
               </div>
@@ -345,18 +400,60 @@ export function LayerPanel({
           <span><strong id="active-layers-heading">Active layers</strong><small>Transferred this session</small></span>
           <output>{formatBytes(visibleTransferBytes)}</output>
         </header>
-        {visibleLayers.length > 0 ? <div className="active-layer-list">
-          {visibleLayers.map((layer) => {
-            const usage = transferByLayer[layer.id] ?? { bytes: 0, requests: 0 };
-            return <label className="active-layer" key={layer.id}>
-              <input type="checkbox" checked onChange={(event) => onVisibilityChange(layer.id, event.target.checked)} />
-              <span><strong>{layer.name}</strong><small>{transferLabel(usage)}</small></span>
-            </label>;
-          })}
+        {visibleLayers.length > 0 ? <div className="active-layer-groups">
+          {groupVisibleLayersByCategory(visibleLayers, categories, terrainLayers).map(([groupLabel, groupLayers]) => (
+            <div className="active-layer-group" key={groupLabel}>
+              <span className="active-layer-group-label">{groupLabel}</span>
+              <div className="active-layer-list">
+                {groupLayers.map((layer) => {
+                  const usage = transferByLayer[layer.id] ?? { bytes: 0, requests: 0 };
+                  return <label className="active-layer" key={layer.id}>
+                    <input type="checkbox" checked onChange={(event) => onVisibilityChange(layer.id, event.target.checked)} />
+                    <span><strong>{layer.name}</strong><small>{transferLabel(usage)}</small></span>
+                  </label>;
+                })}
+              </div>
+            </div>
+          ))}
         </div> : <p>No layers are currently active.</p>}
         <p className="bandwidth-note">Counts bytes reported by the browser since this page loaded. Cached and some third-party requests may report no transferred size.</p>
       </section>
     </aside>
+  );
+}
+
+interface GroupHeadingProps {
+  id: string;
+  label: string;
+  layers: readonly LayerDefinition[];
+  state: LayerStateById;
+  onVisibilityChange: (id: string, visible: boolean) => void;
+  expanded: boolean;
+  onToggleExpand: () => void;
+}
+
+function GroupHeading({ id, label, layers, state, onVisibilityChange, expanded, onToggleExpand }: GroupHeadingProps) {
+  const visibleCount = layers.filter((layer) => state[layer.id]?.visible ?? layer.defaultVisible).length;
+  return (
+    <>
+      {layers.length > 0 && (
+        <input
+          type="checkbox"
+          className="layer-heading-toggle"
+          aria-label={`Turn all ${label} layers on or off`}
+          checked={layers.length > 0 && visibleCount === layers.length}
+          ref={(input) => {
+            if (!input) return;
+            input.indeterminate = visibleCount > 0 && visibleCount < layers.length;
+          }}
+          onChange={(event) => layers.forEach((layer) => onVisibilityChange(layer.id, event.target.checked))}
+        />
+      )}
+      <button className="layer-heading-collapse" type="button" aria-expanded={expanded} aria-controls={id} onClick={onToggleExpand}>
+        <span>{label}</span>
+        <span className="category-summary">{visibleCount} on <ChevronDownIcon /></span>
+      </button>
+    </>
   );
 }
 
@@ -372,10 +469,12 @@ function ExternalImagerySection({
   const counties = groupExternalImageryByCounty(sources);
   return (
     <section className="layer-scope external-imagery-scope">
-      <button className="layer-scope-heading" type="button" aria-expanded={!collapsed} aria-controls="layer-section-imagery-external" onClick={onToggle}>
-        <span>External imagery</span>
-        <span className="category-summary">{sources.length} link{sources.length === 1 ? "" : "s"} <ChevronDownIcon /></span>
-      </button>
+      <div className="layer-scope-heading">
+        <button className="layer-heading-collapse" type="button" aria-expanded={!collapsed} aria-controls="layer-section-imagery-external" onClick={onToggle}>
+          <span>External imagery</span>
+          <span className="category-summary">{sources.length} link{sources.length === 1 ? "" : "s"} <ChevronDownIcon /></span>
+        </button>
+      </div>
       {!collapsed && (
         <div className="external-imagery-list" id="layer-section-imagery-external">
           {Array.from(counties, ([county, countySources]) => (
@@ -403,6 +502,15 @@ function groupExternalImageryByCounty(sources: readonly RestrictedImagerySource[
   return counties;
 }
 
+function groupByCounty(layers: readonly LayerDefinition[]): Map<string, LayerDefinition[]> {
+  const counties = new Map<string, LayerDefinition[]>();
+  for (const layer of layers) {
+    if (!layer.county) continue;
+    counties.set(layer.county, [...(counties.get(layer.county) ?? []), layer]);
+  }
+  return new Map([...counties].toSorted(([first], [second]) => first.localeCompare(second)));
+}
+
 function metadataLine(layer: LayerDefinition): string {
   return [layer.county ?? "Statewide", layer.year, layer.resolution, layer.attribution].filter(Boolean).join(" · ");
 }
@@ -420,6 +528,22 @@ function groupLayers(layers: readonly LayerDefinition[]) {
     categories.set(layer.category, [...(categories.get(layer.category) ?? []), layer]);
   }
   return categories;
+}
+
+function groupVisibleLayersByCategory(
+  visibleLayers: readonly LayerDefinition[],
+  categories: Map<LayerCategory, LayerDefinition[]>,
+  terrainLayers: readonly LayerDefinition[],
+): [string, LayerDefinition[]][] {
+  const visibleIds = new Set(visibleLayers.map((layer) => layer.id));
+  const groups: [string, LayerDefinition[]][] = [];
+  const visibleTerrain = terrainLayers.filter((layer) => visibleIds.has(layer.id));
+  if (visibleTerrain.length > 0) groups.push(["3D terrain", visibleTerrain]);
+  for (const category of categories.keys()) {
+    const layersInGroup = visibleLayers.filter((layer) => layer.category === category);
+    if (layersInGroup.length > 0) groups.push([categoryLabels[category], layersInGroup]);
+  }
+  return groups;
 }
 
 function sortImageryNewestFirst(layers: readonly LayerDefinition[]): LayerDefinition[] {
