@@ -81,7 +81,7 @@ export function CountyImageryMap({ active, selectedCounty, onCountySelect }: Cou
       const countyData = await GeoJsonDataSource.load(countyBoundaryUrl, {
         clampToGround: false,
         fill: Color.fromCssColorString(countyPalette[0]).withAlpha(0.4),
-        stroke: Color.fromCssColorString("#f4f8f1").withAlpha(0.96),
+        stroke: Color.fromCssColorString("#F8F9FF").withAlpha(0.96),
         strokeWidth: 1.7,
       });
       if (cancelled || viewer.isDestroyed()) return;
@@ -106,7 +106,7 @@ export function CountyImageryMap({ active, selectedCounty, onCountySelect }: Cou
             text: county.name,
             font: "600 10px system-ui, sans-serif",
             fillColor: Color.WHITE,
-            outlineColor: Color.fromCssColorString("#14231c"),
+            outlineColor: Color.fromCssColorString("#07041F"),
             outlineWidth: 3,
             style: LabelStyle.FILL_AND_OUTLINE,
             horizontalOrigin: HorizontalOrigin.CENTER,
@@ -149,7 +149,7 @@ export function CountyImageryMap({ active, selectedCounty, onCountySelect }: Cou
           Color.fromCssColorString(isSelected ? "#e78a58" : colorForCounty(entity.name ?? "")).withAlpha(isSelected ? 0.68 : 0.42),
         );
         entity.polygon.outlineColor = new ConstantProperty(
-          Color.fromCssColorString(isSelected ? "#fff0d6" : "#f4f8f1").withAlpha(0.98),
+          Color.fromCssColorString(isSelected ? "#fff0d6" : "#F8F9FF").withAlpha(0.98),
         );
         entity.polygon.outline = new ConstantProperty(true);
       }

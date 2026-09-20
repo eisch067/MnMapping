@@ -154,8 +154,8 @@ export function LayerPanel({
                     className="legend-swatch"
                     aria-hidden="true"
                     style={{
-                      background: String(layer.options?.fillColor ?? "#68a677"),
-                      borderColor: String(layer.options?.strokeColor ?? "#c8eed1"),
+                      background: String(layer.options?.fillColor ?? "#8654E0"),
+                      borderColor: String(layer.options?.strokeColor ?? "#D6C6FF"),
                     }}
                   />
                 )}
