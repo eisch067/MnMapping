@@ -18,12 +18,19 @@ import { exportText, parseMapFile } from "@/lib/mapFormats";
 import { latestDisplayableImagery } from "@/lib/countyImagery";
 import { restrictedImageryForCounty } from "@/config/restrictedImagery";
 import { MobileMapShellPrototype, type PrototypePanel, type PrototypeVariant } from "./MobileMapShellPrototype";
+import { MapInteractionPrototype, type InteractionPrototypeVariant } from "./MapInteractionPrototype";
 
 const layerRegistryById = new Map(layerRegistry.map((layer) => [layer.id, layer]));
 const masterToggleCategories = ["public-land", "parcels"] as const;
 
-export function MapShell({ initialPrototypeVariant = null }: { initialPrototypeVariant?: PrototypeVariant | null }) {
-  const [location, setLocation] = useState<MapLocation | null>(() => initialPrototypeVariant ? ({
+export function MapShell({
+  initialPrototypeVariant = null,
+  initialInteractionPrototypeVariant = null,
+}: {
+  initialPrototypeVariant?: PrototypeVariant | null;
+  initialInteractionPrototypeVariant?: InteractionPrototypeVariant | null;
+}) {
+  const [location, setLocation] = useState<MapLocation | null>(() => initialPrototypeVariant || initialInteractionPrototypeVariant ? ({
     id: "prototype-hubbard",
     label: "Heartland Trail, Park Rapids",
     latitude: 46.9221,
@@ -49,6 +56,7 @@ export function MapShell({ initialPrototypeVariant = null }: { initialPrototypeV
   const [layerRuntimeState, setLayerRuntimeState] = useState<LayerRuntimeStateById>({});
   const [layerRetryVersion, setLayerRetryVersion] = useState<Record<string, number>>({});
   const [prototypeVariant, setPrototypeVariant] = useState<PrototypeVariant | null>(initialPrototypeVariant);
+  const [interactionPrototypeVariant, setInteractionPrototypeVariant] = useState<InteractionPrototypeVariant | null>(initialInteractionPrototypeVariant);
   const [prototypeRailPinned, setPrototypeRailPinned] = useState(false);
   const registerReset = useCallback((reset: () => void) => setResetCamera(() => reset), []);
   const registerViewControls = useCallback((controls: MapViewControls) => setViewControls(controls), []);
@@ -206,6 +214,14 @@ export function MapShell({ initialPrototypeVariant = null }: { initialPrototypeV
     setPrototypeVariant(variant);
   };
 
+  const changeInteractionPrototypeVariant = (variant: InteractionPrototypeVariant) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("prototype", "interaction");
+    url.searchParams.set("variant", variant);
+    window.history.replaceState(null, "", url);
+    setInteractionPrototypeVariant(variant);
+  };
+
   const prototypePanel: PrototypePanel = layerPanelOpen ? "layers" : showMyData ? "data" : null;
   const changePrototypePanel = (panel: PrototypePanel) => {
     setLayerPanelOpen(panel === "layers");
@@ -235,7 +251,7 @@ export function MapShell({ initialPrototypeVariant = null }: { initialPrototypeV
   if (!location) return <LocationGate onLocationSelect={chooseLocation} />;
 
   return (
-    <main className={`app-shell ${prototypeVariant ? `prototype-shell prototype-variant-${prototypeVariant.toLowerCase()} prototype-panel-${prototypePanel ?? "closed"} ${prototypeRailPinned ? "is-rail-pinned" : ""}` : ""}`}>
+    <main className={`app-shell ${prototypeVariant ? `prototype-shell prototype-variant-${prototypeVariant.toLowerCase()} prototype-panel-${prototypePanel ?? "closed"} ${prototypeRailPinned ? "is-rail-pinned" : ""}` : ""} ${interactionPrototypeVariant ? `interaction-prototype-shell interaction-variant-${interactionPrototypeVariant.toLowerCase()}` : ""}`}>
       <CesiumMap
         layers={activeLayers}
         layerState={layerState}
@@ -253,7 +269,12 @@ export function MapShell({ initialPrototypeVariant = null }: { initialPrototypeV
         retryVersion={layerRetryVersion}
         onLayerStatusChange={updateLayerStatus}
       />
-      {prototypeVariant ? (
+      {interactionPrototypeVariant ? (
+        <MapInteractionPrototype
+          variant={interactionPrototypeVariant}
+          onVariantChange={changeInteractionPrototypeVariant}
+        />
+      ) : prototypeVariant ? (
         <MobileMapShellPrototype
           variant={prototypeVariant}
           onVariantChange={changePrototypeVariant}
@@ -307,12 +328,12 @@ export function MapShell({ initialPrototypeVariant = null }: { initialPrototypeV
         runtimeState={layerRuntimeState}
         onRetryLayer={(id) => setLayerRetryVersion((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }))}
       />
-      {!prototypeVariant && <nav className="map-tools" aria-label="Map inspection and personal data tools">
+      {!prototypeVariant && !interactionPrototypeVariant && <nav className="map-tools" aria-label="Map inspection and personal data tools">
         {(["inspect", "pin", "line", "polygon"] as const).map((tool) => <button key={tool} type="button" aria-pressed={mode === tool} onClick={() => { setMode(tool); setDraft([]); }}>{tool}</button>)}
         {(mode === "line" || mode === "polygon") && <button type="button" disabled={draft.length < (mode === "polygon" ? 3 : 2)} onClick={() => void finishDrawing()}>Finish ({draft.length})</button>}
         <button type="button" aria-pressed={showMyData} onClick={() => setShowMyData((value) => !value)}>My Data</button>
       </nav>}
-      {inspection && <section className="inspection-card"><strong>Map point</strong><span>{inspection[1].toFixed(6)}, {inspection[0].toFixed(6)}</span><button type="button" onClick={() => void navigator.clipboard.writeText(`${inspection[1].toFixed(6)}, ${inspection[0].toFixed(6)}`)}>Copy coordinates</button></section>}
+      {inspection && !interactionPrototypeVariant && <section className="inspection-card"><strong>Map point</strong><span>{inspection[1].toFixed(6)}, {inspection[0].toFixed(6)}</span><button type="button" onClick={() => void navigator.clipboard.writeText(`${inspection[1].toFixed(6)}, ${inspection[0].toFixed(6)}`)}>Copy coordinates</button></section>}
       {showMyData && <section className="my-data-panel">
         <header><strong>My Data</strong><label><input type="checkbox" checked={myDataVisible} onChange={(event) => setMyDataVisible(event.target.checked)} /> Show</label></header>
         <label className="file-import">Import GPX, KML, or GeoJSON<input type="file" accept=".gpx,.kml,.geojson,.json" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; void file.text().then(async (text) => { const imported = parseMapFile(text, file.name.split(".").pop()?.toLowerCase() ?? ""); for (const item of imported) await saveMyItem(item); setMyData((current) => [...current, ...imported]); }); }} /></label>
