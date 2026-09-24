@@ -17,12 +17,24 @@ import { clearMyData, deleteMyItem, loadMyData, roughAreaSquareMeters, roughLeng
 import { exportText, parseMapFile } from "@/lib/mapFormats";
 import { latestDisplayableImagery } from "@/lib/countyImagery";
 import { restrictedImageryForCounty } from "@/config/restrictedImagery";
+import { TerrainAnalysisPrototype, type TerrainPrototypeVariant } from "./TerrainAnalysisPrototype";
 
 const layerRegistryById = new Map(layerRegistry.map((layer) => [layer.id, layer]));
 const masterToggleCategories = ["public-land", "parcels"] as const;
 
-export function MapShell() {
-  const [location, setLocation] = useState<MapLocation | null>(null);
+export function MapShell({
+  initialTerrainPrototypeVariant = null,
+}: {
+  initialTerrainPrototypeVariant?: TerrainPrototypeVariant | null;
+}) {
+  const [location, setLocation] = useState<MapLocation | null>(() => initialTerrainPrototypeVariant ? ({
+    id: "prototype-hubbard",
+    label: "Heartland Trail, Park Rapids",
+    latitude: 46.9221,
+    longitude: -95.0616,
+    county: "Hubbard",
+    kind: "coordinate",
+  }) : null);
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const [layerState, setLayerState] = useState(() => restoreLayerState(layerRegistry));
   const [layerOrder, setLayerOrder] = useState(() => restoreLayerOrder(layerRegistry));
@@ -40,6 +52,7 @@ export function MapShell() {
   const [layerPanelOpen, setLayerPanelOpen] = useState(false);
   const [layerRuntimeState, setLayerRuntimeState] = useState<LayerRuntimeStateById>({});
   const [layerRetryVersion, setLayerRetryVersion] = useState<Record<string, number>>({});
+  const [terrainPrototypeVariant, setTerrainPrototypeVariant] = useState<TerrainPrototypeVariant | null>(initialTerrainPrototypeVariant);
   const registerReset = useCallback((reset: () => void) => setResetCamera(() => reset), []);
   const registerViewControls = useCallback((controls: MapViewControls) => setViewControls(controls), []);
   const registerViewport = useCallback((bounds: ViewportBounds) => setViewportBounds(bounds), []);
@@ -189,6 +202,14 @@ export function MapShell() {
     setLocation(null);
   };
 
+  const changeTerrainPrototypeVariant = (variant: TerrainPrototypeVariant) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("prototype", "terrain");
+    url.searchParams.set("variant", variant);
+    window.history.replaceState(null, "", url);
+    setTerrainPrototypeVariant(variant);
+  };
+
   const moveLayer = (id: string, direction: "up" | "down") => {
     const layer = activeLayers.find((candidate) => candidate.id === id);
     if (!layer) return;
@@ -212,7 +233,7 @@ export function MapShell() {
   if (!location) return <LocationGate onLocationSelect={chooseLocation} />;
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${terrainPrototypeVariant ? `terrain-prototype-shell terrain-variant-${terrainPrototypeVariant.toLowerCase()}` : ""}`}>
       <CesiumMap
         layers={activeLayers}
         layerState={layerState}
@@ -230,7 +251,10 @@ export function MapShell() {
         retryVersion={layerRetryVersion}
         onLayerStatusChange={updateLayerStatus}
       />
-      <header className="top-bar">
+      {terrainPrototypeVariant && (
+        <TerrainAnalysisPrototype variant={terrainPrototypeVariant} onVariantChange={changeTerrainPrototypeVariant} />
+      )}
+      {!terrainPrototypeVariant && <header className="top-bar">
         <div className="brand"><PinIcon /><h1>MnMapping</h1><span>Personal Minnesota map viewer</span></div>
         <div className="top-actions">
           <div className="selected-location" title={location.label}>
@@ -243,7 +267,7 @@ export function MapShell() {
           <button className="map-button compact-action" type="button" onClick={() => resetCamera?.()}><LocateIcon />Recenter</button>
           <button className="map-button change-area" type="button" onClick={changeArea}><SearchIcon />Change area</button>
         </div>
-      </header>
+      </header>}
       <LayerPanel
         open={layerPanelOpen}
         onClose={() => setLayerPanelOpen(false)}
@@ -267,12 +291,12 @@ export function MapShell() {
         runtimeState={layerRuntimeState}
         onRetryLayer={(id) => setLayerRetryVersion((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }))}
       />
-      <nav className="map-tools" aria-label="Map inspection and personal data tools">
+      {!terrainPrototypeVariant && <nav className="map-tools" aria-label="Map inspection and personal data tools">
         {(["inspect", "pin", "line", "polygon"] as const).map((tool) => <button key={tool} type="button" aria-pressed={mode === tool} onClick={() => { setMode(tool); setDraft([]); }}>{tool}</button>)}
         {(mode === "line" || mode === "polygon") && <button type="button" disabled={draft.length < (mode === "polygon" ? 3 : 2)} onClick={() => void finishDrawing()}>Finish ({draft.length})</button>}
         <button type="button" aria-pressed={showMyData} onClick={() => setShowMyData((value) => !value)}>My Data</button>
-      </nav>
-      {inspection && <section className="inspection-card"><strong>Map point</strong><span>{inspection[1].toFixed(6)}, {inspection[0].toFixed(6)}</span><button type="button" onClick={() => void navigator.clipboard.writeText(`${inspection[1].toFixed(6)}, ${inspection[0].toFixed(6)}`)}>Copy coordinates</button></section>}
+      </nav>}
+      {inspection && !terrainPrototypeVariant && <section className="inspection-card"><strong>Map point</strong><span>{inspection[1].toFixed(6)}, {inspection[0].toFixed(6)}</span><button type="button" onClick={() => void navigator.clipboard.writeText(`${inspection[1].toFixed(6)}, ${inspection[0].toFixed(6)}`)}>Copy coordinates</button></section>}
       {showMyData && <section className="my-data-panel">
         <header><strong>My Data</strong><label><input type="checkbox" checked={myDataVisible} onChange={(event) => setMyDataVisible(event.target.checked)} /> Show</label></header>
         <label className="file-import">Import GPX, KML, or GeoJSON<input type="file" accept=".gpx,.kml,.geojson,.json" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; void file.text().then(async (text) => { const imported = parseMapFile(text, file.name.split(".").pop()?.toLowerCase() ?? ""); for (const item of imported) await saveMyItem(item); setMyData((current) => [...current, ...imported]); }); }} /></label>

@@ -54,6 +54,18 @@ export function CloseIcon(props: IconProps) {
   return <IconFrame {...props}><path d="m6 6 12 12M18 6 6 18" /></IconFrame>;
 }
 
+export function CompassIcon(props: IconProps) {
+  return <IconFrame {...props}><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5Z" /></IconFrame>;
+}
+
+export function EyeIcon(props: IconProps) {
+  return <IconFrame {...props}><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" /><circle cx="12" cy="12" r="2.6" /></IconFrame>;
+}
+
+export function InfoIcon(props: IconProps) {
+  return <IconFrame {...props}><circle cx="12" cy="12" r="9" /><path d="M12 11v5.5M12 7.6v.1" /></IconFrame>;
+}
+
 export function StarIcon({ filled, ...props }: IconProps & { filled?: boolean }) {
   return (
     <IconFrame fill={filled ? "currentColor" : "none"} {...props}>
