@@ -102,6 +102,18 @@ This is a second, separate Cloudflare application built from the same repository
 
 Every future push to `main` now deploys to both `mn-mapping` (personal) and `public-mn-mapping` (sharing) automatically, each built from the identical source with only the build variables differing.
 
+## Continuous integration
+
+The `CI` workflow (`.github/workflows/ci.yml`) runs on every pull request. It never deploys; Cloudflare deploys `main` separately, as described above.
+
+| Check | What it runs |
+| --- | --- |
+| `Lint, typecheck, tests` | `npm run lint` (zero warnings allowed), `npm run typecheck`, and `npm test` (Vitest plus the registry audit) |
+| `Build and smoke (personal)` | `npm run build:vinext` with `NEXT_PUBLIC_APP_MODE=personal`, then the Playwright smoke test at both viewports |
+| `Build and smoke (public)` | The same with `NEXT_PUBLIC_APP_MODE=public` and `CLOUDFLARE_ENV=public` |
+
+Branch protection on `main` requires all three checks to pass and blocks direct pushes, so every change reaches `main` through a pull request. Actions in the workflow are pinned to commit SHAs with a version comment; update the SHA and the comment together. When a Playwright run fails, the workflow uploads its report and traces as an artifact for seven days.
+
 ## Password-protect the personal deployment with Cloudflare Access
 
 Cloudflare Access sits in front of the Worker and blocks every request until the visitor signs in with an approved email — no code changes needed in MnMapping itself.

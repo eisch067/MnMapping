@@ -72,6 +72,20 @@ npm run lint
 npm run build
 ```
 
+`npm test` runs Vitest and then the registry audit. Vitest has two projects: `src/**/*.test.ts` runs in Node, and `tests/workers/**/*.test.ts` runs inside the Workers runtime with a D1 database through `@cloudflare/vitest-pool-workers`. `npm run typecheck` also checks `tests/workers/` with its own tsconfig, because the Workers runtime types conflict with the DOM types the app uses.
+
+Browser tests in `tests/e2e/` run with Playwright at 390×844 (mobile) and 1280×800 (desktop) against the built app, so build it first:
+
+```bash
+npx playwright install chromium   # first run only
+npm run build:vinext              # NEXT_PUBLIC_APP_MODE=personal for the personal build
+npm run test:e2e
+```
+
+GitHub Actions runs all of these, and builds both the personal and public modes, on every pull request. See [Cloudflare deployment](docs/cloudflare-deployment.md#continuous-integration).
+
+Cesium is pinned to an exact version (currently 1.145.0) so upgrades are deliberate. `package.json` also overrides `sharp` to 0.35.4 because the Workers test pool pins 0.35.2, which has security advisories; remove the override once the pool updates.
+
 For a repeatable local screenshot, start the development server and run:
 
 ```bash
