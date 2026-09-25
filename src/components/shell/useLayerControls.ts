@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { countyRegistry } from "@/config/counties";
 import { layerRegistry } from "@/config/layers";
 import { isTerrainLayer, type LayerDefinition } from "@/config/layers/types";
@@ -20,12 +12,12 @@ import {
   type MapLocation,
   type ViewportBounds,
 } from "@/lib/location";
+import { forgetSuspended, setLayerVisible, toggleGroup } from "@/lib/map/layerGroups";
 import type { LayerRuntimeState, LayerRuntimeStateById } from "@/lib/map/layerRuntime";
 import {
-  restoreLayerOrder,
-  restoreLayerState,
-  restoreVerticalExaggeration,
+  restoreLayerPreferences,
   saveLayerPreferences,
+  type LayerSelection,
   type LayerState,
   type LayerStateById,
 } from "@/lib/map/layerState";
@@ -36,24 +28,23 @@ const imageryLayerIds = new Set(
   layerRegistry.filter((layer) => layer.category === "imagery").map((layer) => layer.id),
 );
 const terrainLayer = layerRegistry.find(isTerrainLayer);
-const masterToggleCategories = ["public-land", "parcels"] as const;
-
-type MasterToggleCategory = (typeof masterToggleCategories)[number];
-type CategoryLayerIds = Record<MasterToggleCategory, Set<string>>;
-type SetLayerState = Dispatch<SetStateAction<LayerStateById>>;
 
 function useLayerPreferences() {
-  const [layerState, setLayerState] = useState(() => restoreLayerState(layerRegistry));
-  const [layerOrder, setLayerOrder] = useState(() => restoreLayerOrder(layerRegistry));
-  const [verticalExaggeration, setVerticalExaggeration] = useState(restoreVerticalExaggeration);
+  const [restored] = useState(() => restoreLayerPreferences(layerRegistry));
+  const [selection, setSelection] = useState<LayerSelection>({
+    layers: restored.layers,
+    suspended: restored.suspended,
+  });
+  const [layerOrder, setLayerOrder] = useState(restored.order);
+  const [verticalExaggeration, setVerticalExaggeration] = useState(restored.verticalExaggeration);
 
   useEffect(() => {
-    saveLayerPreferences(layerState, layerOrder, verticalExaggeration);
-  }, [layerOrder, layerState, verticalExaggeration]);
+    saveLayerPreferences({ ...selection, order: layerOrder, verticalExaggeration });
+  }, [layerOrder, selection, verticalExaggeration]);
 
   return {
-    layerState,
-    setLayerState,
+    selection,
+    setSelection,
     layerOrder,
     setLayerOrder,
     verticalExaggeration,
@@ -125,57 +116,6 @@ function useAreaLayers(
   };
 }
 
-function idsInCategory(
-  layers: readonly LayerDefinition[],
-  category: MasterToggleCategory,
-): Set<string> {
-  return new Set(layers.filter((layer) => layer.category === category).map((layer) => layer.id));
-}
-
-function categoryLayerIds(layers: readonly LayerDefinition[]): CategoryLayerIds {
-  return {
-    "public-land": idsInCategory(layers, "public-land"),
-    parcels: idsInCategory(layers, "parcels"),
-  };
-}
-
-function joinFullCategories(
-  current: LayerStateById,
-  now: CategoryLayerIds,
-  before: CategoryLayerIds,
-): LayerStateById {
-  let next = current;
-  for (const category of masterToggleCategories) {
-    const arrived = [...now[category]].filter((id) => !before[category].has(id));
-    const wasFullyOn =
-      before[category].size > 0 && [...before[category]].every((id) => current[id]?.visible);
-    if (arrived.length === 0 || !wasFullyOn) continue;
-    const joined = arrived.map((id): [string, LayerState] => [
-      id,
-      { ...current[id], visible: true },
-    ]);
-    next = { ...next, ...Object.fromEntries(joined) };
-  }
-  return next;
-}
-
-// Public-land and parcel layers each have an "All ___" master toggle in the Layers sheet. If
-// every layer in one of those categories is currently on and panning/zooming brings a new
-// county's layer into view, that new layer should join them automatically instead of
-// silently starting off and quietly breaking the "all on" state the user chose.
-function useMasterToggleSync(
-  activeLayers: readonly LayerDefinition[],
-  setLayerState: SetLayerState,
-) {
-  const previousIds = useRef<CategoryLayerIds>({ "public-land": new Set(), parcels: new Set() });
-  useEffect(() => {
-    const before = previousIds.current;
-    const now = categoryLayerIds(activeLayers);
-    previousIds.current = now;
-    setLayerState((current) => joinFullCategories(current, now, before));
-  }, [activeLayers, setLayerState]);
-}
-
 function useLayerRuntime() {
   const [runtimeState, setRuntimeState] = useState<LayerRuntimeStateById>({});
   const [retryVersion, setRetryVersion] = useState<Record<string, number>>({});
@@ -224,17 +164,23 @@ function swapIds(order: readonly string[], first: string, second: string): strin
 // county-scoped layers reset to their defaults here — otherwise a layer left on near the
 // previous search (kept visible even off-viewport by the edge-case fix in activeLayers)
 // would keep rendering indefinitely after jumping somewhere unrelated.
-function stateForNewLocation(current: LayerStateById, location: MapLocation): LayerStateById {
+// Group controls forget county-scoped layers for the same reason: restoring one would bring
+// back a layer from the previous search. They also forget layers the reset just switched on.
+function selectionForNewLocation(current: LayerSelection, location: MapLocation): LayerSelection {
   const latestImagery = location.county
     ? latestDisplayableImagery(location.county.replace(/\s+County$/i, ""))
     : undefined;
-  return Object.fromEntries(
-    Object.entries(current).map(([id, state]): [string, LayerState] => {
+  const layers = Object.fromEntries(
+    Object.entries(current.layers).map(([id, state]): [string, LayerState] => {
       if (imageryLayerIds.has(id))
         return [id, latestImagery ? { ...state, visible: id === latestImagery.id } : state];
       const layer = layerRegistryById.get(id);
       return layer?.county ? [id, { ...state, visible: layer.defaultVisible }] : [id, state];
     }),
+  );
+  return forgetSuspended(
+    { ...current, layers },
+    (id) => Boolean(layerRegistryById.get(id)?.county) || Boolean(layers[id]?.visible),
   );
 }
 
@@ -243,22 +189,27 @@ export function useLayerControls(
   viewportBounds: ViewportBounds | null,
 ) {
   const {
-    layerState,
-    setLayerState,
+    selection,
+    setSelection,
     layerOrder,
     setLayerOrder,
     verticalExaggeration,
     setVerticalExaggeration,
   } = useLayerPreferences();
-  const area = useAreaLayers(location, viewportBounds, layerState, layerOrder);
+  const area = useAreaLayers(location, viewportBounds, selection.layers, layerOrder);
   const runtime = useLayerRuntime();
-  useMasterToggleSync(area.activeLayers, setLayerState);
 
   const setVisible = (id: string, visible: boolean) => {
-    setLayerState((current) => ({ ...current, [id]: { ...current[id], visible } }));
+    setSelection((current) => setLayerVisible(current, id, visible));
   };
   const setOpacity = (id: string, opacity: number) => {
-    setLayerState((current) => ({ ...current, [id]: { ...current[id], opacity } }));
+    setSelection((current) => ({
+      ...current,
+      layers: { ...current.layers, [id]: { ...current.layers[id], opacity } },
+    }));
+  };
+  const toggleLayerGroup = (groupId: string, layerIds: readonly string[]) => {
+    setSelection((current) => toggleGroup(current, groupId, layerIds));
   };
   const moveLayer = (id: string, direction: "up" | "down") => {
     const target = findMoveTarget(area.activeLayers, id, direction);
@@ -267,9 +218,11 @@ export function useLayerControls(
 
   const drawer: Omit<LayerDrawerProps, "cameraHeight"> = {
     layers: area.activeLayers,
-    state: layerState,
+    state: selection.layers,
+    suspended: selection.suspended,
     terrainExaggeration: verticalExaggeration,
     onVisibilityChange: setVisible,
+    onToggleGroup: toggleLayerGroup,
     onOpacityChange: setOpacity,
     onTerrainExaggerationChange: setVerticalExaggeration,
     onMoveLayer: moveLayer,
@@ -285,7 +238,7 @@ export function useLayerControls(
     drawer,
     map: {
       layers: area.activeLayers,
-      layerState,
+      layerState: selection.layers,
       verticalExaggeration,
       retryVersion: runtime.retryVersion,
       onLayerStatusChange: runtime.updateStatus,
@@ -294,6 +247,6 @@ export function useLayerControls(
       if (terrainLayer) setVisible(terrainLayer.id, true);
     },
     resetForLocation: (next: MapLocation) =>
-      setLayerState((current) => stateForNewLocation(current, next)),
+      setSelection((current) => selectionForNewLocation(current, next)),
   };
 }
