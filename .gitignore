@@ -12,3 +12,5 @@ screenshots/
 /dist/
 .vinext/
 .wrangler/
+playwright-report/
+test-results/
