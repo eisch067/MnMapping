@@ -2,9 +2,8 @@ import type { LayerDefinition } from "@/config/layers";
 import { isLayerAvailableAtCameraHeight, isTerrainLayer } from "@/config/layers/types";
 import type { LayerStateById } from "@/lib/map/layerState";
 import { topmostFirst } from "@/lib/map/layerStack";
-import type { MyMapItem } from "@/lib/myData";
 import { identifyAdapters } from "./adapters";
-import { identifyMyData } from "./myData";
+import { identifyMyData, type IdentifiableItem } from "./myData";
 import type {
   IdentifyFailure,
   IdentifyPoint,
@@ -19,7 +18,7 @@ export interface IdentifyRequest {
   layerState: LayerStateById;
   cameraHeight: number;
   // Only the saved items the map is showing.
-  myData: readonly MyMapItem[];
+  myData: readonly IdentifiableItem[];
   signal?: AbortSignal;
   fetcher?: typeof fetch;
   adapters?: Partial<Record<LayerDefinition["sourceType"], LayerIdentifyAdapter | null>>;

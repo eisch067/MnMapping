@@ -16,6 +16,10 @@ _Avoid_: Master layer, all-layers toggle
 The layers within a layer group that the user has individually selected and expects the group control to restore.
 _Avoid_: All layers, group default
 
+**Suspended**:
+The state of a layer group whose active subset has been hidden and remembered by its group control until the user restores it.
+_Avoid_: Disabled, turned off
+
 **My Data item**:
 A private, user-owned pin, line, polygon, or imported geometry together with its descriptive information, synchronized across that user's devices.
 _Avoid_: Marker, drawing, feature when referring to all personal geometry types

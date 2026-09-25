@@ -3,6 +3,12 @@ import type { IdentifyPoint, IdentifyResult, IdentifyRow } from "./types";
 
 type Position = [number, number];
 
+// Only what identify reads, so it stays independent of the rest of the My Data record.
+export type IdentifiableItem = Pick<
+  MyMapItem,
+  "id" | "name" | "note" | "geometry" | "createdAt"
+>;
+
 const metersPerDegree = 111_320;
 // Saved items are drawn pins over lines over areas, so that is the order they are offered in.
 const kindOrder: Record<MyGeometry["type"], number> = { Point: 0, LineString: 1, Polygon: 2 };
@@ -72,7 +78,7 @@ function isUnderClick(geometry: MyGeometry, point: IdentifyPoint): boolean {
   }
 }
 
-function describeItem(item: MyMapItem): IdentifyResult {
+function describeItem(item: IdentifiableItem): IdentifyResult {
   const rows: IdentifyRow[] = [];
   if (item.geometry.type === "Point") {
     const [longitude, latitude] = item.geometry.coordinates;
@@ -92,7 +98,7 @@ function describeItem(item: MyMapItem): IdentifyResult {
 }
 
 export function identifyMyData(
-  items: readonly MyMapItem[],
+  items: readonly IdentifiableItem[],
   point: IdentifyPoint,
 ): IdentifyResult[] {
   return items

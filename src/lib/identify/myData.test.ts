@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { identifyMyData } from "@/lib/identify/myData";
+import { identifyMyData, type IdentifiableItem } from "@/lib/identify/myData";
 import type { IdentifyPoint, IdentifyResult } from "@/lib/identify/types";
-import type { MyMapItem } from "@/lib/myData";
 
 const point = (longitude: number, latitude: number, toleranceMeters = 10): IdentifyPoint => ({
   longitude,
@@ -11,7 +10,7 @@ const point = (longitude: number, latitude: number, toleranceMeters = 10): Ident
 
 const titles = (results: readonly IdentifyResult[]) => results.map((result) => result.title);
 
-function item(overrides: Partial<MyMapItem> & Pick<MyMapItem, "geometry">): MyMapItem {
+function item(overrides: Partial<IdentifiableItem> & Pick<IdentifiableItem, "geometry">): IdentifiableItem {
   return { id: "item", name: "Item", createdAt: "2026-09-01T12:00:00.000Z", ...overrides };
 }
 

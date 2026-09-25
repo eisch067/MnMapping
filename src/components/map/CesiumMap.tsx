@@ -10,6 +10,7 @@ import { applyGeoJsonOpacity, createLayerResource } from "@/lib/map/createLayer"
 import { imageryStackBand } from "@/lib/map/layerStack";
 import type { LayerStateById } from "@/lib/map/layerState";
 import type { LayerRuntimeState } from "@/lib/map/layerRuntime";
+import type { Bounds } from "@/lib/exchange/bounds";
 import type { MyMapItem } from "@/lib/myData";
 import { toGeoJson } from "@/lib/myData";
 import { useCrosshair } from "./useCrosshair";
@@ -41,6 +42,7 @@ interface CesiumMapProps {
 export interface MapViewControls {
   showMapView: () => void;
   showTerrainView: () => void;
+  showBounds: (bounds: Bounds) => void;
 }
 
 export function CesiumMap({
@@ -108,6 +110,7 @@ export function CesiumMap({
       Cartesian2,
       Cartesian3,
       Math: CesiumMath,
+      Rectangle,
       SceneMode,
       ScreenSpaceEventHandler,
       ScreenSpaceEventType,
@@ -154,6 +157,10 @@ export function CesiumMap({
         showTerrainView: () => {
           viewer.scene.morphTo3D(0);
           viewer.camera.flyTo({ ...terrainView, duration: 1.4 });
+        },
+        showBounds: ({ west, south, east, north }) => {
+          const destination = Rectangle.fromDegrees(west, south, east, north);
+          viewer.camera.flyTo({ destination, duration: 1.1 });
         },
       });
       const reportViewport = () => {

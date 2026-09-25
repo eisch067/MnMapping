@@ -45,7 +45,7 @@ and have the on-map strip and the About page both read from it.
   Wadena). A PDF/PNG export or screenshot feature should burn the same attribution strip into the output,
   consistent with the DNR clause's "when these data are used in the development of digital or analog products"
   language.
-- **Downloaded data**: MnMapping's current export code (`src/lib/mapFormats.ts`) only exports the *user's own*
+- **Downloaded data**: MnMapping's current export code (`src/lib/exchange/exportFiles.ts`) only exports the *user's own*
   drawn pins/notes (GeoJSON/KML/GPX of `MyMapItem`), never source GIS data — so this isn't yet a live concern.
   If a future "export the visible parcels" or "download this imagery tile" feature is added, it must carry the
   same attribution and disclaimer text, and (per [RISK-REGISTER.md](RISK-REGISTER.md)) must not include any of

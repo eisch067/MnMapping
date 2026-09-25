@@ -34,7 +34,11 @@ async function searchForParkRapids(page: Page) {
     await expect(search).toBeEnabled({ timeout: 500 });
   }).toPass();
   await search.click();
-  await page.getByRole("button", { name: /Park Rapids, Minnesota/ }).click();
+  // A second visit also lists Park Rapids under recent locations, so match the search results only.
+  await page
+    .getByLabel("Location results")
+    .getByRole("button", { name: /^Park Rapids, Minnesota/ })
+    .click();
 }
 
 export function mapCanvas(page: Page): Locator {

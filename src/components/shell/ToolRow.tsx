@@ -15,7 +15,7 @@ interface ToolRowProps {
 export function ToolRow({ sheets, openId, pinned, onToggle, onPinnedChange, hover }: ToolRowProps) {
   return (
     <nav className="tool-row" aria-label="Map tools" {...hover}>
-      {sheets.map((sheet) => (
+      {sheets.filter((sheet) => !sheet.secondary).map((sheet) => (
         <button
           key={sheet.id}
           className={`tool-row-action ${sheet.primary ? "is-primary" : ""}`}

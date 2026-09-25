@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import type { InteractionMode } from "@/components/map/CesiumMap";
-import { roughAreaSquareMeters, roughLengthMeters, type MyMapItem } from "@/lib/myData";
+import {
+  roughAreaSquareMeters,
+  roughLengthMeters,
+  type MyMapItem,
+  type NewMyDataItem,
+} from "@/lib/myData";
 
 export type Position = [number, number];
 type DrawMode = "line" | "polygon";
@@ -15,17 +20,17 @@ export function minimumVertices(mode: DrawMode): number {
   return mode === "polygon" ? 3 : 2;
 }
 
-function newItem(name: string, geometry: MyMapItem["geometry"], note?: string): MyMapItem {
-  return { id: crypto.randomUUID(), name, note, geometry, createdAt: new Date().toISOString() };
+function newItem(name: string, geometry: MyMapItem["geometry"], note?: string): NewMyDataItem {
+  return { name, note, geometry };
 }
 
-function promptForPin(position: Position): MyMapItem {
+function promptForPin(position: Position): NewMyDataItem {
   const name = window.prompt("Pin name", "Dropped pin")?.trim() || "Dropped pin";
   const note = window.prompt("Optional note")?.trim() || undefined;
   return newItem(name, { type: "Point", coordinates: position }, note);
 }
 
-function promptForDrawing(mode: DrawMode, draft: Position[]): MyMapItem {
+function promptForDrawing(mode: DrawMode, draft: Position[]): NewMyDataItem {
   const isPolygon = mode === "polygon";
   const measurement = isPolygon
     ? `${(roughAreaSquareMeters(draft) / 4046.856).toFixed(2)} acres`
@@ -37,7 +42,7 @@ function promptForDrawing(mode: DrawMode, draft: Position[]): MyMapItem {
   return newItem(name, geometry, `Approx. ${measurement}`);
 }
 
-export function useMapTools(addItem: (item: MyMapItem) => Promise<void>) {
+export function useMapTools(addItem: (item: NewMyDataItem) => Promise<void>) {
   const [mode, setMode] = useState<InteractionMode>("inspect");
   const [draft, setDraft] = useState<Position[]>([]);
 

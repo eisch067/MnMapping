@@ -1,14 +1,16 @@
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/ui/MapIcons";
 import { isLayerAvailableAtCameraHeight, type LayerDefinition } from "@/config/layers/types";
 import type { LayerRuntimeState, LayerRuntimeStateById } from "@/lib/map/layerRuntime";
-import type { LayerStateById } from "@/lib/map/layerState";
+import type { LayerStateById, SuspendedByGroup } from "@/lib/map/layerState";
 import { accessMeaningLabel, metadataLine } from "./layerGrouping";
 
 export interface LayerControls {
   state: LayerStateById;
+  suspended: SuspendedByGroup;
   cameraHeight: number;
   runtimeState: LayerRuntimeStateById;
   onVisibilityChange: (id: string, visible: boolean) => void;
+  onToggleGroup: (groupId: string, layerIds: readonly string[]) => void;
   onOpacityChange: (id: string, opacity: number) => void;
   onMoveLayer: (id: string, direction: "up" | "down") => void;
   onRetryLayer: (id: string) => void;

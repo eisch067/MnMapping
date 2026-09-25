@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LayerDefinition } from "@/config/layers";
 import { identifyAt } from "@/lib/identify/identify";
 import type { IdentifyPoint, IdentifyResult, LayerIdentifyAdapter } from "@/lib/identify/types";
-import type { MyMapItem } from "@/lib/myData";
+import type { IdentifiableItem } from "@/lib/identify/myData";
 
 const point: IdentifyPoint = { longitude: -95.1, latitude: 47.0, toleranceMeters: 10 };
 
@@ -35,7 +35,7 @@ function recordingAdapter(asked: string[] = []): LayerIdentifyAdapter {
 const allOn = (...ids: string[]) =>
   Object.fromEntries(ids.map((id) => [id, { visible: true, opacity: 1 }]));
 
-const pin: MyMapItem = {
+const pin: IdentifiableItem = {
   id: "camp",
   name: "North camp",
   geometry: { type: "Point", coordinates: [-95.1, 47.0] },
