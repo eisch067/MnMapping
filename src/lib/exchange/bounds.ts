@@ -23,7 +23,11 @@ export function boundsOf(geometries: readonly MyGeometry[]): Bounds | null {
   const longitudes = all.map(([longitude]) => longitude);
   const latitudes = all.map(([, latitude]) => latitude);
   const grow = (low: number, high: number, limit: number): [number, number] => {
-    const pad = Math.max((high - low) * PADDING_RATIO, (MINIMUM_SPAN_DEGREES - (high - low)) / 2, 0);
+    const pad = Math.max(
+      (high - low) * PADDING_RATIO,
+      (MINIMUM_SPAN_DEGREES - (high - low)) / 2,
+      0,
+    );
     return [Math.max(low - pad, -limit), Math.min(high + pad, limit)];
   };
   const [west, east] = grow(Math.min(...longitudes), Math.max(...longitudes), 180);

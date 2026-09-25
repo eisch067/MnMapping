@@ -1,3 +1,5 @@
+import { localClock, localDate } from "./localTime";
+
 export const MY_DATA_SCHEMA_VERSION = 2 as const;
 export const UNFILED_VIEW_ID = "unfiled" as const;
 export const TRASH_VIEW_ID = "trash" as const;
@@ -124,18 +126,20 @@ export function validateFolderName(name: string, folders: readonly MyDataFolder[
   return trimmed;
 }
 
-function twoDigits(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
 // The source filename and the user's local import time keep separate imports distinguishable.
-export function importFolderName(filename: string, importedAt: Date, folders: readonly MyDataFolder[]): string {
-  const date = `${importedAt.getFullYear()}-${twoDigits(importedAt.getMonth() + 1)}-${twoDigits(importedAt.getDate())}`;
-  const time = `${twoDigits(importedAt.getHours())}:${twoDigits(importedAt.getMinutes())}`;
-  const base = `${filename.trim() || "Import"} ${date} ${time}`;
-  const taken = new Set(folders.filter((folder) => !folder.deletion).map((folder) => normalizeFolderName(folder.name)));
+export function importFolderName(
+  filename: string,
+  importedAt: Date,
+  folders: readonly MyDataFolder[],
+): string {
+  const base = `${filename.trim() || "Import"} ${localDate(importedAt)} ${localClock(importedAt)}`;
+  const taken = new Set(
+    folders.filter((folder) => !folder.deletion).map((folder) => normalizeFolderName(folder.name)),
+  );
   let candidate = base;
-  for (let suffix = 2; taken.has(normalizeFolderName(candidate)); suffix++) candidate = `${base} (${suffix})`;
+  for (let suffix = 2; taken.has(normalizeFolderName(candidate)); suffix++) {
+    candidate = `${base} (${suffix})`;
+  }
   return candidate;
 }
 

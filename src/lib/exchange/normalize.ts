@@ -18,18 +18,15 @@ export interface NormalizeTally {
 
 export type NormalizedPart = { geometry: MyGeometry } | { reason: string };
 
+const invalidPair = "A coordinate is not a valid longitude and latitude pair.";
+
 function checkPosition(position: RawPosition): Coordinate | string {
   const [longitude, latitude] = position;
-  if (position.length < 2 || !Number.isFinite(longitude) || !Number.isFinite(latitude)) {
-    return "A coordinate is not a valid longitude and latitude pair.";
-  }
-  if ((longitude as number) < -180 || (longitude as number) > 180) {
-    return `Longitude ${longitude} is outside -180 to 180.`;
-  }
-  if ((latitude as number) < -90 || (latitude as number) > 90) {
-    return `Latitude ${latitude} is outside -90 to 90.`;
-  }
-  return [longitude as number, latitude as number];
+  if (longitude === undefined || latitude === undefined) return invalidPair;
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return invalidPair;
+  if (longitude < -180 || longitude > 180) return `Longitude ${longitude} is outside -180 to 180.`;
+  if (latitude < -90 || latitude > 90) return `Latitude ${latitude} is outside -90 to 90.`;
+  return [longitude, latitude];
 }
 
 function checkPositions(positions: readonly RawPosition[]): Coordinate[] | string {
@@ -50,28 +47,40 @@ function normalizeLine(positions: readonly RawPosition[], tally: NormalizeTally)
   const points = checkPositions(positions);
   if (typeof points === "string") return { reason: points };
   if (distinctCount(points) < 2) return { reason: "A line needs at least 2 distinct points." };
-  if (points.length <= MAX_ITEM_VERTICES) return { geometry: { type: "LineString", coordinates: points } };
+  if (points.length <= MAX_ITEM_VERTICES)
+    return { geometry: { type: "LineString", coordinates: points } };
   tally.simplified++;
-  return { geometry: { type: "LineString", coordinates: simplifyToLimit(points, MAX_ITEM_VERTICES) } };
+  return {
+    geometry: { type: "LineString", coordinates: simplifyToLimit(points, MAX_ITEM_VERTICES) },
+  };
 }
 
-function normalizePolygon(rings: readonly (readonly RawPosition[])[], tally: NormalizeTally): NormalizedPart {
+function normalizePolygon(
+  rings: readonly (readonly RawPosition[])[],
+  tally: NormalizeTally,
+): NormalizedPart {
   const points = checkPositions(rings[0] ?? []);
   if (typeof points === "string") return { reason: points };
   if (distinctCount(points) < 3) return { reason: "An area needs at least 3 distinct vertices." };
   tally.holesRemoved += rings.length - 1;
-  const first = points[0] as Coordinate;
-  const last = points[points.length - 1] as Coordinate;
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (!first || !last) return { reason: "An area needs at least 3 distinct vertices." };
   const closed = first[0] === last[0] && first[1] === last[1] ? points : [...points, first];
-  if (closed.length <= MAX_ITEM_VERTICES) return { geometry: { type: "Polygon", coordinates: [closed] } };
+  if (closed.length <= MAX_ITEM_VERTICES)
+    return { geometry: { type: "Polygon", coordinates: [closed] } };
   tally.simplified++;
-  return { geometry: { type: "Polygon", coordinates: [simplifyRingToLimit(closed, MAX_ITEM_VERTICES)] } };
+  return {
+    geometry: { type: "Polygon", coordinates: [simplifyRingToLimit(closed, MAX_ITEM_VERTICES)] },
+  };
 }
 
 export function normalizePart(part: RawPart, tally: NormalizeTally): NormalizedPart {
   if (part.type === "Point") {
     const point = checkPosition(part.position);
-    return typeof point === "string" ? { reason: point } : { geometry: { type: "Point", coordinates: point } };
+    return typeof point === "string"
+      ? { reason: point }
+      : { geometry: { type: "Point", coordinates: point } };
   }
   return part.type === "LineString"
     ? normalizeLine(part.positions, tally)

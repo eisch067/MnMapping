@@ -1,7 +1,14 @@
 import { generatedItemName, type MyGeometry } from "@/lib/myDataModel";
 import { cleanNote } from "./noteText";
 import { normalizePart, type NormalizeTally } from "./normalize";
-import { ImportRefusal, readGeoJson, readGpx, readKml, type RawFeature, type RawRead } from "./readers";
+import {
+  ImportRefusal,
+  readGeoJson,
+  readGpx,
+  readKml,
+  type RawFeature,
+  type RawRead,
+} from "./readers";
 
 export { MAX_ITEM_VERTICES } from "./normalize";
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -39,8 +46,7 @@ export interface ImportReport {
 }
 
 export type ImportOutcome =
-  | { ok: true; items: ImportedItem[]; report: ImportReport }
-  | { ok: false; message: string };
+  { ok: true; items: ImportedItem[]; report: ImportReport } | { ok: false; message: string };
 
 const readers: Record<string, (text: string) => RawRead> = {
   gpx: readGpx,
@@ -49,8 +55,12 @@ const readers: Record<string, (text: string) => RawRead> = {
   json: readGeoJson,
 };
 
+export function fileExtension(filename: string): string {
+  return filename.split(".").pop()?.toLowerCase() ?? "";
+}
+
 function readerFor(filename: string): (text: string) => RawRead {
-  const extension = filename.split(".").pop()?.toLowerCase() ?? "";
+  const extension = fileExtension(filename);
   if (extension === "kmz") {
     throw new ImportRefusal("KMZ files can't be imported. Export the file as KML instead.");
   }
@@ -63,14 +73,17 @@ function partName(base: string, index: number): string {
   return index === 0 ? base : `${base} (${index + 1})`;
 }
 
-function importFeature(feature: RawFeature, report: ImportReport, tally: NormalizeTally): ImportedItem[] {
+function importFeature(
+  feature: RawFeature,
+  report: ImportReport,
+  tally: NormalizeTally,
+): ImportedItem[] {
   const note = cleanNote(feature.note);
   if (note.truncated) report.warnings.notesTruncated++;
   const results = feature.parts.map((part) => normalizePart(part, tally));
   const firstValid = results.find((result) => "geometry" in result);
-  const generated = firstValid && "geometry" in firstValid
-    ? generatedItemName(firstValid.geometry)
-    : "Untitled";
+  const generated =
+    firstValid && "geometry" in firstValid ? generatedItemName(firstValid.geometry) : "Untitled";
   const base = feature.name?.trim() || generated;
   if (feature.parts.length > 1) report.warnings.multiPartSplit++;
   if (results.length === 0) {
@@ -87,11 +100,14 @@ function importFeature(feature: RawFeature, report: ImportReport, tally: Normali
 
 function readFile(input: ImportFileInput): RawRead {
   const read = readerFor(input.name)(input.text);
-  const itemCount = read.features.reduce((sum, feature) => sum + Math.max(feature.parts.length, 1), 0);
+  const itemCount = read.features.reduce(
+    (sum, feature) => sum + Math.max(feature.parts.length, 1),
+    0,
+  );
   if (itemCount > MAX_IMPORT_ITEMS) {
     throw new ImportRefusal(
-      `This file has ${itemCount.toLocaleString("en-US")} items; the limit is 5,000. `
-        + "Split it into smaller files and import each one.",
+      `This file has ${itemCount.toLocaleString("en-US")} items; the limit is 5,000. ` +
+        "Split it into smaller files and import each one.",
     );
   }
   return read;

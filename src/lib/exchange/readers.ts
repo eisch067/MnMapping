@@ -16,8 +16,12 @@ export interface RawRead {
 
 type JsonObject = Record<string, unknown>;
 
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null;
+}
+
 function asObject(value: unknown): JsonObject | null {
-  return typeof value === "object" && value !== null ? (value as JsonObject) : null;
+  return isJsonObject(value) ? value : null;
 }
 
 function text(value: unknown): string | undefined {
@@ -26,7 +30,9 @@ function text(value: unknown): string | undefined {
 
 function jsonPosition(value: unknown): RawPosition {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, 2).map((component) => (typeof component === "number" ? component : Number.NaN));
+  return value
+    .slice(0, 2)
+    .map((component) => (typeof component === "number" ? component : Number.NaN));
 }
 
 function jsonPositions(value: unknown): RawPosition[] {
@@ -55,7 +61,9 @@ function jsonParts(geometry: unknown): RawPart[] | null {
         rings: Array.isArray(polygon) ? polygon.map(jsonPositions) : [],
       }));
     case "GeometryCollection":
-      return (Array.isArray(geometries) ? geometries : []).flatMap((member) => jsonParts(member) ?? []);
+      return (Array.isArray(geometries) ? geometries : []).flatMap(
+        (member) => jsonParts(member) ?? [],
+      );
     default:
       return null;
   }
@@ -67,7 +75,9 @@ function jsonFeatures(value: unknown): unknown[] {
   if (root.type === "FeatureCollection" && Array.isArray(root.features)) return root.features;
   if (root.type === "Feature") return [root];
   if (jsonParts(root)) return [{ type: "Feature", properties: {}, geometry: root }];
-  throw new ImportRefusal("This file is not GeoJSON: it has no features or geometry, so nothing was imported.");
+  throw new ImportRefusal(
+    "This file is not GeoJSON: it has no features or geometry, so nothing was imported.",
+  );
 }
 
 export function readGeoJson(source: string): RawRead {
@@ -162,9 +172,12 @@ const unsupportedKmlElements = [
 
 export function readKml(source: string): RawRead {
   const root = parseXml(source, "kml", "KML");
-  const foldersFlattened = descendants(root, "Folder")
-    .filter((folder) => descendants(folder, "Placemark").length > 0).length;
+  const foldersFlattened = descendants(root, "Folder").filter(
+    (folder) => descendants(folder, "Placemark").length > 0,
+  ).length;
+  // A MultiTrack holds Tracks, which are counted on their own.
   const unsupported = unsupportedKmlElements
+    .filter((name) => name !== "MultiTrack")
     .reduce((count, name) => count + descendants(root, name).length, 0);
   // A placemark holding only unsupported geometry is already counted above, not rejected.
   const features = descendants(root, "Placemark")
@@ -172,7 +185,9 @@ export function readKml(source: string): RawRead {
       name: childText(placemark, "name"),
       note: childText(placemark, "description"),
       parts: kmlParts(placemark),
-      hasUnsupported: unsupportedKmlElements.some((name) => descendants(placemark, name).length > 0),
+      hasUnsupported: unsupportedKmlElements.some(
+        (name) => descendants(placemark, name).length > 0,
+      ),
     }))
     .filter((feature) => feature.parts.length > 0 || !feature.hasUnsupported)
     .map(({ name, note, parts }) => ({ name, note, parts }));
@@ -194,7 +209,9 @@ function gpxParts(element: Element): RawPart[] {
     case "rte":
       return [gpxLine(descendants(element, "rtept"))];
     case "trk":
-      return descendants(element, "trkseg").map((segment) => gpxLine(descendants(segment, "trkpt")));
+      return descendants(element, "trkseg").map((segment) =>
+        gpxLine(descendants(segment, "trkpt")),
+      );
     default:
       return [];
   }

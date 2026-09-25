@@ -239,7 +239,8 @@ export class MyDataStore {
     if (items.length === 0) throw new Error("There are no items to import.");
     const { folders, settings } = await readSnapshot(this.database);
     const now = this.clock();
-    const folder = createFolder(importFolderName(source.filename, now, folders), folders, this.clock, this.idFactory);
+    const folderName = importFolderName(source.filename, now, folders);
+    const folder = createFolder(folderName, folders, this.clock, this.idFactory);
     const importedAt = now.toISOString();
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     await this.writeAll([itemStoreName, folderStoreName], (transaction) => {
@@ -261,7 +262,9 @@ export class MyDataStore {
     await this.writeAll([itemStoreName, folderStoreName, settingsStoreName], (transaction) => {
       for (const folder of plan.foldersToAdd) transaction.objectStore(folderStoreName).put(folder);
       for (const item of plan.itemsToAdd) transaction.objectStore(itemStoreName).put(item);
-      if (plan.settingsToApply) transaction.objectStore(settingsStoreName).put(plan.settingsToApply);
+      if (plan.settingsToApply) {
+        transaction.objectStore(settingsStoreName).put(plan.settingsToApply);
+      }
     });
   }
 
@@ -310,6 +313,7 @@ export class MyDataStore {
       apply(transaction);
     } catch (error) {
       transaction.abort();
+      // The abort rejects `done`; the caller needs the original error, not the abort.
       await done.catch(() => undefined);
       throw error;
     }

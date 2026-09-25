@@ -13,19 +13,38 @@ export interface ExportSheetProps {
 
 const destinations: readonly { format: ExportFormat; label: string; hint: string }[] = [
   { format: "kml", label: "OnX Web (KML)", hint: "Pins, lines, and areas. One file per folder." },
-  { format: "gpx", label: "OnX Mobile (GPX)", hint: "Pins as waypoints; lines and areas as tracks." },
-  { format: "geojson", label: "GeoJSON (GIS)", hint: "One file with folders, colors, and symbols." },
+  {
+    format: "gpx",
+    label: "OnX Mobile (GPX)",
+    hint: "Pins as waypoints; lines and areas as tracks.",
+  },
+  {
+    format: "geojson",
+    label: "GeoJSON (GIS)",
+    hint: "One file with folders, colors, and symbols.",
+  },
 ];
 
 function sizeLabel(content: string): string {
   const bytes = new Blob([content]).size;
-  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  return bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export function ExportSheet({ scope, folders }: ExportSheetProps) {
   const [format, setFormat] = useState<ExportFormat>("kml");
   const files = useMemo(
-    () => (scope ? buildExport({ items: scope.items, folders, scopeName: scope.name, format, exportedAt: new Date() }) : []),
+    () =>
+      scope
+        ? buildExport({
+            items: scope.items,
+            folders,
+            scopeName: scope.name,
+            format,
+            exportedAt: new Date(),
+          })
+        : [],
     [scope, folders, format],
   );
   if (!scope) return <p className="sheet-hint">Choose what to export from My Data.</p>;
@@ -45,9 +64,17 @@ export function ExportSheet({ scope, folders }: ExportSheetProps) {
           </button>
         ))}
       </div>
-      <p className="sheet-hint">{destinations.find((destination) => destination.format === format)?.hint}</p>
-      {notice && <p className="exchange-notice" role="note">{notice}</p>}
-      {files.length === 0 ? <p className="sheet-hint">There is nothing to export here.</p> : (
+      <p className="sheet-hint">
+        {destinations.find((destination) => destination.format === format)?.hint}
+      </p>
+      {notice && (
+        <p className="exchange-notice" role="note">
+          {notice}
+        </p>
+      )}
+      {files.length === 0 ? (
+        <p className="sheet-hint">There is nothing to export here.</p>
+      ) : (
         <>
           {files.length > 1 && (
             <p className="sheet-hint">
@@ -59,9 +86,14 @@ export function ExportSheet({ scope, folders }: ExportSheetProps) {
               <li key={file.filename}>
                 <span>
                   <strong>{file.filename}</strong>
-                  <small>{file.itemCount} {file.itemCount === 1 ? "item" : "items"} · {sizeLabel(file.content)}</small>
+                  <small>
+                    {file.itemCount} {file.itemCount === 1 ? "item" : "items"} ·{" "}
+                    {sizeLabel(file.content)}
+                  </small>
                 </span>
-                <button type="button" onClick={() => downloadFile(file)}>Download</button>
+                <button type="button" onClick={() => downloadFile(file)}>
+                  Download
+                </button>
               </li>
             ))}
           </ul>
@@ -72,7 +104,9 @@ export function ExportSheet({ scope, folders }: ExportSheetProps) {
           )}
         </>
       )}
-      <p className="sheet-hint">Trash is never exported. Use Backup and restore to keep a full copy.</p>
+      <p className="sheet-hint">
+        Trash is never exported. Use Backup and restore to keep a full copy.
+      </p>
     </div>
   );
 }

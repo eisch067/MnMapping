@@ -31,7 +31,9 @@ const none = {
 describe("describeWarnings", () => {
   it("lists only what happened, with singular and plural forms", () => {
     expect(describeWarnings(none)).toEqual([]);
-    expect(describeWarnings({ ...none, holesRemoved: 1, simplified: 2, foldersFlattened: 1 })).toEqual([
+    expect(
+      describeWarnings({ ...none, holesRemoved: 1, simplified: 2, foldersFlattened: 1 }),
+    ).toEqual([
       "1 area hole removed.",
       "2 items simplified to fit 20,000 points.",
       "1 source folder flattened into this folder.",
@@ -57,8 +59,24 @@ describe("describeWarnings", () => {
 describe("countsByType", () => {
   it("counts pins, lines, and areas", () => {
     const point: MyGeometry = { type: "Point", coordinates: [0, 0] };
-    const line: MyGeometry = { type: "LineString", coordinates: [[0, 0], [1, 1]] };
-    const area: MyGeometry = { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] };
+    const line: MyGeometry = {
+      type: "LineString",
+      coordinates: [
+        [0, 0],
+        [1, 1],
+      ],
+    };
+    const area: MyGeometry = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 0],
+        ],
+      ],
+    };
     expect(countsByType([point, point, line, area])).toEqual({ pins: 2, lines: 1, areas: 1 });
   });
 });
@@ -84,14 +102,16 @@ describe("describeRestore", () => {
   });
 
   it("says so when there was nothing to add", () => {
-    expect(describeRestore({
-      itemsRestored: 0,
-      trashRestored: 0,
-      alreadyPresent: 0,
-      expiredSkipped: 0,
-      foldersCreated: 0,
-      settingsApplied: false,
-    })).toEqual(["Nothing was missing, so nothing changed."]);
+    expect(
+      describeRestore({
+        itemsRestored: 0,
+        trashRestored: 0,
+        alreadyPresent: 0,
+        expiredSkipped: 0,
+        foldersCreated: 0,
+        settingsApplied: false,
+      }),
+    ).toEqual(["Nothing was missing, so nothing changed."]);
   });
 });
 
@@ -100,14 +120,23 @@ describe("resolveScope", () => {
   const items = [item("a", "Stand", "f1"), item("b", "Loose", null), item("c", "Trailhead", "f1")];
 
   it("resolves a folder, Unfiled, a selection, and everything", () => {
-    expect(resolveScope({ kind: "folder", folderId: "f1" }, items, [north]))
-      .toMatchObject({ name: "North 40", label: "North 40 (2 items)" });
-    expect(resolveScope({ kind: "folder", folderId: null }, items, [north]).items.map((entry) => entry.id))
-      .toEqual(["b"]);
-    expect(resolveScope({ kind: "selection", itemIds: ["a", "b"] }, items, [north]))
-      .toMatchObject({ name: "Selection", label: "2 selected items" });
-    expect(resolveScope({ kind: "all" }, items, [north]))
-      .toMatchObject({ name: "My Data", label: "All My Data (3 items)" });
+    expect(resolveScope({ kind: "folder", folderId: "f1" }, items, [north])).toMatchObject({
+      name: "North 40",
+      label: "North 40 (2 items)",
+    });
+    expect(
+      resolveScope({ kind: "folder", folderId: null }, items, [north]).items.map(
+        (entry) => entry.id,
+      ),
+    ).toEqual(["b"]);
+    expect(resolveScope({ kind: "selection", itemIds: ["a", "b"] }, items, [north])).toMatchObject({
+      name: "Selection",
+      label: "2 selected items",
+    });
+    expect(resolveScope({ kind: "all" }, items, [north])).toMatchObject({
+      name: "My Data",
+      label: "All My Data (3 items)",
+    });
   });
 
   it("names a single selected item for itself and ignores ids that are gone", () => {

@@ -168,7 +168,12 @@ export function MyDataSlot(props: MyDataSlotProps) {
   return (
     <div className="my-data-slot">
       <label className="my-data-visibility"><input type="checkbox" checked={props.visible} onChange={(event) => props.onVisibleChange(event.target.checked)} />Show My Data on the map</label>
-      <FolderNavigation folders={props.folders} viewId={viewId} onViewChange={changeView} onCreateFolder={props.onCreateFolder} />
+      <FolderNavigation
+        folders={props.folders}
+        viewId={viewId}
+        onViewChange={changeView}
+        onCreateFolder={props.onCreateFolder}
+      />
       {props.error && <p role="alert" className="my-data-error">{props.error}</p>}
       {inTrash ? <TrashView {...props} /> : (
         <>
@@ -181,8 +186,10 @@ export function MyDataSlot(props: MyDataSlotProps) {
             onFinishSelecting={finishSelecting}
             onSelectAll={() => setSelectedIds(new Set(shownItems.map((item) => item.id)))}
             onClearSelection={() => setSelectedIds(new Set())}
-            onExportSelection={() => props.onExportScope({ kind: "selection", itemIds: [...selectedIds] })}
-            onExportView={() => props.onExportScope({ kind: "folder", folderId: selectedFolder?.id ?? null })}
+            onExportSelection={() =>
+              props.onExportScope({ kind: "selection", itemIds: [...selectedIds] })}
+            onExportView={() =>
+              props.onExportScope({ kind: "folder", folderId: selectedFolder?.id ?? null })}
             onExportAll={() => props.onExportScope({ kind: "all" })}
           />
           {selectedFolder && <button className="delete-folder" type="button" onClick={deleteSelectedFolder}>Move folder to Trash</button>}

@@ -48,8 +48,24 @@ function folder(name: string): MyDataFolder {
   return createFolder(name, [], now, () => `folder-${name}`);
 }
 
-const square: MyGeometry = { type: "Polygon", coordinates: [[[0, 0], [4, 0], [4, 4], [0, 0]]] };
-const trail: MyGeometry = { type: "LineString", coordinates: [[-95, 47], [-95.1, 47.1]] };
+const square: MyGeometry = {
+  type: "Polygon",
+  coordinates: [
+    [
+      [0, 0],
+      [4, 0],
+      [4, 4],
+      [0, 0],
+    ],
+  ],
+};
+const trail: MyGeometry = {
+  type: "LineString",
+  coordinates: [
+    [-95, 47],
+    [-95.1, 47.1],
+  ],
+};
 
 function build(
   format: ExportFormat,
@@ -86,32 +102,66 @@ describe("filenames", () => {
 describe("KML", () => {
   it("writes name, optional note, geometry, closed rings, and 6 decimals", () => {
     const [file] = build("kml", [
-      item({ name: "Stand", note: "Big oak", geometry: { type: "Point", coordinates: [-95.5, 47.25] } }),
+      item({
+        name: "Stand",
+        note: "Big oak",
+        geometry: { type: "Point", coordinates: [-95.5, 47.25] },
+      }),
       item({ name: "Trail", geometry: trail }),
-      item({ name: "Field", geometry: { type: "Polygon", coordinates: [[[0, 0], [4, 0], [4, 4]]] } }),
+      item({
+        name: "Field",
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [0, 0],
+              [4, 0],
+              [4, 4],
+            ],
+          ],
+        },
+      }),
     ]);
     const document = xml(file as ExportFile);
     const marks = Array.from(document.getElementsByTagName("Placemark"));
-    expect(marks.map((mark) => mark.getElementsByTagName("name")[0]?.textContent)).toEqual(["Stand", "Trail", "Field"]);
+    expect(marks.map((mark) => mark.getElementsByTagName("name")[0]?.textContent)).toEqual([
+      "Stand",
+      "Trail",
+      "Field",
+    ]);
     expect(marks[0]?.getElementsByTagName("description")[0]?.textContent).toBe("Big oak");
     expect(marks[1]?.getElementsByTagName("description")).toHaveLength(0);
-    expect(marks[0]?.getElementsByTagName("coordinates")[0]?.textContent).toBe("-95.500000,47.250000");
-    expect(marks[2]?.getElementsByTagName("coordinates")[0]?.textContent)
-      .toBe("0.000000,0.000000 4.000000,0.000000 4.000000,4.000000 0.000000,0.000000");
+    expect(marks[0]?.getElementsByTagName("coordinates")[0]?.textContent).toBe(
+      "-95.500000,47.250000",
+    );
+    expect(marks[2]?.getElementsByTagName("coordinates")[0]?.textContent).toBe(
+      "0.000000,0.000000 4.000000,0.000000 4.000000,4.000000 0.000000,0.000000",
+    );
     expect(file?.content).not.toMatch(/<Style/);
   });
 
   it("escapes names and notes as text and drops characters XML forbids", () => {
-    const [file] = build("kml", [item({ name: `A & <B> "C"`, note: "x\u0000y</description><Point/>" })]);
+    const [file] = build("kml", [
+      item({ name: `A & <B> "C"`, note: "x\u0000y</description><Point/>" }),
+    ]);
     const document = xml(file as ExportFile);
     expect(document.getElementsByTagName("name")[1]?.textContent).toBe(`A & <B> "C"`);
-    expect(document.getElementsByTagName("description")[0]?.textContent).toBe("xy</description><Point/>");
+    expect(document.getElementsByTagName("description")[0]?.textContent).toBe(
+      "xy</description><Point/>",
+    );
     expect(document.getElementsByTagName("Point")).toHaveLength(1);
   });
 
   it("names the Document for its folder", () => {
     const north = folder("North 40");
     const [file] = build("kml", [item({ folderId: north.id })], [north], "North 40");
+    expect(xml(file as ExportFile).getElementsByTagName("name")[0]?.textContent).toBe("North 40");
+  });
+
+  it("names the Document for its folder even when the file is named for the selection", () => {
+    const north = folder("North 40");
+    const [file] = build("kml", [item({ folderId: north.id })], [north], "Selection");
+    expect(file?.filename).toMatch(/^Selection_/);
     expect(xml(file as ExportFile).getElementsByTagName("name")[0]?.textContent).toBe("North 40");
   });
 
@@ -125,9 +175,25 @@ describe("KML", () => {
 describe("GPX", () => {
   it("writes pins as waypoints, lines as one track, areas as closed tracks", () => {
     const [file] = build("gpx", [
-      item({ name: "Camp", note: "Flat", geometry: { type: "Point", coordinates: [-95.5, 47.25] } }),
+      item({
+        name: "Camp",
+        note: "Flat",
+        geometry: { type: "Point", coordinates: [-95.5, 47.25] },
+      }),
       item({ name: "Trail", geometry: trail }),
-      item({ name: "Field", geometry: { type: "Polygon", coordinates: [[[0, 0], [4, 0], [4, 4]]] } }),
+      item({
+        name: "Field",
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [0, 0],
+              [4, 0],
+              [4, 4],
+            ],
+          ],
+        },
+      }),
     ]);
     const document = xml(file as ExportFile);
     const waypoint = document.getElementsByTagName("wpt")[0];
@@ -144,8 +210,9 @@ describe("GPX", () => {
   });
 
   it("states how many areas become tracks", () => {
-    expect(gpxAreaNotice([item({ geometry: square }), item({ geometry: square }), item({})]))
-      .toMatch(/2 areas.*closed tracks.*KML/);
+    expect(
+      gpxAreaNotice([item({ geometry: square }), item({ geometry: square }), item({})]),
+    ).toMatch(/2 areas.*closed tracks.*KML/);
     expect(gpxAreaNotice([item({ geometry: square })])).toMatch(/1 area\b.*closed track\b/);
     expect(gpxAreaNotice([item({}), item({ geometry: trail })])).toBeNull();
     expect(gpxAreaNotice([item({ geometry: square, deleted: true })])).toBeNull();
@@ -155,10 +222,14 @@ describe("GPX", () => {
 describe("GeoJSON", () => {
   it("writes one file with folder name and a namespaced mnmapping object", () => {
     const north = folder("North 40");
-    const files = build("geojson", [
-      item({ name: "Stand", note: "Oak", folderId: north.id }),
-      item({ name: "Loose", geometry: trail }),
-    ], [north]);
+    const files = build(
+      "geojson",
+      [
+        item({ name: "Stand", note: "Oak", folderId: north.id }),
+        item({ name: "Loose", geometry: trail }),
+      ],
+      [north],
+    );
     expect(files).toHaveLength(1);
     const collection = JSON.parse(files[0]?.content ?? "");
     expect(collection.type).toBe("FeatureCollection");
@@ -197,18 +268,25 @@ describe("export parts", () => {
   });
 
   it("splits at 3.5 MB even below 3,000 items", () => {
-    const big = Array.from({ length: 30 }, (_, index) => item({ name: `N${index}`, note: "n".repeat(1_900) }));
+    const big = Array.from({ length: 30 }, (_, index) =>
+      item({ name: `N${index}`, note: "n".repeat(1_900) }),
+    );
     const bulky = big.map((entry) => ({
       ...entry,
       geometry: {
         type: "LineString" as const,
-        coordinates: Array.from({ length: 9_000 }, (_, index): [number, number] => [-95 + index * 0.0001, 47]),
+        coordinates: Array.from({ length: 9_000 }, (_, index): [number, number] => [
+          -95 + index * 0.0001,
+          47,
+        ]),
       },
     }));
     const files = build("kml", bulky);
     expect(files.length).toBeGreaterThan(1);
     for (const file of files) {
-      expect(new TextEncoder().encode(file.content).byteLength).toBeLessThanOrEqual(3.5 * 1024 * 1024);
+      expect(new TextEncoder().encode(file.content).byteLength).toBeLessThanOrEqual(
+        3.5 * 1024 * 1024,
+      );
     }
     expect(files.reduce((sum, file) => sum + file.itemCount, 0)).toBe(30);
   });
@@ -247,11 +325,19 @@ describe("export parts", () => {
 describe("round trip through the importer", () => {
   it.each<ExportFormat>(["kml", "gpx", "geojson"])("re-imports its own %s", (format) => {
     const items = [
-      item({ name: "Camp", note: "Flat & dry", geometry: { type: "Point", coordinates: [-95.5, 47.25] } }),
+      item({
+        name: "Camp",
+        note: "Flat & dry",
+        geometry: { type: "Point", coordinates: [-95.5, 47.25] },
+      }),
       item({ name: "Trail", geometry: trail }),
     ];
     const [file] = build(format, items);
-    const outcome = parseImport({ name: file?.filename ?? "", size: file?.content.length ?? 0, text: file?.content ?? "" });
+    const outcome = parseImport({
+      name: file?.filename ?? "",
+      size: file?.content.length ?? 0,
+      text: file?.content ?? "",
+    });
     if (!outcome.ok) throw new Error(outcome.message);
     expect(outcome.items.map((entry) => [entry.name, entry.geometry])).toEqual(
       items.map((entry) => [entry.name, entry.geometry]),

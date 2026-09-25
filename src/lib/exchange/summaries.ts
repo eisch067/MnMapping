@@ -17,15 +17,18 @@ export function describeWarnings(warnings: ImportWarnings): string[] {
       warnings.multiPartSplit,
       `${plural(warnings.multiPartSplit, "multi-part shape")} split into separate items.`,
     ],
-    [warnings.simplified, `${plural(warnings.simplified, "item")} simplified to fit 20,000 points.`],
+    [
+      warnings.simplified,
+      `${plural(warnings.simplified, "item")} simplified to fit 20,000 points.`,
+    ],
     [
       warnings.notesTruncated,
       `${plural(warnings.notesTruncated, "note")} shortened to 2,000 characters.`,
     ],
     [
       warnings.unsupportedSkipped,
-      `${plural(warnings.unsupportedSkipped, "unsupported item")} skipped `
-        + "(overlays, links, models, photos, or extended tracks).",
+      `${plural(warnings.unsupportedSkipped, "unsupported item")} skipped ` +
+        "(overlays, links, models, photos, or extended tracks).",
     ],
     [
       warnings.foldersFlattened,
@@ -55,7 +58,8 @@ export function describeRestore(summary: RestoreSummary): string[] {
     ],
     [
       summary.expiredSkipped,
-      `${plural(summary.expiredSkipped, "expired Trash item")} ${verb(summary.expiredSkipped)} skipped.`,
+      `${plural(summary.expiredSkipped, "expired Trash item")} `
+        + `${verb(summary.expiredSkipped)} skipped.`,
     ],
     [summary.foldersCreated, `${plural(summary.foldersCreated, "folder")} created.`],
     [summary.settingsApplied, "Your default settings were restored."],

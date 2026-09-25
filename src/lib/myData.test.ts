@@ -74,17 +74,29 @@ function openFresh(name: string) {
   });
 }
 
-const pin = { name: "Pin", geometry: { type: "Point" as const, coordinates: [-95, 47] as [number, number] } };
+const pin = {
+  name: "Pin",
+  geometry: { type: "Point" as const, coordinates: [-95, 47] as [number, number] },
+};
 
 describe("importing into an Import folder", () => {
   it("creates one folder named for the file and local time, holding every item", async () => {
     const store = await openFresh("import-folder");
-    const result = await store.importItems([pin, { ...pin, name: "Second" }], { filename: "north40.gpx", format: "gpx" });
+    const result = await store.importItems([pin, { ...pin, name: "Second" }], {
+      filename: "north40.gpx",
+      format: "gpx",
+    });
     const snapshot = await store.load();
     expect(result.folder.name).toBe("north40.gpx 2026-06-15 07:05");
     expect(snapshot.folders.map((folder) => folder.id)).toEqual([result.folder.id]);
-    expect(snapshot.items.map((item) => item.folderId)).toEqual([result.folder.id, result.folder.id]);
-    expect(snapshot.items[0]?.importProvenance).toMatchObject({ filename: "north40.gpx", format: "gpx" });
+    expect(snapshot.items.map((item) => item.folderId)).toEqual([
+      result.folder.id,
+      result.folder.id,
+    ]);
+    expect(snapshot.items[0]?.importProvenance).toMatchObject({
+      filename: "north40.gpx",
+      format: "gpx",
+    });
   });
 
   it("makes a second import of the same file a second folder", async () => {
@@ -97,8 +109,11 @@ describe("importing into an Import folder", () => {
 
   it("leaves nothing behind when a write fails", async () => {
     const store = await openFresh("import-atomic");
-    const broken = { ...pin, geometry: { type: "Point" as const, coordinates: (() => 1) as never } };
-    await expect(store.importItems([pin, broken], { filename: "a.gpx", format: "gpx" })).rejects.toThrow();
+    // A function cannot be stored, so the second write fails after the folder and first item.
+    const unstorable = { type: "Point" as const, coordinates: (() => 1) as never };
+    const source = { filename: "a.gpx", format: "gpx" };
+    const items = [pin, { ...pin, geometry: unstorable }];
+    await expect(store.importItems(items, source)).rejects.toThrow();
     const snapshot = await store.load();
     expect(snapshot.folders).toEqual([]);
     expect(snapshot.items).toEqual([]);
@@ -106,7 +121,8 @@ describe("importing into an Import folder", () => {
 
   it("creates no folder for an empty import", async () => {
     const store = await openFresh("import-empty");
-    await expect(store.importItems([], { filename: "a.gpx", format: "gpx" })).rejects.toThrow(/no items/i);
+    const source = { filename: "a.gpx", format: "gpx" };
+    await expect(store.importItems([], source)).rejects.toThrow(/no items/i);
     expect((await store.load()).folders).toEqual([]);
   });
 

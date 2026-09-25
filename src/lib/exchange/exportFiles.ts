@@ -1,3 +1,4 @@
+import { localClock, localDate } from "@/lib/localTime";
 import type { MyDataFolder, MyGeometry, MyMapItem } from "@/lib/myDataModel";
 
 export type ExportFormat = "kml" | "gpx" | "geojson";
@@ -61,14 +62,17 @@ function decimals(value: number): string {
 }
 
 function kmlCoordinates(positions: readonly [number, number][]): string {
-  return positions.map(([longitude, latitude]) => `${decimals(longitude)},${decimals(latitude)}`).join(" ");
+  return positions
+    .map(([longitude, latitude]) => `${decimals(longitude)},${decimals(latitude)}`)
+    .join(" ");
 }
 
 function kmlGeometry(geometry: MyGeometry): string {
   const coordinates = `<coordinates>${kmlCoordinates(outline(geometry))}</coordinates>`;
   if (geometry.type === "Point") return `<Point>${coordinates}</Point>`;
   if (geometry.type === "LineString") return `<LineString>${coordinates}</LineString>`;
-  return `<Polygon><outerBoundaryIs><LinearRing>${coordinates}</LinearRing></outerBoundaryIs></Polygon>`;
+  const ring = `<LinearRing>${coordinates}</LinearRing>`;
+  return `<Polygon><outerBoundaryIs>${ring}</outerBoundaryIs></Polygon>`;
 }
 
 function optionalText(tag: string, value: string | undefined): string {
@@ -76,8 +80,10 @@ function optionalText(tag: string, value: string | undefined): string {
 }
 
 function kmlFragment(item: MyMapItem): string {
-  return `<Placemark><name>${escapeXml(item.name)}</name>${optionalText("description", item.note)}`
-    + `${kmlGeometry(item.geometry)}</Placemark>`;
+  return (
+    `<Placemark><name>${escapeXml(item.name)}</name>${optionalText("description", item.note)}` +
+    `${kmlGeometry(item.geometry)}</Placemark>`
+  );
 }
 
 function trackPoint([longitude, latitude]: [number, number]): string {
@@ -90,7 +96,8 @@ function gpxFragment(item: MyMapItem): string {
     const [longitude, latitude] = item.geometry.coordinates;
     return `<wpt lat="${decimals(latitude)}" lon="${decimals(longitude)}">${identity}</wpt>`;
   }
-  return `<trk>${identity}<trkseg>${outline(item.geometry).map(trackPoint).join("")}</trkseg></trk>`;
+  const points = outline(item.geometry).map(trackPoint).join("");
+  return `<trk>${identity}<trkseg>${points}</trkseg></trk>`;
 }
 
 function rounded(geometry: MyGeometry): MyGeometry {
@@ -99,7 +106,8 @@ function rounded(geometry: MyGeometry): MyGeometry {
     Number(decimals(position[1])),
   ];
   if (geometry.type === "Point") return { type: "Point", coordinates: round(geometry.coordinates) };
-  if (geometry.type === "LineString") return { type: "LineString", coordinates: geometry.coordinates.map(round) };
+  if (geometry.type === "LineString")
+    return { type: "LineString", coordinates: geometry.coordinates.map(round) };
   return { type: "Polygon", coordinates: [outline(geometry).map(round)] };
 }
 
@@ -109,16 +117,18 @@ const writers: Record<Exclude<ExportFormat, "geojson">, FormatWriter> = {
   kml: {
     extension: "kml",
     mimeType: "application/vnd.google-earth.kml+xml",
-    header: (title) => `${xmlDeclaration}<kml xmlns="http://www.opengis.net/kml/2.2"><Document>`
-      + `<name>${escapeXml(title)}</name>`,
+    header: (title) =>
+      `${xmlDeclaration}<kml xmlns="http://www.opengis.net/kml/2.2"><Document>` +
+      `<name>${escapeXml(title)}</name>`,
     fragment: kmlFragment,
     footer: "</Document></kml>",
   },
   gpx: {
     extension: "gpx",
     mimeType: "application/gpx+xml",
-    header: () => `${xmlDeclaration}<gpx version="1.1" creator="MnMapping" `
-      + 'xmlns="http://www.topografix.com/GPX/1/1">',
+    header: () =>
+      `${xmlDeclaration}<gpx version="1.1" creator="MnMapping" ` +
+      'xmlns="http://www.topografix.com/GPX/1/1">',
     fragment: gpxFragment,
     footer: "</gpx>",
   },
@@ -137,9 +147,10 @@ function splitIntoParts(items: readonly MyMapItem[], writer: FormatWriter, title
     const fragment = writer.fragment(item);
     const size = byteLength(fragment);
     const current = parts[parts.length - 1];
-    const fits = current
-      && current.items.length < EXPORT_PART_ITEMS
-      && overhead + bytes + size <= EXPORT_PART_BYTES;
+    const fits =
+      current &&
+      current.items.length < EXPORT_PART_ITEMS &&
+      overhead + bytes + size <= EXPORT_PART_BYTES;
     if (!current || !fits) {
       parts.push({ items: [item], fragments: [fragment] });
       bytes = size;
@@ -152,13 +163,12 @@ function splitIntoParts(items: readonly MyMapItem[], writer: FormatWriter, title
   return parts;
 }
 
-function pad(value: number, width = 2): string {
-  return String(value).padStart(width, "0");
+function pad(value: number): string {
+  return String(value).padStart(2, "0");
 }
 
 export function localStamp(date: Date): string {
-  const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-  return `${day}_${pad(date.getHours())}${pad(date.getMinutes())}`;
+  return `${localDate(date)}_${localClock(date).replace(":", "")}`;
 }
 
 function sanitizeName(name: string): string {
@@ -175,7 +185,10 @@ interface FolderGroup {
 }
 
 // Unfiled first, then folders in name order, so the same data always exports in the same order.
-function groupByFolder(items: readonly MyMapItem[], folders: readonly MyDataFolder[]): FolderGroup[] {
+function groupByFolder(
+  items: readonly MyMapItem[],
+  folders: readonly MyDataFolder[],
+): FolderGroup[] {
   const known = new Map(folders.map((folder) => [folder.id, folder.name]));
   const groups = new Map<string | null, FolderGroup>();
   for (const item of items) {
@@ -216,12 +229,14 @@ function geoJsonFile(request: ExportRequest, items: readonly MyMapItem[]): Expor
     })),
   };
   const base = `${sanitizeName(request.scopeName)}_${localStamp(request.exportedAt)}`;
-  return [{
-    filename: `${base}.geojson`,
-    mimeType: "application/geo+json",
-    content: JSON.stringify(collection, null, 2),
-    itemCount: items.length,
-  }];
+  return [
+    {
+      filename: `${base}.geojson`,
+      mimeType: "application/geo+json",
+      content: JSON.stringify(collection, null, 2),
+      itemCount: items.length,
+    },
+  ];
 }
 
 // Interoperability exports carry active items only; Trash exists only in the My Data archive.
@@ -233,14 +248,18 @@ export function buildExport(request: ExportRequest): ExportFile[] {
   const stamp = localStamp(request.exportedAt);
   const taken = new Set<string>();
   return groups.flatMap((group) => {
-    const title = groups.length === 1 ? request.scopeName : group.label;
-    const parts = splitIntoParts(group.items, writer, title);
+    const fileBase = groups.length === 1 ? request.scopeName : group.label;
+    const parts = splitIntoParts(group.items, writer, group.label);
     return parts.map((part, index) => {
       const suffix = parts.length > 1 ? `_part-${pad(index + 1)}-of-${pad(parts.length)}` : "";
       return {
-        filename: uniqueFilename(`${sanitizeName(title)}_${stamp}${suffix}`, writer.extension, taken),
+        filename: uniqueFilename(
+          `${sanitizeName(fileBase)}_${stamp}${suffix}`,
+          writer.extension,
+          taken,
+        ),
         mimeType: writer.mimeType,
-        content: writer.header(title) + part.fragments.join("") + writer.footer,
+        content: writer.header(group.label) + part.fragments.join("") + writer.footer,
         itemCount: part.items.length,
       };
     });
@@ -252,6 +271,8 @@ export function gpxAreaNotice(items: readonly MyMapItem[]): string | null {
   if (areas === 0) return null;
   const subject = areas === 1 ? "1 area is" : `${areas} areas are`;
   const result = areas === 1 ? "a closed track" : "closed tracks";
-  return `GPX has no areas, so ${subject} exported as ${result}. `
-    + "To keep area shapes, export KML and import it through OnX Web instead.";
+  return (
+    `GPX has no areas, so ${subject} exported as ${result}. ` +
+    "To keep area shapes, export KML and import it through OnX Web instead."
+  );
 }

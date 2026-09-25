@@ -4,9 +4,13 @@ function distanceToSegment(point: Coordinate, start: Coordinate, end: Coordinate
   const dx = end[0] - start[0];
   const dy = end[1] - start[1];
   const lengthSquared = dx * dx + dy * dy;
-  const t = lengthSquared === 0
-    ? 0
-    : Math.max(0, Math.min(1, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared));
+  const t =
+    lengthSquared === 0
+      ? 0
+      : Math.max(
+          0,
+          Math.min(1, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / lengthSquared),
+        );
   return Math.hypot(point[0] - (start[0] + t * dx), point[1] - (start[1] + t * dy));
 }
 
@@ -19,10 +23,15 @@ function vertexImportance(points: readonly Coordinate[]): Float64Array {
   const pending: [number, number, number][] = [[0, points.length - 1, Number.POSITIVE_INFINITY]];
   for (let range = pending.pop(); range; range = pending.pop()) {
     const [low, high, inherited] = range;
+    const start = points[low];
+    const end = points[high];
+    if (!start || !end) continue;
     let farthest = -1;
     let farthestDistance = -1;
     for (let index = low + 1; index < high; index++) {
-      const distance = distanceToSegment(points[index] as Coordinate, points[low] as Coordinate, points[high] as Coordinate);
+      const point = points[index];
+      if (!point) continue;
+      const distance = distanceToSegment(point, start, end);
       if (distance > farthestDistance) {
         farthest = index;
         farthestDistance = distance;
@@ -42,12 +51,13 @@ export function simplifyToLimit(points: readonly Coordinate[], limit: number): C
   const importance = vertexImportance(points);
   const inner = Array.from(importance.subarray(1, points.length - 1)).sort((a, b) => b - a);
   const tolerance = inner[limit - 2] ?? 0;
-  return points.filter((_, index) => importance[index] === Number.POSITIVE_INFINITY || (importance[index] as number) > tolerance);
+  return points.filter((_, index) => (importance[index] ?? 0) > tolerance);
 }
 
 // A closed ring is simplified as an open line, then closed again.
 export function simplifyRingToLimit(ring: readonly Coordinate[], limit: number): Coordinate[] {
   if (ring.length <= limit) return [...ring];
   const simplified = simplifyToLimit(ring.slice(0, -1), limit - 1);
-  return [...simplified, simplified[0] as Coordinate];
+  const first = simplified[0];
+  return first ? [...simplified, first] : simplified;
 }

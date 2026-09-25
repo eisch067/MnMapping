@@ -29,15 +29,16 @@ export interface RestoreSummary {
 
 export type RestorePlan =
   | {
-    ok: true;
-    itemsToAdd: MyMapItem[];
-    foldersToAdd: MyDataFolder[];
-    settingsToApply: MyDataSettings | null;
-    summary: RestoreSummary;
-  }
+      ok: true;
+      itemsToAdd: MyMapItem[];
+      foldersToAdd: MyDataFolder[];
+      settingsToApply: MyDataSettings | null;
+      summary: RestoreSummary;
+    }
   | { ok: false; message: string };
 
-const notAnArchive = "This file is not a My Data archive. Choose a file exported with Archive My Data.";
+const notAnArchive =
+  "This file is not a My Data archive. Choose a file exported with Archive My Data.";
 const damaged = "This archive is damaged, so nothing was restored.";
 const geometryTypes = ["Point", "LineString", "Polygon"];
 
@@ -62,18 +63,44 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isCoordinateTree(value: unknown): boolean {
+  if (Array.isArray(value)) return value.length > 0 && value.every(isCoordinateTree);
+  return typeof value === "number" && Number.isFinite(value);
+}
+
 function isArchivedItem(value: unknown): value is MyMapItem {
-  if (!isRecord(value) || typeof value.id !== "string" || typeof value.name !== "string") return false;
+  if (!isRecord(value) || typeof value.id !== "string" || typeof value.name !== "string")
+    return false;
   const { geometry, folderId, appearance, outbox } = value;
-  return isRecord(geometry) && geometryTypes.includes(geometry.type as string)
-    && Array.isArray(geometry.coordinates)
-    && (folderId === null || typeof folderId === "string")
-    && isRecord(appearance) && isRecord(outbox);
+  return (
+    isRecord(geometry) &&
+    typeof geometry.type === "string" &&
+    geometryTypes.includes(geometry.type) &&
+    isCoordinateTree(geometry.coordinates) &&
+    (folderId === null || typeof folderId === "string") &&
+    isRecord(appearance) &&
+    isRecord(outbox)
+  );
 }
 
 function isArchivedFolder(value: unknown): value is MyDataFolder {
-  return isRecord(value) && typeof value.id === "string" && typeof value.name === "string"
-    && isRecord(value.outbox);
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    isRecord(value.outbox)
+  );
+}
+
+function isArchivedSettings(value: unknown): value is MyDataSettings {
+  return (
+    isRecord(value) &&
+    value.id === MY_DATA_SETTINGS_ID &&
+    isRecord(value.point) &&
+    isRecord(value.line) &&
+    isRecord(value.polygon) &&
+    isRecord(value.outbox)
+  );
 }
 
 interface ParsedArchive {
@@ -89,21 +116,29 @@ function parseArchive(text: string): ParsedArchive | { message: string } {
   } catch {
     return { message: notAnArchive };
   }
-  if (!isRecord(value) || value.format !== ARCHIVE_FORMAT || typeof value.schemaVersion !== "number") {
+  if (
+    !isRecord(value) ||
+    value.format !== ARCHIVE_FORMAT ||
+    typeof value.schemaVersion !== "number"
+  ) {
     return { message: notAnArchive };
   }
   if (value.schemaVersion > MY_DATA_SCHEMA_VERSION) {
     return {
-      message: "This archive was made by a newer version of MnMapping. "
-        + "Update the app, then restore it.",
+      message:
+        "This archive was made by a newer version of MnMapping. " +
+        "Update the app, then restore it.",
     };
   }
-  if (value.schemaVersion !== MY_DATA_SCHEMA_VERSION) return { message: notAnArchive };
+  if (value.schemaVersion !== MY_DATA_SCHEMA_VERSION) {
+    return { message: "This archive is from a version of MnMapping that is no longer supported." };
+  }
   const { items, folders, settings } = value;
-  const isSettings = isRecord(settings) && settings.id === MY_DATA_SETTINGS_ID;
-  if (!Array.isArray(items) || !Array.isArray(folders) || !isSettings) return { message: damaged };
+  if (!Array.isArray(items) || !Array.isArray(folders) || !isArchivedSettings(settings)) {
+    return { message: damaged };
+  }
   if (!items.every(isArchivedItem) || !folders.every(isArchivedFolder)) return { message: damaged };
-  return { items, folders, settings: settings as unknown as MyDataSettings };
+  return { items, folders, settings };
 }
 
 interface RestoreContext {
@@ -123,8 +158,9 @@ function activeFolderNamed(name: string, context: RestoreContext): MyDataFolder 
 }
 
 function addFolder(folder: MyDataFolder, context: RestoreContext) {
-  const idIsTaken = context.current.folders.some((existing) => existing.id === folder.id)
-    || context.foldersToAdd.some((existing) => existing.id === folder.id);
+  const idIsTaken =
+    context.current.folders.some((existing) => existing.id === folder.id) ||
+    context.foldersToAdd.some((existing) => existing.id === folder.id);
   const id = idIsTaken ? context.idFactory() : folder.id;
   context.foldersToAdd.push(requeueRecord({ ...folder, id }, context.clock, context.idFactory));
   context.destinations.set(folder.id, id);
@@ -147,6 +183,30 @@ function planFolder(folder: MyDataFolder, context: RestoreContext) {
 function shouldApplySettings(current: MyDataSettings): boolean {
   // A record that was never revised is still the defaults created with this My Data.
   return current.revision === 1;
+}
+
+function planItems(
+  archived: readonly MyMapItem[],
+  context: RestoreContext,
+  summary: RestoreSummary,
+): MyMapItem[] {
+  const { current, clock, idFactory } = context;
+  const knownIds = new Set(current.items.map((item) => item.id));
+  const itemsToAdd: MyMapItem[] = [];
+  for (const item of archived) {
+    if (knownIds.has(item.id)) {
+      summary.alreadyPresent++;
+    } else if (item.deletion && isTrashExpired(item.deletion.deletedAt, clock)) {
+      summary.expiredSkipped++;
+    } else {
+      knownIds.add(item.id);
+      const folderId = item.folderId === null ? null : context.destinations.get(item.folderId);
+      itemsToAdd.push(requeueRecord({ ...item, folderId: folderId ?? null }, clock, idFactory));
+      if (item.deletion) summary.trashRestored++;
+      else summary.itemsRestored++;
+    }
+  }
+  return itemsToAdd;
 }
 
 // Restore only adds: nothing present is changed, and nothing is removed.
@@ -174,27 +234,19 @@ export function planRestore(
     foldersCreated: context.foldersToAdd.length,
     settingsApplied: false,
   };
-  const knownIds = new Set(current.items.map((item) => item.id));
-  const itemsToAdd: MyMapItem[] = [];
-  for (const item of archive.items) {
-    if (knownIds.has(item.id)) {
-      summary.alreadyPresent++;
-    } else if (item.deletion && isTrashExpired(item.deletion.deletedAt, clock)) {
-      summary.expiredSkipped++;
-    } else {
-      knownIds.add(item.id);
-      const folderId = item.folderId === null ? null : (context.destinations.get(item.folderId) ?? null);
-      itemsToAdd.push(requeueRecord({ ...item, folderId }, clock, idFactory));
-      if (item.deletion) summary.trashRestored++;
-      else summary.itemsRestored++;
-    }
-  }
+  const itemsToAdd = planItems(archive.items, context, summary);
   const settingsToApply = shouldApplySettings(current.settings)
-    ? reviseRecord(current.settings, {
-      point: archive.settings.point,
-      line: archive.settings.line,
-      polygon: archive.settings.polygon,
-    }, "upsert", clock, idFactory)
+    ? reviseRecord(
+        current.settings,
+        {
+          point: archive.settings.point,
+          line: archive.settings.line,
+          polygon: archive.settings.polygon,
+        },
+        "upsert",
+        clock,
+        idFactory,
+      )
     : null;
   summary.settingsApplied = settingsToApply !== null;
   return { ok: true, itemsToAdd, foldersToAdd: context.foldersToAdd, settingsToApply, summary };

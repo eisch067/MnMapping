@@ -30,7 +30,8 @@ function sheetOf(page: Page) {
 }
 
 async function openMyData(page: Page) {
-  await page.getByRole("navigation", { name: "Map tools" })
+  await page
+    .getByRole("navigation", { name: "Map tools" })
     .getByRole("button", { name: "My Data", exact: true })
     .click();
   return sheetOf(page);
@@ -69,13 +70,22 @@ test("an imported KML file becomes an Import folder that can be undone", async (
 
 test("an unsupported or malformed file imports nothing and says why", async ({ page }) => {
   await openMap(page);
-  const kmz = { name: "trip.kmz", mimeType: "application/vnd.google-earth.kmz", buffer: Buffer.from("PK") };
+  const kmz = {
+    name: "trip.kmz",
+    mimeType: "application/vnd.google-earth.kmz",
+    buffer: Buffer.from("PK"),
+  };
   const sheet = await importFile(page, kmz);
   await expect(sheet.getByRole("alert")).toContainText("Export the file as KML instead");
 
   await openMyData(page);
-  await sheet.getByLabel("Import GPX, KML, or GeoJSON")
-    .setInputFiles({ name: "broken.geojson", mimeType: "application/json", buffer: Buffer.from("{nope") });
+  await sheet
+    .getByLabel("Import GPX, KML, or GeoJSON")
+    .setInputFiles({
+      name: "broken.geojson",
+      mimeType: "application/json",
+      buffer: Buffer.from("{nope"),
+    });
   await expect(sheet.getByRole("alert")).toContainText("not valid JSON");
 
   await openMyData(page);
@@ -88,9 +98,22 @@ test("a folder exports as KML and as GPX with the area notice", async ({ page })
   const area = {
     type: "Feature",
     properties: { name: "Field" },
-    geometry: { type: "Polygon", coordinates: [[[-95, 47], [-94.9, 47], [-94.9, 47.1], [-95, 47]]] },
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-95, 47],
+          [-94.9, 47],
+          [-94.9, 47.1],
+          [-95, 47],
+        ],
+      ],
+    },
   };
-  await importFile(page, geojsonFile("field.geojson", pointFeature("Camp", [-95, 47], "Flat"), area));
+  await importFile(
+    page,
+    geojsonFile("field.geojson", pointFeature("Camp", [-95, 47], "Flat"), area),
+  );
   const sheet = await openMyData(page);
   await sheet.getByRole("button", { name: /^field\.geojson / }).click();
   await sheet.getByRole("button", { name: "Export this list…" }).click();
@@ -118,7 +141,14 @@ test("a folder exports as KML and as GPX with the area notice", async ({ page })
 
 test("select mode exports only the chosen items", async ({ page }) => {
   await openMap(page);
-  await importFile(page, geojsonFile("pins.geojson", pointFeature("Stand", [-95, 47]), pointFeature("Blind", [-95.1, 47.1])));
+  await importFile(
+    page,
+    geojsonFile(
+      "pins.geojson",
+      pointFeature("Stand", [-95, 47]),
+      pointFeature("Blind", [-95.1, 47.1]),
+    ),
+  );
   const sheet = await openMyData(page);
   await sheet.getByRole("button", { name: /^pins\.geojson / }).click();
 
@@ -128,7 +158,9 @@ test("select mode exports only the chosen items", async ({ page }) => {
   await expect(sheet.getByText("1 selected")).toBeVisible();
   await sheet.getByRole("button", { name: "Export selected…" }).click();
 
-  await expect(sheet.getByRole("region", { name: "Export" }).getByText("Blind", { exact: true })).toBeVisible();
+  await expect(
+    sheet.getByRole("region", { name: "Export" }).getByText("Blind", { exact: true }),
+  ).toBeVisible();
   const download = page.waitForEvent("download");
   await sheet.getByRole("button", { name: "Download", exact: true }).click();
   const text = await downloadText(await download);
@@ -163,7 +195,9 @@ test("an archive restores what delete-all removed", async ({ page }) => {
     mimeType: "application/json",
     buffer: Buffer.from(archive),
   });
-  await expect(sheet.getByRole("list", { name: "Restore result" })).toContainText("1 item restored.");
+  await expect(sheet.getByRole("list", { name: "Restore result" })).toContainText(
+    "1 item restored.",
+  );
 
   await openMyData(page);
   await sheet.getByRole("button", { name: /^keep\.geojson / }).click();
@@ -175,6 +209,7 @@ test("an archive restores what delete-all removed", async ({ page }) => {
     mimeType: "application/json",
     buffer: Buffer.from(archive),
   });
-  await expect(sheet.getByRole("list", { name: "Restore result" }))
-    .toContainText("1 item was already here and was left unchanged.");
+  await expect(sheet.getByRole("list", { name: "Restore result" })).toContainText(
+    "1 item was already here and was left unchanged.",
+  );
 });

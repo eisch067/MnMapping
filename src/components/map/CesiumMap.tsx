@@ -141,7 +141,8 @@ export function CesiumMap({
           viewer.camera.flyTo({ ...terrainView, duration: 1.4 });
         },
         showBounds: ({ west, south, east, north }) => {
-          viewer.camera.flyTo({ destination: Rectangle.fromDegrees(west, south, east, north), duration: 1.1 });
+          const destination = Rectangle.fromDegrees(west, south, east, north);
+          viewer.camera.flyTo({ destination, duration: 1.1 });
         },
       });
       const reportViewport = () => {

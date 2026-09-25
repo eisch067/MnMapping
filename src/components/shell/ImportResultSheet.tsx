@@ -21,7 +21,9 @@ function RejectedList({ rejected }: { rejected: readonly { name: string; reason:
       <h3>Not imported ({rejected.length})</h3>
       <ul className="exchange-rejected">
         {shown.map((entry, index) => (
-          <li key={`${entry.name}-${index}`}><strong>{entry.name}</strong> {entry.reason}</li>
+          <li key={`${entry.name}-${index}`}>
+            <strong>{entry.name}</strong> {entry.reason}
+          </li>
         ))}
       </ul>
       {rejected.length > rejectedPreviewCount && (
@@ -38,12 +40,17 @@ function pluralize(count: number, singular: string, pluralForm: string): string 
 }
 
 export function ImportResultSheet({ result, onShowOnMap, onUndo }: ImportResultSheetProps) {
-  if (!result) return <p className="sheet-hint">Import a GPX, KML, or GeoJSON file from My Data.</p>;
+  if (!result)
+    return <p className="sheet-hint">Import a GPX, KML, or GeoJSON file from My Data.</p>;
   if (result.status === "refused") {
     return (
       <div className="exchange-sheet">
-        <p role="alert" className="my-data-error">{result.message}</p>
-        <p className="sheet-hint">{result.filename}: nothing was imported and no folder was created.</p>
+        <p role="alert" className="my-data-error">
+          {result.message}
+        </p>
+        <p className="sheet-hint">
+          {result.filename}: nothing was imported and no folder was created.
+        </p>
       </div>
     );
   }
@@ -54,7 +61,13 @@ export function ImportResultSheet({ result, onShowOnMap, onUndo }: ImportResultS
         <p role="alert" className="my-data-error">
           {result.filename} has no items that can be imported, so no folder was created.
         </p>
-        {warnings.length > 0 && <ul>{warnings.map((line) => <li key={line}>{line}</li>)}</ul>}
+        {warnings.length > 0 && (
+          <ul>
+            {warnings.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        )}
         <RejectedList rejected={result.report.rejected} />
       </div>
     );
@@ -64,12 +77,17 @@ export function ImportResultSheet({ result, onShowOnMap, onUndo }: ImportResultS
     <div className="exchange-sheet">
       <p className="exchange-scope">Imported into {result.folder.name}</p>
       <p>
-        {pluralize(counts.pins, "pin", "pins")}, {pluralize(counts.lines, "line", "lines")}, {pluralize(counts.areas, "area", "areas")}
+        {pluralize(counts.pins, "pin", "pins")}, {pluralize(counts.lines, "line", "lines")},{" "}
+        {pluralize(counts.areas, "area", "areas")}
       </p>
       {warnings.length > 0 && (
         <div>
           <h3>Changed on the way in</h3>
-          <ul>{warnings.map((line) => <li key={line}>{line}</li>)}</ul>
+          <ul>
+            {warnings.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
         </div>
       )}
       <RejectedList rejected={result.report.rejected} />
@@ -77,8 +95,12 @@ export function ImportResultSheet({ result, onShowOnMap, onUndo }: ImportResultS
         <p className="sheet-hint">Moved to Trash. You can restore it from Trash for 30 days.</p>
       ) : (
         <div className="tool-buttons">
-          <button type="button" onClick={onShowOnMap}>Show on map</button>
-          <button type="button" onClick={() => void onUndo()}>Undo import</button>
+          <button type="button" onClick={onShowOnMap}>
+            Show on map
+          </button>
+          <button type="button" onClick={() => void onUndo()}>
+            Undo import
+          </button>
         </div>
       )}
     </div>

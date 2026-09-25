@@ -43,7 +43,10 @@ const trashed = (item: MyMapItem, days: number): MyMapItem => ({
   deletion: { deletedAt: daysAgo(days) },
 });
 
-function restore(archived: MyDataSnapshot, current: MyDataSnapshot): Extract<RestorePlan, { ok: true }> {
+function restore(
+  archived: MyDataSnapshot,
+  current: MyDataSnapshot,
+): Extract<RestorePlan, { ok: true }> {
   const file = buildArchive(archived, new Date(2026, 5, 15, 7, 5));
   const plan = planRestore(file.content, current, now, ids("new"));
   if (!plan.ok) throw new Error(plan.message);
@@ -54,10 +57,16 @@ describe("archive file", () => {
   it("names the file for the local time and carries active and trashed data", () => {
     const north = makeFolder("north", "North");
     const gone = trashed(makeItem("gone"), 2);
-    const file = buildArchive({ ...emptyBase(), items: [makeItem("a", north.id), gone], folders: [north] }, new Date(2026, 5, 15, 7, 5));
+    const file = buildArchive(
+      { ...emptyBase(), items: [makeItem("a", north.id), gone], folders: [north] },
+      new Date(2026, 5, 15, 7, 5),
+    );
     expect(file.filename).toBe("MnMapping-archive_2026-06-15_0705.json");
     const body = JSON.parse(file.content);
-    expect(body).toMatchObject({ format: "mnmapping-archive", schemaVersion: MY_DATA_SCHEMA_VERSION });
+    expect(body).toMatchObject({
+      format: "mnmapping-archive",
+      schemaVersion: MY_DATA_SCHEMA_VERSION,
+    });
     expect(body.items.map((item: MyMapItem) => item.id)).toEqual(["a", "gone"]);
     expect(body.folders).toHaveLength(1);
     expect(body.settings.id).toBe("settings");
@@ -67,7 +76,12 @@ describe("archive file", () => {
     const north = makeFolder("north", "North");
     const imported = {
       ...makeItem("a", north.id),
-      importProvenance: { filename: "x.gpx", format: "gpx", importedAt: daysAgo(1), timezone: "America/Chicago" },
+      importProvenance: {
+        filename: "x.gpx",
+        format: "gpx",
+        importedAt: daysAgo(1),
+        timezone: "America/Chicago",
+      },
     };
     const plan = restore({ ...emptyBase(), items: [imported], folders: [north] }, emptyBase());
     expect(plan.foldersToAdd).toHaveLength(1);
@@ -87,7 +101,10 @@ describe("archive file", () => {
 
 describe("additive restore", () => {
   it("leaves items already present untouched, even when they differ", () => {
-    const current = { ...emptyBase(), items: [reviseRecord(makeItem("a"), { name: "Renamed here" })] };
+    const current = {
+      ...emptyBase(),
+      items: [reviseRecord(makeItem("a"), { name: "Renamed here" })],
+    };
     const plan = restore({ ...emptyBase(), items: [makeItem("a"), makeItem("b")] }, current);
     expect(plan.itemsToAdd.map((item) => item.id)).toEqual(["b"]);
     expect(plan.summary).toMatchObject({ itemsRestored: 1, alreadyPresent: 1 });
@@ -112,7 +129,10 @@ describe("additive restore", () => {
   });
 
   it("gives a created folder a fresh id when its id is already used by a trashed folder", () => {
-    const clash = { ...makeFolder("same", "Old"), deletion: { deletedAt: daysAgo(1), bundleId: "b" } };
+    const clash = {
+      ...makeFolder("same", "Old"),
+      deletion: { deletedAt: daysAgo(1), bundleId: "b" },
+    };
     const incoming = makeFolder("same", "Different");
     const plan = restore(
       { ...emptyBase(), items: [makeItem("a", incoming.id)], folders: [incoming] },
@@ -132,7 +152,14 @@ describe("additive restore", () => {
 
   it("skips Trash whose 30 days have expired", () => {
     const plan = restore(
-      { ...emptyBase(), items: [trashed(makeItem("old"), 31), trashed(makeItem("edge"), 30), trashed(makeItem("fresh"), 29)] },
+      {
+        ...emptyBase(),
+        items: [
+          trashed(makeItem("old"), 31),
+          trashed(makeItem("edge"), 30),
+          trashed(makeItem("fresh"), 29),
+        ],
+      },
       emptyBase(),
     );
     expect(plan.itemsToAdd.map((item) => item.id)).toEqual(["fresh"]);
@@ -180,9 +207,10 @@ describe("additive restore", () => {
 });
 
 describe("settings", () => {
-  const custom = () => reviseRecord(emptyBase().settings, {
-    point: { symbolId: "star", color: "#ff0000" },
-  });
+  const custom = () =>
+    reviseRecord(emptyBase().settings, {
+      point: { symbolId: "star", color: "#ff0000" },
+    });
 
   it("applies archived settings when this My Data has never changed its own", () => {
     const plan = restore({ ...emptyBase(), settings: custom() }, emptyBase());
@@ -191,8 +219,13 @@ describe("settings", () => {
   });
 
   it("keeps settings the user has already changed", () => {
-    const changed = reviseRecord(emptyBase().settings, { point: { symbolId: "flag", color: "#00ff00" } });
-    const plan = restore({ ...emptyBase(), settings: custom() }, { ...emptyBase(), settings: changed });
+    const changed = reviseRecord(emptyBase().settings, {
+      point: { symbolId: "flag", color: "#00ff00" },
+    });
+    const plan = restore(
+      { ...emptyBase(), settings: custom() },
+      { ...emptyBase(), settings: changed },
+    );
     expect(plan.settingsToApply).toBeNull();
     expect(plan.summary.settingsApplied).toBe(false);
   });
@@ -203,8 +236,14 @@ describe("refusals", () => {
 
   it("refuses an archive from a newer schema with an update message", () => {
     const file = buildArchive(emptyBase(), now());
-    const newer = JSON.stringify({ ...JSON.parse(file.content), schemaVersion: MY_DATA_SCHEMA_VERSION + 1 });
-    expect(plan(newer)).toEqual({ ok: false, message: expect.stringMatching(/newer version.*update/i) });
+    const newer = JSON.stringify({
+      ...JSON.parse(file.content),
+      schemaVersion: MY_DATA_SCHEMA_VERSION + 1,
+    });
+    expect(plan(newer)).toEqual({
+      ok: false,
+      message: expect.stringMatching(/newer version.*update/i),
+    });
   });
 
   it("refuses files that are not an archive", () => {
@@ -213,10 +252,32 @@ describe("refusals", () => {
     expect(plan(JSON.stringify({ format: "mnmapping-archive", schemaVersion: 2 })).ok).toBe(false);
   });
 
+  it("refuses an archive from a version that is no longer supported", () => {
+    const file = buildArchive(emptyBase(), now());
+    const older = JSON.stringify({ ...JSON.parse(file.content), schemaVersion: 1 });
+    expect(plan(older)).toEqual({
+      ok: false,
+      message: expect.stringMatching(/no longer supported/),
+    });
+  });
+
+  it("refuses an archive whose coordinates are not numbers", () => {
+    const file = buildArchive({ ...emptyBase(), items: [makeItem("a")] }, now());
+    const body = JSON.parse(file.content);
+    body.items[0].geometry.coordinates = [null, 47];
+    expect(plan(JSON.stringify(body))).toEqual({
+      ok: false,
+      message: expect.stringMatching(/damaged/i),
+    });
+  });
+
   it("refuses an archive whose items are damaged, changing nothing", () => {
     const file = buildArchive({ ...emptyBase(), items: [makeItem("a")] }, now());
     const body = JSON.parse(file.content);
     body.items[0].geometry = { type: "Circle" };
-    expect(plan(JSON.stringify(body))).toEqual({ ok: false, message: expect.stringMatching(/damaged/i) });
+    expect(plan(JSON.stringify(body))).toEqual({
+      ok: false,
+      message: expect.stringMatching(/damaged/i),
+    });
   });
 });

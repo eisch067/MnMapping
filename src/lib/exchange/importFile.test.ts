@@ -38,7 +38,10 @@ describe("accepted files", () => {
 
   it("refuses KMZ and points to KML", () => {
     const outcome = parseImport(file("trip.kmz", "PK"));
-    expect(outcome).toEqual({ ok: false, message: expect.stringMatching(/export.*as KML instead/i) });
+    expect(outcome).toEqual({
+      ok: false,
+      message: expect.stringMatching(/export.*as KML instead/i),
+    });
   });
 
   it("refuses other file types without reading them", () => {
@@ -47,7 +50,11 @@ describe("accepted files", () => {
   });
 
   it("refuses malformed files with a plain message", () => {
-    for (const bad of [file("a.geojson", "{nope"), file("a.kml", "<kml><Placemark>"), file("a.gpx", "hello")]) {
+    for (const bad of [
+      file("a.geojson", "{nope"),
+      file("a.kml", "<kml><Placemark>"),
+      file("a.gpx", "hello"),
+    ]) {
       const outcome = parseImport(bad);
       expect(outcome.ok).toBe(false);
     }
@@ -100,7 +107,10 @@ describe("limits", () => {
   });
 
   it("leaves an item at exactly 20,000 vertices untouched", () => {
-    const line = Array.from({ length: MAX_ITEM_VERTICES }, (_, index) => [-95 + index * 0.0001, 47]);
+    const line = Array.from({ length: MAX_ITEM_VERTICES }, (_, index) => [
+      -95 + index * 0.0001,
+      47,
+    ]);
     const outcome = parsed("edge.geojson", geojson({ type: "LineString", coordinates: line }));
     expect(outcome.report.warnings.simplified).toBe(0);
   });
@@ -123,95 +133,218 @@ describe("limits", () => {
 
 describe("geometry normalization", () => {
   it("splits multi-part geometry into numbered items", () => {
-    const outcome = parsed("multi.geojson", geojson({
-      type: "MultiPoint",
-      coordinates: [[-95, 47], [-94, 46], [-93, 45]],
-    }));
-    expect(outcome.items.map((item) => item.name)).toEqual(["Feature 1", "Feature 1 (2)", "Feature 1 (3)"]);
+    const outcome = parsed(
+      "multi.geojson",
+      geojson({
+        type: "MultiPoint",
+        coordinates: [
+          [-95, 47],
+          [-94, 46],
+          [-93, 45],
+        ],
+      }),
+    );
+    expect(outcome.items.map((item) => item.name)).toEqual([
+      "Feature 1",
+      "Feature 1 (2)",
+      "Feature 1 (3)",
+    ]);
     expect(outcome.report.warnings.multiPartSplit).toBe(1);
   });
 
   it("splits MultiPolygon and MultiLineString and GeometryCollection", () => {
-    const square = [[[0, 0], [1, 0], [1, 1], [0, 0]]];
-    const outcome = parsed("multi.geojson", geojson(
-      { type: "MultiPolygon", coordinates: [square, square] },
-      { type: "MultiLineString", coordinates: [[[0, 0], [1, 1]], [[2, 2], [3, 3]]] },
-      { type: "GeometryCollection", geometries: [{ type: "Point", coordinates: [0, 0] }, { type: "LineString", coordinates: [[0, 0], [1, 1]] }] },
-    ));
+    const square = [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 0],
+      ],
+    ];
+    const outcome = parsed(
+      "multi.geojson",
+      geojson(
+        { type: "MultiPolygon", coordinates: [square, square] },
+        {
+          type: "MultiLineString",
+          coordinates: [
+            [
+              [0, 0],
+              [1, 1],
+            ],
+            [
+              [2, 2],
+              [3, 3],
+            ],
+          ],
+        },
+        {
+          type: "GeometryCollection",
+          geometries: [
+            { type: "Point", coordinates: [0, 0] },
+            {
+              type: "LineString",
+              coordinates: [
+                [0, 0],
+                [1, 1],
+              ],
+            },
+          ],
+        },
+      ),
+    );
     expect(outcome.items).toHaveLength(6);
     expect(outcome.report.warnings.multiPartSplit).toBe(3);
   });
 
   it("drops polygon holes and counts them", () => {
-    const outer = [[0, 0], [4, 0], [4, 4], [0, 4], [0, 0]];
-    const hole = [[1, 1], [2, 1], [2, 2], [1, 1]];
-    const outcome = parsed("holes.geojson", geojson({ type: "Polygon", coordinates: [outer, hole, hole] }));
+    const outer = [
+      [0, 0],
+      [4, 0],
+      [4, 4],
+      [0, 4],
+      [0, 0],
+    ];
+    const hole = [
+      [1, 1],
+      [2, 1],
+      [2, 2],
+      [1, 1],
+    ];
+    const outcome = parsed(
+      "holes.geojson",
+      geojson({ type: "Polygon", coordinates: [outer, hole, hole] }),
+    );
     expect(outcome.items[0]?.geometry).toEqual({ type: "Polygon", coordinates: [outer] });
     expect(outcome.report.warnings.holesRemoved).toBe(2);
   });
 
   it("closes an unclosed ring", () => {
-    const outcome = parsed("open.geojson", geojson({
-      type: "Polygon",
-      coordinates: [[[0, 0], [4, 0], [4, 4]]],
-    }));
+    const outcome = parsed(
+      "open.geojson",
+      geojson({
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [4, 0],
+            [4, 4],
+          ],
+        ],
+      }),
+    );
     expect(outcome.items[0]?.geometry).toEqual({
       type: "Polygon",
-      coordinates: [[[0, 0], [4, 0], [4, 4], [0, 0]]],
+      coordinates: [
+        [
+          [0, 0],
+          [4, 0],
+          [4, 4],
+          [0, 0],
+        ],
+      ],
     });
   });
 
   it("keeps a closed line as a line", () => {
-    const closed = [[0, 0], [1, 0], [1, 1], [0, 0]];
+    const closed = [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 0],
+    ];
     const outcome = parsed("loop.geojson", geojson({ type: "LineString", coordinates: closed }));
     expect(outcome.items[0]?.geometry).toEqual({ type: "LineString", coordinates: closed });
   });
 
   it("discards altitude", () => {
-    const outcome = parsed("alt.geojson", geojson(
-      { type: "Point", coordinates: [-95, 47, 350] },
-      { type: "LineString", coordinates: [[0, 0, 5], [1, 1, 6]] },
-    ));
+    const outcome = parsed(
+      "alt.geojson",
+      geojson(
+        { type: "Point", coordinates: [-95, 47, 350] },
+        {
+          type: "LineString",
+          coordinates: [
+            [0, 0, 5],
+            [1, 1, 6],
+          ],
+        },
+      ),
+    );
     expect(outcome.items[0]?.geometry).toEqual({ type: "Point", coordinates: [-95, 47] });
-    expect(outcome.items[1]?.geometry).toEqual({ type: "LineString", coordinates: [[0, 0], [1, 1]] });
+    expect(outcome.items[1]?.geometry).toEqual({
+      type: "LineString",
+      coordinates: [
+        [0, 0],
+        [1, 1],
+      ],
+    });
   });
 
   it("accepts any valid WGS 84 coordinate, not only Minnesota", () => {
-    const outcome = parsed("world.geojson", geojson({ type: "Point", coordinates: [151.2, -33.9] }));
+    const outcome = parsed(
+      "world.geojson",
+      geojson({ type: "Point", coordinates: [151.2, -33.9] }),
+    );
     expect(outcome.items).toHaveLength(1);
   });
 });
 
 describe("rejected items", () => {
   it("rejects out-of-range and non-finite coordinates with reasons", () => {
-    const outcome = parsed("bad.geojson", geojson(
-      { type: "Point", coordinates: [200, 47] },
-      { type: "Point", coordinates: [-95, 91] },
-      { type: "Point", coordinates: [-95, null] },
-      { type: "Point", coordinates: [-95, 47] },
-    ));
+    const outcome = parsed(
+      "bad.geojson",
+      geojson(
+        { type: "Point", coordinates: [200, 47] },
+        { type: "Point", coordinates: [-95, 91] },
+        { type: "Point", coordinates: [-95, null] },
+        { type: "Point", coordinates: [-95, 47] },
+      ),
+    );
     expect(outcome.items.map((item) => item.name)).toEqual(["Feature 4"]);
-    expect(outcome.report.rejected.map((entry) => entry.name)).toEqual(["Feature 1", "Feature 2", "Feature 3"]);
+    expect(outcome.report.rejected.map((entry) => entry.name)).toEqual([
+      "Feature 1",
+      "Feature 2",
+      "Feature 3",
+    ]);
     expect(outcome.report.rejected[0]?.reason).toMatch(/longitude/i);
     expect(outcome.report.rejected[1]?.reason).toMatch(/latitude/i);
     expect(outcome.report.rejected[2]?.reason).toMatch(/coordinate/i);
   });
 
   it("rejects lines with fewer than 2 distinct points", () => {
-    const outcome = parsed("lines.geojson", geojson(
-      { type: "LineString", coordinates: [[1, 1]] },
-      { type: "LineString", coordinates: [[1, 1], [1, 1]] },
-    ));
+    const outcome = parsed(
+      "lines.geojson",
+      geojson(
+        { type: "LineString", coordinates: [[1, 1]] },
+        {
+          type: "LineString",
+          coordinates: [
+            [1, 1],
+            [1, 1],
+          ],
+        },
+      ),
+    );
     expect(outcome.items).toEqual([]);
     expect(outcome.report.rejected).toHaveLength(2);
     expect(outcome.report.rejected[0]?.reason).toMatch(/2 distinct points/);
   });
 
   it("rejects polygons with fewer than 3 distinct vertices", () => {
-    const outcome = parsed("polys.geojson", geojson({
-      type: "Polygon",
-      coordinates: [[[0, 0], [1, 1], [0, 0]]],
-    }));
+    const outcome = parsed(
+      "polys.geojson",
+      geojson({
+        type: "Polygon",
+        coordinates: [
+          [
+            [0, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
+      }),
+    );
     expect(outcome.items).toEqual([]);
     expect(outcome.report.rejected[0]?.reason).toMatch(/3 distinct vertices/);
   });
@@ -226,11 +359,14 @@ describe("rejected items", () => {
 describe("notes", () => {
   it("strips tags, decodes entities, and caps at 2,000 characters", () => {
     const note = `<p>Hello &amp; <b>welcome</b></p>${"x".repeat(2_500)}`;
-    const outcome = parsed("n.geojson", JSON.stringify({
-      type: "Feature",
-      properties: { name: "N", description: note },
-      geometry: { type: "Point", coordinates: [0, 0] },
-    }));
+    const outcome = parsed(
+      "n.geojson",
+      JSON.stringify({
+        type: "Feature",
+        properties: { name: "N", description: note },
+        geometry: { type: "Point", coordinates: [0, 0] },
+      }),
+    );
     const text = outcome.items[0]?.note ?? "";
     expect(text.startsWith("Hello & welcome")).toBe(true);
     expect(text).toHaveLength(2_000);
@@ -243,92 +379,174 @@ describe("notes", () => {
   });
 
   it("ignores the mnmapping archive properties in GeoJSON", () => {
-    const outcome = parsed("n.geojson", JSON.stringify({
-      type: "Feature",
-      properties: { name: "N", mnmapping: { appearance: { kind: "point", symbolId: "x", color: "#000" } } },
-      geometry: { type: "Point", coordinates: [0, 0] },
-    }));
+    const outcome = parsed(
+      "n.geojson",
+      JSON.stringify({
+        type: "Feature",
+        properties: {
+          name: "N",
+          mnmapping: { appearance: { kind: "point", symbolId: "x", color: "#000" } },
+        },
+        geometry: { type: "Point", coordinates: [0, 0] },
+      }),
+    );
     expect(Object.keys(outcome.items[0] ?? {}).sort()).toEqual(["geometry", "name", "note"].sort());
   });
 });
 
 describe("KML", () => {
   it("reads points, lines, polygons, names, and notes", () => {
-    const outcome = parsed("t.kml", kml(`
+    const outcome = parsed(
+      "t.kml",
+      kml(`
       <Placemark><name>Stand</name><description><![CDATA[<b>Big</b> oak &amp; birch]]></description>
         <Point><coordinates>-95.5,47.25,300</coordinates></Point></Placemark>
       <Placemark><name>Trail</name><LineString><coordinates>-95,47,0 -95.1,47.1,0</coordinates></LineString></Placemark>
       <Placemark><name>Field</name><Polygon><outerBoundaryIs><LinearRing><coordinates>
-        0,0 4,0 4,4 0,0</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`));
+        0,0 4,0 4,4 0,0</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>`),
+    );
     expect(outcome.items).toEqual([
-      { name: "Stand", note: "Big oak & birch", geometry: { type: "Point", coordinates: [-95.5, 47.25] } },
-      { name: "Trail", note: undefined, geometry: { type: "LineString", coordinates: [[-95, 47], [-95.1, 47.1]] } },
-      { name: "Field", note: undefined, geometry: { type: "Polygon", coordinates: [[[0, 0], [4, 0], [4, 4], [0, 0]]] } },
+      {
+        name: "Stand",
+        note: "Big oak & birch",
+        geometry: { type: "Point", coordinates: [-95.5, 47.25] },
+      },
+      {
+        name: "Trail",
+        note: undefined,
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [-95, 47],
+            [-95.1, 47.1],
+          ],
+        },
+      },
+      {
+        name: "Field",
+        note: undefined,
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [0, 0],
+              [4, 0],
+              [4, 4],
+              [0, 0],
+            ],
+          ],
+        },
+      },
     ]);
   });
 
   it("drops inner boundaries and splits MultiGeometry", () => {
-    const outcome = parsed("t.kml", kml(`<Placemark><name>Both</name><MultiGeometry>
+    const outcome = parsed(
+      "t.kml",
+      kml(`<Placemark><name>Both</name><MultiGeometry>
       <Point><coordinates>1,1</coordinates></Point>
       <Polygon><outerBoundaryIs><LinearRing><coordinates>0,0 4,0 4,4 0,0</coordinates></LinearRing></outerBoundaryIs>
         <innerBoundaryIs><LinearRing><coordinates>1,1 2,1 2,2 1,1</coordinates></LinearRing></innerBoundaryIs></Polygon>
-      </MultiGeometry></Placemark>`));
+      </MultiGeometry></Placemark>`),
+    );
     expect(outcome.items.map((item) => item.name)).toEqual(["Both", "Both (2)"]);
     expect(outcome.report.warnings.holesRemoved).toBe(1);
     expect(outcome.report.warnings.multiPartSplit).toBe(1);
   });
 
   it("flattens folders into one list and counts them", () => {
-    const outcome = parsed("t.kml", kml(`
+    const outcome = parsed(
+      "t.kml",
+      kml(`
       <Folder><name>A</name><Placemark><name>One</name><Point><coordinates>1,1</coordinates></Point></Placemark></Folder>
       <Folder><name>B</name><Folder><name>C</name>
-        <Placemark><name>Two</name><Point><coordinates>2,2</coordinates></Point></Placemark></Folder></Folder>`));
+        <Placemark><name>Two</name><Point><coordinates>2,2</coordinates></Point></Placemark></Folder></Folder>`),
+    );
     expect(outcome.items.map((item) => item.name)).toEqual(["One", "Two"]);
     expect(outcome.report.warnings.foldersFlattened).toBe(3);
   });
 
   it("skips and counts unsupported content", () => {
-    const outcome = parsed("t.kml", kml(`
+    const outcome = parsed(
+      "t.kml",
+      kml(`
       <GroundOverlay><name>Map</name></GroundOverlay>
       <NetworkLink><name>Live</name></NetworkLink>
       <Placemark><name>Model</name><Model><Location><longitude>1</longitude></Location></Model></Placemark>
       <PhotoOverlay><name>Photo</name></PhotoOverlay>
       <Placemark xmlns:gx="http://www.google.com/kml/ext/2.2"><name>Track</name><gx:Track/></Placemark>
-      <Placemark><name>Fine</name><Point><coordinates>1,1</coordinates></Point></Placemark>`));
+      <Placemark><name>Fine</name><Point><coordinates>1,1</coordinates></Point></Placemark>`),
+    );
     expect(outcome.items.map((item) => item.name)).toEqual(["Fine"]);
     expect(outcome.report.warnings.unsupportedSkipped).toBe(5);
     expect(outcome.report.rejected).toEqual([]);
   });
 
   it("ignores source styling", () => {
-    const outcome = parsed("t.kml", kml(`<Style id="s"><IconStyle><color>ff0000ff</color></IconStyle></Style>
-      <Placemark><styleUrl>#s</styleUrl><name>P</name><Point><coordinates>1,1</coordinates></Point></Placemark>`));
+    const outcome = parsed(
+      "t.kml",
+      kml(`<Style id="s"><IconStyle><color>ff0000ff</color></IconStyle></Style>
+      <Placemark><styleUrl>#s</styleUrl><name>P</name><Point><coordinates>1,1</coordinates></Point></Placemark>`),
+    );
     expect(Object.keys(outcome.items[0] ?? {}).sort()).toEqual(["geometry", "name", "note"]);
   });
 
   it("rejects placemarks with invalid coordinates", () => {
-    const outcome = parsed("t.kml", kml(`<Placemark><name>Bad</name><Point><coordinates>abc,47</coordinates></Point></Placemark>`));
-    expect(outcome.report.rejected).toEqual([{ name: "Bad", reason: expect.stringMatching(/coordinate/i) }]);
+    const outcome = parsed(
+      "t.kml",
+      kml(
+        `<Placemark><name>Bad</name><Point><coordinates>abc,47</coordinates></Point></Placemark>`,
+      ),
+    );
+    expect(outcome.report.rejected).toEqual([
+      { name: "Bad", reason: expect.stringMatching(/coordinate/i) },
+    ]);
   });
 });
 
 describe("GPX", () => {
   it("reads waypoints, routes, and tracks, discarding elevation and time", () => {
-    const outcome = parsed("t.gpx", gpx(`
+    const outcome = parsed(
+      "t.gpx",
+      gpx(`
       <wpt lat="47.25" lon="-95.5"><ele>300</ele><time>2026-01-01T00:00:00Z</time><name>Camp</name><desc>Flat</desc></wpt>
       <rte><name>Route</name><rtept lat="47" lon="-95"/><rtept lat="47.1" lon="-95.1"/></rte>
-      <trk><name>Track</name><trkseg><trkpt lat="1" lon="1"><time>x</time></trkpt><trkpt lat="2" lon="2"/></trkseg></trk>`));
+      <trk><name>Track</name><trkseg><trkpt lat="1" lon="1"><time>x</time></trkpt><trkpt lat="2" lon="2"/></trkseg></trk>`),
+    );
     expect(outcome.items).toEqual([
       { name: "Camp", note: "Flat", geometry: { type: "Point", coordinates: [-95.5, 47.25] } },
-      { name: "Route", note: undefined, geometry: { type: "LineString", coordinates: [[-95, 47], [-95.1, 47.1]] } },
-      { name: "Track", note: undefined, geometry: { type: "LineString", coordinates: [[1, 1], [2, 2]] } },
+      {
+        name: "Route",
+        note: undefined,
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [-95, 47],
+            [-95.1, 47.1],
+          ],
+        },
+      },
+      {
+        name: "Track",
+        note: undefined,
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [1, 1],
+            [2, 2],
+          ],
+        },
+      },
     ]);
   });
 
   it("splits multi-segment tracks and keeps closed tracks as lines", () => {
-    const outcome = parsed("t.gpx", gpx(`<trk><name>Loop</name>
+    const outcome = parsed(
+      "t.gpx",
+      gpx(`<trk><name>Loop</name>
       <trkseg><trkpt lat="0" lon="0"/><trkpt lat="0" lon="1"/><trkpt lat="1" lon="1"/><trkpt lat="0" lon="0"/></trkseg>
-      <trkseg><trkpt lat="5" lon="5"/><trkpt lat="6" lon="6"/></trkseg></trk>`));
+      <trkseg><trkpt lat="5" lon="5"/><trkpt lat="6" lon="6"/></trkseg></trk>`),
+    );
     expect(outcome.items.map((item) => item.name)).toEqual(["Loop", "Loop (2)"]);
     expect(outcome.items.every((item) => item.geometry.type === "LineString")).toBe(true);
     expect(outcome.report.warnings.multiPartSplit).toBe(1);
@@ -336,6 +554,8 @@ describe("GPX", () => {
 
   it("rejects out-of-range waypoints with a reason", () => {
     const outcome = parsed("t.gpx", gpx(`<wpt lat="95" lon="0"><name>Far</name></wpt>`));
-    expect(outcome.report.rejected).toEqual([{ name: "Far", reason: expect.stringMatching(/latitude/i) }]);
+    expect(outcome.report.rejected).toEqual([
+      { name: "Far", reason: expect.stringMatching(/latitude/i) },
+    ]);
   });
 });

@@ -13,8 +13,24 @@ describe("boundsOf", () => {
 
   it("covers every vertex of lines and area outer rings with padding", () => {
     const box = boundsOf([
-      { type: "LineString", coordinates: [[-96, 46], [-94, 48]] },
-      { type: "Polygon", coordinates: [[[-95, 47], [-93, 47], [-93, 49], [-95, 47]]] },
+      {
+        type: "LineString",
+        coordinates: [
+          [-96, 46],
+          [-94, 48],
+        ],
+      },
+      {
+        type: "Polygon",
+        coordinates: [
+          [
+            [-95, 47],
+            [-93, 47],
+            [-93, 49],
+            [-95, 47],
+          ],
+        ],
+      },
     ]);
     expect(box?.west).toBeLessThanOrEqual(-96);
     expect(box?.east).toBeGreaterThanOrEqual(-93);

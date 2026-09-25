@@ -36,7 +36,10 @@ export function MapShell() {
   const layerControls = useLayerControls(location, viewportBounds);
   const myData = useMyData();
   const tools = useMapTools(myData.add);
-  const showBounds = useCallback((bounds: Bounds) => viewControls?.showBounds(bounds), [viewControls]);
+  const showBounds = useCallback(
+    (bounds: Bounds) => viewControls?.showBounds(bounds),
+    [viewControls],
+  );
   // A drawing tool is only armed while the Add sheet that shows it is open.
   const sheet = useSheetState({
     defaultId: sheetIds.layers,
