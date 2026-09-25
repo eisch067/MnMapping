@@ -119,3 +119,11 @@ _Avoid_: LakeFinder summary, statewide depth coverage
 **Terrain viewshed**:
 An estimated area visible from an observer location based only on mapped terrain, observer height, and maximum distance.
 _Avoid_: Line of sight, visibility guarantee
+
+**Sheet**:
+A panel of related controls or details that opens over the map: a bottom sheet on a phone and a side panel on a desktop, one at a time. Layers and My Data are sheets that share tabs; identify, drawing, DNR results, and terrain use the same host.
+_Avoid_: Modal, popup
+
+**Tool row**:
+The primary actions of the map, one per sheet: a dock along the bottom of a phone and a rail down the left of a desktop. A desktop rail can be pinned, which docks the open sheet beside the map and resizes it.
+_Avoid_: Toolbar, menu bar

@@ -54,6 +54,40 @@ export function CloseIcon(props: IconProps) {
   return <IconFrame {...props}><path d="m6 6 12 12M18 6 6 18" /></IconFrame>;
 }
 
+export function CompassIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1Z" />
+    </IconFrame>
+  );
+}
+
+export function PlusIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </IconFrame>
+  );
+}
+
+export function FolderIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <path d="M3.5 7.5a2 2 0 0 1 2-2H10l2 2.5h6.5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z" />
+    </IconFrame>
+  );
+}
+
+export function SidebarIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M9.5 4.5v15" />
+    </IconFrame>
+  );
+}
+
 export function StarIcon({ filled, ...props }: IconProps & { filled?: boolean }) {
   return (
     <IconFrame fill={filled ? "currentColor" : "none"} {...props}>

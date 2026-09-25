@@ -23,6 +23,7 @@ Once the main map opens, you can:
 - View Minnesota DNR management areas, state parks, forests, county-fee land, tax-forfeit land, and verified county supplements.
 - Reorder layers, adjust opacity, disable active layers, and monitor browser-reported request and transfer activity.
 - Add pins and drawings, then import or export GPX, KML, and GeoJSON files.
+- Use the same map on a phone or a desktop: a bottom dock and swipeable sheets on a phone, and a left rail with a dockable panel on a desktop.
 
 ## Coverage and source approach
 
@@ -38,7 +39,7 @@ Public-land and parcel boundaries are reference information. A management or own
 
 MnMapping does not require an account. Searches are sent to the public ArcGIS geocoder, but MnMapping does not persist the query or selected location.
 
-Layer preferences are stored in browser `localStorage`. Pins, drawings, and imported geometry are stored locally in IndexedDB and are not uploaded by MnMapping. Users can hide, delete, import, or export this data from the **My Data** panel.
+Layer preferences are stored in browser `localStorage`. Pins, drawings, and imported geometry are stored locally in IndexedDB and are not uploaded by MnMapping. Users can hide, delete, import, or export this data from the **My Data** sheet.
 
 ## County imagery research
 
@@ -119,6 +120,7 @@ Cloudflare configuration and GitHub deployment details are documented in [Cloudf
 ## Project documentation
 
 - [Location-first startup and loading](docs/location-start.md)
+- [Map shell: tool row and sheets](docs/map-shell.md)
 - [Layer controls and persistence](docs/layer-controls.md)
 - [Imagery source inventory](docs/imagery-sources.md)
 - [County imagery research tracker](docs/imagery-research-tracker.md)

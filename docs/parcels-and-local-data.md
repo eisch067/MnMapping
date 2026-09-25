@@ -10,6 +10,6 @@ Kanabec, Kittson, Pine, and Roseau remain pending because the statewide metadata
 
 Map inspection shows live desktop coordinates and a click coordinate that can be copied. Public-land and parcel features use the same Cesium selection/identify path.
 
-Pins and drawings use GeoJSON-compatible geometry and are stored in IndexedDB. Preferences alone remain in localStorage. The My Data panel can hide personal data, delete individual/all objects, import GPX/KML/GeoJSON, and export GPX/KML/GeoJSON. No personal geometry is uploaded by MnMapping.
+Pins and drawings use GeoJSON-compatible geometry and are stored in IndexedDB. Preferences alone remain in localStorage. The My Data sheet can hide personal data, delete individual/all objects, import GPX/KML/GeoJSON, and export GPX/KML/GeoJSON. No personal geometry is uploaded by MnMapping.
 
 GPX represents polygons as tracks because GPX has no polygon primitive. KML and GeoJSON preserve areas. Measurements are deliberately labeled approximate.
