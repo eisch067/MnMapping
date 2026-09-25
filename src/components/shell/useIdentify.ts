@@ -51,6 +51,9 @@ export function useIdentify(sources: IdentifySources) {
       signal: controller.signal,
     });
     if (controller.signal.aborted) return;
+    for (const failure of outcome.failures) {
+      console.error(`Unable to identify ${failure.layerName}: ${failure.message}`);
+    }
     setState({ ...idle, ...outcome, point, status: "done" });
   };
 

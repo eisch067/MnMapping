@@ -1,12 +1,12 @@
 import type { LayerDefinition } from "@/config/layers";
-import { fetchJson, throwForArcGisError } from "@/lib/map/arcgisFeatures";
+import { fetchJson, throwForArcGisError, type ArcGisError } from "@/lib/map/arcgisFeatures";
 import { absoluteBrowserUrl, stringOption } from "@/lib/map/layerOptions";
 import { describeFeature } from "./featureDetails";
 import type { IdentifyContext, IdentifyResult } from "./types";
 
 interface FeatureQueryResponse {
   features?: Array<{ attributes?: Record<string, unknown> }>;
-  error?: Parameters<typeof throwForArcGisError>[0];
+  error?: ArcGisError;
 }
 
 // The same layer, filter, and fields the map draws, so an identify never reveals an attribute

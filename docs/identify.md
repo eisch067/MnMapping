@@ -10,7 +10,7 @@ Clicking or tapping the map asks one question: what is here? The Explore sheet a
 
 Only layers that are turned on, and within the camera height they load at, are asked. Imagery, basemap, and terrain layers report nothing.
 
-Saved pins and lines are found within 12 screen pixels of the click, so a fingertip can select them. Areas are found when the click falls inside them or within the same distance of their edge. Saved items are listed pins, then lines, then areas, newest first.
+Saved pins and lines are found within 20 screen pixels of the click, so a fingertip can select them. A pin is measured to its tip, the point it marks. Areas are found when the click falls inside them or within the same distance of their edge. Saved items are listed pins, then lines, then areas, newest first.
 
 Only the Inspect mode identifies. While a drawing tool is armed in the Add sheet, clicks place points instead.
 
@@ -33,6 +33,8 @@ The map shows no Cesium infobox and no selection frame; the sheet is the only pl
 ## Adding identify to a layer source type
 
 `identifyAdapters` lists every `LayerSourceType`. A `null` entry means the source has nothing to report at a point. To identify a new kind of source, such as the DNR services, write a function of type `LayerIdentifyAdapter` that takes the layer and the point and returns `IdentifyResult` values, and put it in that table. Nothing else changes: the ordering, the failure notice, and the sheet already handle its results.
+
+The feature-service adapter asks for the exact point, which suits the polygon layers there are today. A layer of lines or points needs its adapter to add a search distance from `IdentifyPoint.toleranceMeters`.
 
 An adapter should send only the fields the layer's own configuration allows, so the identify never shows an attribute the layer is set up to hide. In the public build that includes the owner and mailing fields removed from county parcel layers.
 

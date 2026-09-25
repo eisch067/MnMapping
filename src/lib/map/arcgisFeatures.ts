@@ -9,7 +9,7 @@ interface ArcGisLayerMetadata {
   error?: ArcGisError;
 }
 
-interface ArcGisError {
+export interface ArcGisError {
   code?: number;
   message?: string;
   details?: string[];
@@ -134,7 +134,11 @@ async function fetchLayerMetadata(layerUrl: string, fetcher: typeof fetch, signa
   return pending;
 }
 
-export async function fetchJson<T>(url: URL, fetcher: typeof fetch, signal?: AbortSignal): Promise<T> {
+export async function fetchJson<T>(
+  url: URL,
+  fetcher: typeof fetch,
+  signal?: AbortSignal,
+): Promise<T> {
   const response = await fetcher(url, { signal, headers: { accept: "application/json" } });
   if (!response.ok) throw new Error(`ArcGIS request failed (${response.status} ${response.statusText}).`);
   return response.json() as Promise<T>;

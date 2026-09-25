@@ -2,7 +2,12 @@ import type { GeoJsonDataSource, ImageryLayer, TerrainProvider } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
 import type { LayerBounds } from "@/config/layers/types";
 import { fetchAllArcGisFeatures, type ArcGisQueryProgress } from "@/lib/map/arcgisFeatures";
-import { absoluteBrowserUrl, booleanOption, requiredOption, stringOption } from "@/lib/map/layerOptions";
+import {
+  absoluteBrowserUrl,
+  booleanOption,
+  requiredOption,
+  stringOption,
+} from "@/lib/map/layerOptions";
 
 export type CesiumLayerResource = ImageryLayer | GeoJsonDataSource | TerrainProvider;
 

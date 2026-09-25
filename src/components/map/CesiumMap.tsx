@@ -15,7 +15,7 @@ import { toGeoJson } from "@/lib/myData";
 import { useCrosshair } from "./useCrosshair";
 
 // How far from a click, on screen, a saved line or pin still counts as under it.
-const clickToleranceInPixels = 12;
+const clickToleranceInPixels = 20;
 
 export type InteractionMode = "inspect" | "pin" | "line" | "polygon";
 
