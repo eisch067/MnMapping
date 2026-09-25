@@ -121,6 +121,7 @@ Cloudflare configuration and GitHub deployment details are documented in [Cloudf
 
 - [Location-first startup and loading](docs/location-start.md)
 - [Map shell: tool row and sheets](docs/map-shell.md)
+- [Identify: what is under a click](docs/identify.md)
 - [Layer controls and persistence](docs/layer-controls.md)
 - [Imagery source inventory](docs/imagery-sources.md)
 - [County imagery research tracker](docs/imagery-research-tracker.md)

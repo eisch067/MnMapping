@@ -5,11 +5,17 @@ import type { GeoJsonDataSource, ImageryLayer, TerrainProvider, Viewer } from "c
 import type { LayerDefinition } from "@/config/layers";
 import { isLayerAvailableAtCameraHeight, isTerrainLayer } from "@/config/layers/types";
 import { cameraHeightForLocation, type MapLocation, type ViewportBounds } from "@/lib/location";
+import type { IdentifyPoint } from "@/lib/identify/types";
 import { applyGeoJsonOpacity, createLayerResource } from "@/lib/map/createLayer";
+import { imageryStackBand } from "@/lib/map/layerStack";
 import type { LayerStateById } from "@/lib/map/layerState";
 import type { LayerRuntimeState } from "@/lib/map/layerRuntime";
 import type { MyMapItem } from "@/lib/myData";
 import { toGeoJson } from "@/lib/myData";
+import { useCrosshair } from "./useCrosshair";
+
+// How far from a click, on screen, a saved line or pin still counts as under it.
+const clickToleranceInPixels = 12;
 
 export type InteractionMode = "inspect" | "pin" | "line" | "polygon";
 
@@ -25,7 +31,8 @@ interface CesiumMapProps {
   interactionMode: InteractionMode;
   myData: readonly MyMapItem[];
   myDataVisible: boolean;
-  onCoordinateClick: (longitude: number, latitude: number) => void;
+  crosshair: IdentifyPoint | null;
+  onMapClick: (point: IdentifyPoint) => void;
   onCursorChange: (longitude: number, latitude: number) => void;
   retryVersion: Readonly<Record<string, number>>;
   onLayerStatusChange: (id: string, state: LayerRuntimeState) => void;
@@ -48,7 +55,8 @@ export function CesiumMap({
   interactionMode,
   myData,
   myDataVisible,
-  onCoordinateClick,
+  crosshair,
+  onMapClick,
   onCursorChange,
   retryVersion,
   onLayerStatusChange,
@@ -70,7 +78,7 @@ export function CesiumMap({
   const ellipsoidTerrainRef = useRef<TerrainProvider | null>(null);
   const layerStateRef = useRef(layerState);
   const exaggerationRef = useRef(verticalExaggeration);
-  const coordinateClickRef = useRef(onCoordinateClick);
+  const mapClickRef = useRef(onMapClick);
   const cursorChangeRef = useRef(onCursorChange);
   const layerStatusChangeRef = useRef(onLayerStatusChange);
   const retryVersionRef = useRef<Record<string, number>>({});
@@ -79,6 +87,7 @@ export function CesiumMap({
   const [mapReady, setMapReady] = useState(false);
   const [viewportBounds, setInternalViewportBounds] = useState<ViewportBounds | null>(null);
   const [cameraHeight, setCameraHeight] = useState(Number.POSITIVE_INFINITY);
+  useCrosshair(viewerRef, mapReady, crosshair);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -95,7 +104,15 @@ export function CesiumMap({
     const failedDataExtents = failedDataExtentRef.current;
     const dataAborts = dataAbortRef.current;
 
-    void import("cesium").then(({ Cartesian3, Math: CesiumMath, SceneMode, ScreenSpaceEventHandler, ScreenSpaceEventType, Viewer }) => {
+    void import("cesium").then(({
+      Cartesian2,
+      Cartesian3,
+      Math: CesiumMath,
+      SceneMode,
+      ScreenSpaceEventHandler,
+      ScreenSpaceEventType,
+      Viewer,
+    }) => {
       if (cancelled || !containerRef.current) return;
       const height = cameraHeightForLocation(location.kind);
       const mapView = {
@@ -113,7 +130,7 @@ export function CesiumMap({
         fullscreenButton: false,
         geocoder: false,
         homeButton: false,
-        infoBox: true,
+        infoBox: false,
         navigationHelpButton: false,
         // Cesium's 3D globe mode tessellates terrain geometry continuously even without a
         // terrain provider selected. Starting in 2D (a flat orthographic projection with no
@@ -121,7 +138,7 @@ export function CesiumMap({
         // someone asks for the tilted terrain view or enables the 3D Terrain layer.
         sceneMode: SceneMode.SCENE2D,
         sceneModePicker: true,
-        selectionIndicator: true,
+        selectionIndicator: false,
         timeline: false,
       });
       viewerRef.current = viewer;
@@ -168,7 +185,12 @@ export function CesiumMap({
       }, ScreenSpaceEventType.MOUSE_MOVE);
       handler.setInputAction((event: { position: import("cesium").Cartesian2 }) => {
         const point = positionAt(event.position);
-        if (point) coordinateClickRef.current(point[0], point[1]);
+        if (!point) return;
+        const edge = positionAt(
+          new Cartesian2(event.position.x + clickToleranceInPixels, event.position.y),
+        );
+        const toleranceMeters = edge ? metersBetween(point, edge) : 0;
+        mapClickRef.current({ longitude: point[0], latitude: point[1], toleranceMeters });
       }, ScreenSpaceEventType.LEFT_CLICK);
       reportViewport();
       setMapReady(true);
@@ -198,7 +220,7 @@ export function CesiumMap({
     };
   }, [location, onCameraHeightChange, onResetReady, onViewControlsReady, onViewportChange]);
 
-  useEffect(() => { coordinateClickRef.current = onCoordinateClick; }, [onCoordinateClick]);
+  useEffect(() => { mapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { cursorChangeRef.current = onCursorChange; }, [onCursorChange]);
   useEffect(() => { layerStatusChangeRef.current = onLayerStatusChange; }, [onLayerStatusChange]);
 
@@ -420,6 +442,16 @@ export function CesiumMap({
   return <div className={`map-canvas mode-${interactionMode}`} ref={containerRef} aria-label={`Interactive map centered on ${location.label}`} />;
 }
 
+function metersBetween(
+  first: readonly [number, number],
+  second: readonly [number, number],
+): number {
+  const metersPerDegree = 111_320;
+  const dx = (second[0] - first[0]) * metersPerDegree * Math.cos((first[1] * Math.PI) / 180);
+  const dy = (second[1] - first[1]) * metersPerDegree;
+  return Math.hypot(dx, dy);
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message ? error.message : fallback;
 }
@@ -436,12 +468,6 @@ function synchronizeImageryOrder(
     const imagery = imageryById.get(layer.id);
     if (imagery && viewer.imageryLayers.contains(imagery)) viewer.imageryLayers.raiseToTop(imagery);
   }
-}
-
-function imageryStackBand(layer: LayerDefinition): number {
-  if (layer.category === "basemap") return 0;
-  if (layer.category === "imagery") return layer.county ? 2 : 1;
-  return 3;
 }
 
 function synchronizeDataSourceOrder(

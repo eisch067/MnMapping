@@ -1,8 +1,8 @@
 import type { GeoJsonDataSource, ImageryLayer, TerrainProvider } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
 import type { LayerBounds } from "@/config/layers/types";
-import { normalizeParcel } from "@/lib/parcels";
 import { fetchAllArcGisFeatures, type ArcGisQueryProgress } from "@/lib/map/arcgisFeatures";
+import { absoluteBrowserUrl, booleanOption, requiredOption, stringOption } from "@/lib/map/layerOptions";
 
 export type CesiumLayerResource = ImageryLayer | GeoJsonDataSource | TerrainProvider;
 
@@ -137,7 +137,7 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
         onProgress: context.onProgress,
       });
       const dataSource = await GeoJsonDataSource.load(featureCollection, geoJsonStyle(layer, Color));
-      decorateGeoJson(dataSource, layer, ConstantProperty);
+      decorateGeoJson(dataSource, ConstantProperty);
       return dataSource;
     }
   }
@@ -161,12 +161,6 @@ export async function applyGeoJsonOpacity(dataSource: GeoJsonDataSource, layer: 
   }
 }
 
-function absoluteBrowserUrl(url: string): string {
-  if (/^https?:\/\//.test(url)) return url.replace(/\/$/, "");
-  if (typeof window === "undefined") throw new Error("Relative GIS service URLs require a browser context.");
-  return new URL(url.replace(/\/$/, ""), window.location.origin).toString();
-}
-
 function decodeTemplateBraces(url: string): string {
   return url.replaceAll("%7B", "{").replaceAll("%7D", "}");
 }
@@ -186,7 +180,6 @@ function geoJsonStyle(layer: LayerDefinition, Color: typeof import("cesium").Col
 
 function decorateGeoJson(
   dataSource: GeoJsonDataSource,
-  layer: LayerDefinition,
   ConstantProperty: typeof import("cesium").ConstantProperty,
 ) {
   for (const entity of dataSource.entities.values) {
@@ -195,75 +188,9 @@ function decorateGeoJson(
       entity.polygon.outline = new ConstantProperty(true);
     }
     if (entity.polyline) entity.polyline.clampToGround = new ConstantProperty(true);
-    const values = entity.properties?.getValue() as Record<string, unknown> | undefined;
-    if (values && layer.parcelFields && layer.county) {
-      const parcel = normalizeParcel(layer.county, layer.parcelFields, values);
-      entity.name = `Parcel ${parcel.parcelId}`;
-    }
-    const name = layer.nameField ? values?.[layer.nameField] : undefined;
-    if (typeof name === "string" && name.trim()) entity.name = name;
-    const popupFields = layer.parcelFields ? parcelPopupFields(layer.parcelFields) : layer.popupFields ?? [];
-    const rows = popupFields.flatMap(({ field, label }) => {
-      const value = values?.[field];
-      if (value === null || value === undefined || value === "") return [];
-      return [`<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(String(value))}</td></tr>`];
-    });
-    rows.push(`<tr><th>Source</th><td>${escapeHtml(layer.agency ?? layer.attribution)}</td></tr>`);
-    if (layer.recordsUrl) rows.push(`<tr><th>Ownership &amp; tax records</th><td><a href="${escapeHtml(layer.recordsUrl)}" target="_blank" rel="noreferrer">Look up on the county site ↗</a></td></tr>`);
-    const accessNote = accessMeaningLabel(layer.accessMeaning);
-    if (accessNote) rows.push(`<tr><th>Boundary meaning</th><td>${escapeHtml(accessNote)}</td></tr>`);
-    entity.description = new ConstantProperty(`<table class="cesium-infoBox-defaultTable"><tbody>${rows.join("")}</tbody></table>`);
   }
-}
-
-function parcelPopupFields(fields: NonNullable<LayerDefinition["parcelFields"]>) {
-  return [
-    { field: fields.parcelId, label: "Parcel ID" },
-    fields.owner && { field: fields.owner, label: "Owner" },
-    fields.secondaryOwner && { field: fields.secondaryOwner, label: "Secondary owner" },
-    fields.siteAddress && { field: fields.siteAddress, label: "Site address" },
-    fields.mailingAddress && { field: fields.mailingAddress, label: "Mailing address" },
-    fields.acres && { field: fields.acres, label: "Acres" },
-    fields.legalDescription && { field: fields.legalDescription, label: "Legal description" },
-    fields.assessedValue && { field: fields.assessedValue, label: "Assessed value" },
-    fields.taxYear && { field: fields.taxYear, label: "Tax year" },
-  ].filter((entry): entry is { field: string; label: string } => Boolean(entry));
-}
-
-function accessMeaningLabel(value: LayerDefinition["accessMeaning"]): string | null {
-  if (value === "public-access") return "Published as publicly accessible; verify current site rules.";
-  if (value === "managed-land") return "Managed land; access restrictions may apply.";
-  if (value === "administrative-boundary") return "Administrative or management boundary, not proof that every acre is publicly owned.";
-  if (value === "access-varies") return "Ownership interest and public access vary by parcel; verify before entering.";
-  return null;
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>'"]/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    "\"": "&quot;",
-  })[character] ?? character);
 }
 
 function levelOptions(layer: LayerDefinition) {
   return { minimumLevel: layer.minimumLevel, maximumLevel: layer.maximumLevel };
-}
-
-function stringOption(layer: LayerDefinition, key: string): string | undefined {
-  const value = layer.options?.[key];
-  return typeof value === "string" ? value : undefined;
-}
-
-function booleanOption(layer: LayerDefinition, key: string): boolean | undefined {
-  const value = layer.options?.[key];
-  return typeof value === "boolean" ? value : undefined;
-}
-
-function requiredOption(layer: LayerDefinition, key: string): string {
-  const value = stringOption(layer, key);
-  if (!value) throw new Error(`${layer.name} requires the \"${key}\" option.`);
-  return value;
 }
