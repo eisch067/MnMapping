@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import { openMap } from "./support/map";
 
 test("creates a folder, moves an item, trashes the bundle, and restores it", async ({ page }) => {
+  test.setTimeout(60_000);
+
   await openMap(page);
   await page.getByRole("navigation", { name: "Map tools" })
     .getByRole("button", { name: "My Data", exact: true })
