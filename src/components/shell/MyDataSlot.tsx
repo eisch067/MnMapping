@@ -9,7 +9,8 @@ import {
   type MyDataSettings,
   type MyMapItem,
 } from "@/lib/myData";
-import type { ExportFormat } from "./useMyData";
+import type { ExportScope } from "@/lib/exchange/scope";
+import { MyDataToolbar } from "./MyDataToolbar";
 
 export interface MyDataSlotProps {
   items: readonly MyMapItem[];
@@ -19,8 +20,9 @@ export interface MyDataSlotProps {
   error: string | null;
   visible: boolean;
   onVisibleChange: (visible: boolean) => void;
-  onImport: (file: File) => Promise<void>;
-  onExport: (format: ExportFormat) => void;
+  onImportFile: (file: File) => Promise<void>;
+  onExportScope: (scope: ExportScope) => void;
+  onOpenBackup: () => void;
   onCreateFolder: (name: string) => Promise<unknown>;
   onMoveItem: (itemId: string, folderId: string | null) => Promise<unknown>;
   onDeleteItem: (itemId: string) => Promise<unknown>;
@@ -29,12 +31,6 @@ export interface MyDataSlotProps {
   onRestoreFolder: (folderId: string) => Promise<unknown>;
   onUpdateSettings: (changes: Partial<MyDataSettings>) => Promise<unknown>;
 }
-
-const exportFormats: readonly { format: ExportFormat; label: string }[] = [
-  { format: "gpx", label: "GPX" },
-  { format: "kml", label: "KML" },
-  { format: "geojson", label: "GeoJSON" },
-];
 
 function FolderNavigation(props: {
   folders: readonly MyDataFolder[];
@@ -69,11 +65,22 @@ function FolderNavigation(props: {
 function ItemRow(props: {
   item: MyMapItem;
   folders: readonly MyDataFolder[];
+  selecting: boolean;
+  selected: boolean;
+  onSelectedChange: (selected: boolean) => void;
   onMove: (folderId: string | null) => Promise<unknown>;
   onDelete: () => Promise<unknown>;
 }) {
   return (
-    <div className="my-data-item">
+    <div className={`my-data-item ${props.selecting ? "is-selecting" : ""}`}>
+      {props.selecting && (
+        <input
+          type="checkbox"
+          aria-label={`Select ${props.item.name}`}
+          checked={props.selected}
+          onChange={(event) => props.onSelectedChange(event.target.checked)}
+        />
+      )}
       <span><strong>{props.item.name}</strong><small>{props.item.note ?? props.item.geometry.type}</small></span>
       <select aria-label={`Folder for ${props.item.name}`} value={props.item.folderId ?? ""} onChange={(event) => void props.onMove(event.target.value || null)}>
         <option value="">Unfiled</option>
@@ -125,12 +132,30 @@ function SettingsEditor(props: Pick<MyDataSlotProps, "settings" | "onUpdateSetti
 
 export function MyDataSlot(props: MyDataSlotProps) {
   const [viewId, setViewId] = useState<string>(UNFILED_VIEW_ID);
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const activeFolders = props.folders.filter((folder) => !folder.deletion);
   const selectedFolder = activeFolders.find((folder) => folder.id === viewId);
   const shownItems = props.items.filter((item) => item.folderId === (selectedFolder?.id ?? null));
+  const inTrash = viewId === TRASH_VIEW_ID;
   const importSelectedFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) void props.onImport(file);
+    event.target.value = "";
+    if (file) void props.onImportFile(file);
+  };
+  const changeView = (id: string) => {
+    setViewId(id);
+    setSelectedIds(new Set());
+  };
+  const setSelected = (itemId: string, selected: boolean) => {
+    const next = new Set(selectedIds);
+    if (selected) next.add(itemId);
+    else next.delete(itemId);
+    setSelectedIds(next);
+  };
+  const finishSelecting = () => {
+    setSelecting(false);
+    setSelectedIds(new Set());
   };
   const deleteSelectedFolder = () => {
     if (!selectedFolder) return;
@@ -143,20 +168,44 @@ export function MyDataSlot(props: MyDataSlotProps) {
   return (
     <div className="my-data-slot">
       <label className="my-data-visibility"><input type="checkbox" checked={props.visible} onChange={(event) => props.onVisibleChange(event.target.checked)} />Show My Data on the map</label>
-      <FolderNavigation folders={props.folders} viewId={viewId} onViewChange={setViewId} onCreateFolder={props.onCreateFolder} />
+      <FolderNavigation folders={props.folders} viewId={viewId} onViewChange={changeView} onCreateFolder={props.onCreateFolder} />
       {props.error && <p role="alert" className="my-data-error">{props.error}</p>}
-      {viewId === TRASH_VIEW_ID ? <TrashView {...props} /> : (
+      {inTrash ? <TrashView {...props} /> : (
         <>
+          <MyDataToolbar
+            selecting={selecting}
+            selectedCount={selectedIds.size}
+            shownCount={shownItems.length}
+            totalCount={props.items.length}
+            onStartSelecting={() => setSelecting(true)}
+            onFinishSelecting={finishSelecting}
+            onSelectAll={() => setSelectedIds(new Set(shownItems.map((item) => item.id)))}
+            onClearSelection={() => setSelectedIds(new Set())}
+            onExportSelection={() => props.onExportScope({ kind: "selection", itemIds: [...selectedIds] })}
+            onExportView={() => props.onExportScope({ kind: "folder", folderId: selectedFolder?.id ?? null })}
+            onExportAll={() => props.onExportScope({ kind: "all" })}
+          />
           {selectedFolder && <button className="delete-folder" type="button" onClick={deleteSelectedFolder}>Move folder to Trash</button>}
           <div className="my-data-list">
-            {shownItems.map((item) => <ItemRow key={item.id} item={item} folders={props.folders} onMove={(folderId) => props.onMoveItem(item.id, folderId)} onDelete={() => props.onDeleteItem(item.id)} />)}
+            {shownItems.map((item) => (
+              <ItemRow
+                key={item.id}
+                item={item}
+                folders={props.folders}
+                selecting={selecting}
+                selected={selectedIds.has(item.id)}
+                onSelectedChange={(selected) => setSelected(item.id, selected)}
+                onMove={(folderId) => props.onMoveItem(item.id, folderId)}
+                onDelete={() => props.onDeleteItem(item.id)}
+              />
+            ))}
             {!shownItems.length && <p>No items in this view.</p>}
           </div>
         </>
       )}
       <SettingsEditor settings={props.settings} onUpdateSettings={props.onUpdateSettings} />
       <label className="file-import">Import GPX, KML, or GeoJSON<input type="file" accept=".gpx,.kml,.geojson,.json" onChange={importSelectedFile} /></label>
-      <div className="export-buttons">{exportFormats.map(({ format, label }) => <button key={format} type="button" onClick={() => props.onExport(format)}>{label}</button>)}</div>
+      <button type="button" onClick={props.onOpenBackup}>Backup and restore</button>
       <p>Stored only in this browser unless you export it. Trash is removed after 30 days.</p>
     </div>
   );

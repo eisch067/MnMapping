@@ -20,8 +20,10 @@ Every tool-row action opens one sheet, and the sheet host shows one sheet at a t
 | Explore | Compact | The coordinates of the last point clicked, with a copy button. Clicking the map while no sheet is open opens it |
 | Layers | Tall, tabbed with My Data | Layer visibility, opacity, ordering, and transfer totals |
 | Add | Compact | Pin, Line, and Area drawing tools |
-| My Data | Tall, tabbed with Layers | Folders, Unfiled, 30-day Trash, defaults, import, and export |
+| My Data | Tall, tabbed with Layers | Folders, Unfiled, 30-day Trash, defaults, select mode, import, and entry points to export and backup |
 | Map | Compact | Map view and Terrain view |
+
+Some sheets belong to a flow and have no tool-row action: they carry `secondary: true` in `shellSheets` and are opened with `useSheetState().open`. Export, Import result, and Backup and restore are opened from My Data this way (see [import-export.md](import-export.md)).
 
 A drawing tool is armed only while the Add sheet is open. Closing it, or opening another sheet, returns the map to inspecting.
 

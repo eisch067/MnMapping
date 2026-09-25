@@ -22,7 +22,7 @@ Once the main map opens, you can:
 - Inspect parcel boundaries and available assessment attributes at parcel scale.
 - View Minnesota DNR management areas, state parks, forests, county-fee land, tax-forfeit land, and verified county supplements.
 - Reorder layers, adjust opacity, disable active layers, and monitor browser-reported request and transfer activity.
-- Add pins and drawings, organize them in folders, recover them from 30-day Trash, and import or export GPX, KML, and GeoJSON files.
+- Add pins and drawings, organize them in folders, recover them from 30-day Trash, import GPX, KML, and GeoJSON files into an Import folder, export them for OnX or GIS tools, and back up or restore everything as a My Data archive.
 - Use the same map on a phone or a desktop: a bottom dock and swipeable sheets on a phone, and a left rail with a dockable panel on a desktop.
 
 ## Coverage and source approach
@@ -39,7 +39,7 @@ Public-land and parcel boundaries are reference information. A management or own
 
 MnMapping does not require an account. Searches are sent to the public ArcGIS geocoder, but MnMapping does not persist the query or selected location.
 
-Layer preferences are stored in browser `localStorage`. My Data items, folders, appearance defaults, and deletion metadata are stored locally in IndexedDB and are not uploaded by MnMapping. **Unfiled** and **Trash** are permanent system views; deleting a folder moves it and its items to Trash as one recoverable bundle, and local Trash expires after 30 days according to the device clock. Users can organize, restore, hide, import, or export their data from the **My Data** sheet.
+Layer preferences are stored in browser `localStorage`. My Data items, folders, appearance defaults, and deletion metadata are stored locally in IndexedDB and are not uploaded by MnMapping. **Unfiled** and **Trash** are permanent system views; deleting a folder moves it and its items to Trash as one recoverable bundle, and local Trash expires after 30 days according to the device clock. Users can organize, restore, hide, import, export, archive, or delete their data from the **My Data** sheet; see [docs/import-export.md](docs/import-export.md).
 
 ## County imagery research
 

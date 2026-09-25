@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { exportText, parseMapFile } from "@/lib/mapFormats";
 import {
   getMyDataStore,
   type MyDataFolder,
@@ -9,16 +8,6 @@ import {
   type MyMapItem,
   type NewMyDataItem,
 } from "@/lib/myData";
-
-export type ExportFormat = "geojson" | "kml" | "gpx";
-
-function downloadText(text: string, filename: string) {
-  const anchor = document.createElement("a");
-  anchor.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(anchor.href);
-}
 
 export function useMyData() {
   const [items, setItems] = useState<MyMapItem[]>([]);
@@ -62,20 +51,6 @@ export function useMyData() {
     await mutate(async () => (await getMyDataStore()).addItem(item));
   }, [mutate]);
 
-  const onImport = useCallback(async (file: File) => {
-    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-    const imported = parseMapFile(await file.text(), extension);
-    await mutate(async () => {
-      const store = await getMyDataStore();
-      for (const item of imported) await store.addItem(item);
-    });
-  }, [mutate]);
-
-  const onExport = (format: ExportFormat) => {
-    const activeItems = items.filter((item) => !item.deletion);
-    downloadText(exportText(activeItems, format), `mnmapping-data.${format}`);
-  };
-
   return {
     items: items.filter((item) => !item.deletion),
     allItems: items,
@@ -85,8 +60,8 @@ export function useMyData() {
     visible,
     onVisibleChange: setVisible,
     add,
-    onImport,
-    onExport,
+    refresh,
+    mutate,
     onCreateFolder: (name: string) => mutate(async () => (await getMyDataStore()).createFolder(name)),
     onMoveItem: (itemId: string, folderId: string | null) => mutate(
       async () => (await getMyDataStore()).moveItem(itemId, folderId),

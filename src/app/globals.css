@@ -65,7 +65,7 @@ svg { flex: 0 0 auto; }
 .tool-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 .explore-point { font-size: 12px; }
 .explore-point span { color: var(--muted); font-variant-numeric: tabular-nums; }
-.tool-buttons button, .tool-finish, .explore-point button, .my-data-slot button { display: inline-flex; gap: 6px; align-items: center; justify-content: center; min-height: 38px; border: 1px solid var(--panel-border); border-radius: 5px; padding: 0 14px; background: rgba(255,255,255,.07); color: var(--text); cursor: pointer; font-size: 12px; }
+.tool-buttons button, .tool-finish, .explore-point button, .my-data-slot button, .exchange-sheet button { display: inline-flex; gap: 6px; align-items: center; justify-content: center; min-height: 38px; border: 1px solid var(--panel-border); border-radius: 5px; padding: 0 14px; background: rgba(255,255,255,.07); color: var(--text); cursor: pointer; font-size: 12px; }
 .explore-point button { justify-self: start; }
 .tool-buttons button svg { width: 16px; height: 16px; }
 .tool-buttons button[aria-pressed="true"] { border-color: var(--accent); background: rgba(153,116,255,.18); color: var(--accent); }
@@ -544,3 +544,23 @@ svg { flex: 0 0 auto; }
   .research-topbar { flex-direction: column; align-items: stretch; gap: 10px; }
   .licensing-disclaimer { max-width: none; text-align: left; }
 }
+.my-data-toolbar { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.my-data-toolbar > span { flex: 1 0 100%; color: var(--muted); }
+.my-data-toolbar button { min-height: 31px; padding: 0 10px; }
+.my-data-toolbar button:disabled, .exchange-sheet button:disabled { opacity: .45; cursor: not-allowed; }
+.my-data-item.is-selecting { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.my-data-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+.exchange-sheet { display: grid; gap: 10px; padding-top: 12px; font-size: 11px; }
+.exchange-sheet h3 { margin: 0 0 4px; font-size: 11px; }
+.exchange-sheet p, .exchange-sheet ul { margin: 0; }
+.exchange-sheet ul { padding-left: 16px; color: var(--muted); }
+.exchange-sheet li + li { margin-top: 3px; }
+.exchange-scope { font-weight: 700; }
+.exchange-notice { padding: 8px 9px; border: 1px solid rgba(240,162,138,.5); border-radius: 5px; color: #f0a28a; line-height: 1.45; }
+.exchange-sheet ul.exchange-files { display: grid; gap: 5px; padding: 0; list-style: none; }
+.exchange-files li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; align-items: center; padding: 7px; border-radius: 4px; background: rgba(255,255,255,.04); }
+.exchange-files li + li { margin-top: 0; }
+.exchange-files strong, .exchange-files small { display: block; overflow-wrap: anywhere; }
+.exchange-files small { margin-top: 2px; color: var(--muted); font-size: 9px; }
+.exchange-rejected li { overflow-wrap: anywhere; }
+.delete-all { display: grid; gap: 8px; padding: 9px; border: 1px solid rgba(240,162,138,.5); border-radius: 5px; }

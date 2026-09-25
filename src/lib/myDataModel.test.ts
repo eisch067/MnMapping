@@ -5,6 +5,7 @@ import {
   createMyDataItem,
   generatedItemName,
   isTrashExpired,
+  MAX_NOTE_LENGTH,
   normalizeFolderName,
   restoreFolderBundle,
   restoreItem,
@@ -111,5 +112,17 @@ describe("built-in symbols", () => {
   it("keeps stable ids and falls back visually without discarding the saved id", () => {
     expect(builtInSymbol("star").id).toBe("star");
     expect(builtInSymbol("future-symbol")).toBe(fallbackSymbol);
+  });
+});
+
+describe("note length", () => {
+  it("caps typed notes at 2,000 characters", () => {
+    const item = createMyDataItem(
+      { note: "n".repeat(MAX_NOTE_LENGTH + 50), geometry: { type: "Point", coordinates: [0, 0] } },
+      createDefaultSettings(now, ids()),
+      now,
+      ids(),
+    );
+    expect(item.note).toHaveLength(2_000);
   });
 });
