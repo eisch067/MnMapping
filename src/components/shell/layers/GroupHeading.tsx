@@ -1,47 +1,62 @@
 import { ChevronDownIcon } from "@/components/ui/MapIcons";
 import type { LayerDefinition } from "@/config/layers/types";
+import { groupStatus, type GroupStatus } from "@/lib/map/layerGroups";
 import type { LayerStateById } from "@/lib/map/layerState";
-import { isLayerVisible } from "./layerGrouping";
+import type { LayerControls } from "./LayerRow";
 
 interface GroupHeadingProps {
-  id: string;
+  groupId: string;
   label: string;
   layers: readonly LayerDefinition[];
   state: LayerStateById;
-  onVisibilityChange: (id: string, visible: boolean) => void;
+  // Omitted for a section that holds a single layer, which has no subset to suspend.
+  groupControls?: Pick<LayerControls, "suspended" | "onToggleGroup">;
   expanded: boolean;
   onToggleExpand: () => void;
 }
 
+function plural(count: number): string {
+  return `${count} layer${count === 1 ? "" : "s"}`;
+}
+
+function controlTitle({ mode, on, suspended }: GroupStatus): string {
+  if (mode === "suspended") return `Restore ${plural(suspended)}`;
+  if (mode === "active") return `Suspend ${plural(on)}`;
+  return "No layers are on";
+}
+
 export function GroupHeading(props: GroupHeadingProps) {
-  const { id, label, layers, state, onVisibilityChange, expanded, onToggleExpand } = props;
-  const visibleCount = layers.filter((layer) => isLayerVisible(layer, state)).length;
+  const { groupId, label, layers, state, groupControls, expanded, onToggleExpand } = props;
+  const layerIds = layers.map((layer) => layer.id);
+  const status = groupStatus(
+    { layers: state, suspended: groupControls?.suspended ?? {} },
+    groupId,
+    layerIds,
+  );
   return (
     <>
-      {layers.length > 0 && (
+      {groupControls && layers.length > 0 && (
         <input
           type="checkbox"
           className="layer-heading-toggle"
-          aria-label={`Turn all ${label} layers on or off`}
-          checked={visibleCount === layers.length}
-          ref={(input) => {
-            if (input) input.indeterminate = visibleCount > 0 && visibleCount < layers.length;
-          }}
-          onChange={(event) => {
-            layers.forEach((layer) => onVisibilityChange(layer.id, event.target.checked));
-          }}
+          aria-label={`Suspend or restore ${label} layers`}
+          title={controlTitle(status)}
+          checked={status.mode === "active"}
+          disabled={status.mode === "empty"}
+          onChange={() => groupControls.onToggleGroup(groupId, layerIds)}
         />
       )}
       <button
         className="layer-heading-collapse"
         type="button"
         aria-expanded={expanded}
-        aria-controls={id}
+        aria-controls={`layer-section-${groupId}`}
         onClick={onToggleExpand}
       >
         <span>{label}</span>
         <span className="category-summary">
-          {visibleCount} on <ChevronDownIcon />
+          {status.on} on{status.suspended > 0 && ` · ${status.suspended} suspended`}
+          <ChevronDownIcon />
         </span>
       </button>
     </>

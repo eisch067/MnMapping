@@ -65,11 +65,11 @@ function ImageryScope({ id, label, layers, controls, sections, children }: Image
     <section className="layer-scope">
       <div className="layer-scope-heading">
         <GroupHeading
-          id={`layer-section-${id}`}
+          groupId={id}
           label={label}
           layers={layers}
           state={controls.state}
-          onVisibilityChange={controls.onVisibilityChange}
+          groupControls={controls}
           expanded={!collapsed}
           onToggleExpand={() => sections.toggle(id)}
         />

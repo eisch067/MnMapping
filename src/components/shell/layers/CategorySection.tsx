@@ -3,7 +3,7 @@ import type { RestrictedImagerySource } from "@/config/restrictedImagery";
 import { GroupHeading } from "./GroupHeading";
 import { ImagerySection, type SectionState } from "./ImagerySection";
 import { LayerRows, type LayerControls } from "./LayerRow";
-import { averageOpacity, categoryLabels, isLayerVisible } from "./layerGrouping";
+import { averageOpacity, categoryLabels } from "./layerGrouping";
 
 interface CategorySectionProps {
   category: LayerCategory;
@@ -21,11 +21,11 @@ export function CategorySection(props: CategorySectionProps) {
     <section className="layer-category">
       <div className="layer-category-heading">
         <GroupHeading
-          id={`layer-section-${category}`}
+          groupId={category}
           label={categoryLabels[category]}
           layers={layers}
           state={controls.state}
-          onVisibilityChange={controls.onVisibilityChange}
+          groupControls={controls}
           expanded={!collapsed}
           onToggleExpand={() => sections.toggle(category)}
         />
@@ -40,7 +40,7 @@ export function CategorySection(props: CategorySectionProps) {
           />
         ) : (
           <div className="layer-list" id={`layer-section-${category}`}>
-            <MasterControls category={category} layers={layers} controls={controls} />
+            <GroupOpacity category={category} layers={layers} controls={controls} />
             <LayerRows layers={layers} controls={controls} reverse />
             <PendingCountyNotes category={category} counties={pendingCounties} />
           </div>
@@ -49,56 +49,34 @@ export function CategorySection(props: CategorySectionProps) {
   );
 }
 
-const masterControlText = {
-  "public-land": { title: "All public lands", noun: "public-land" },
-  parcels: { title: "All parcels", noun: "parcel" },
+const groupOpacityTitle = {
+  "public-land": "All public lands",
+  parcels: "All parcels",
 } as const;
 
-type MasterControlsProps = Pick<CategorySectionProps, "category" | "layers" | "controls">;
+type GroupOpacityProps = Pick<CategorySectionProps, "category" | "layers" | "controls">;
 
-function MasterControls({ category, layers, controls }: MasterControlsProps) {
+function GroupOpacity({ category, layers, controls }: GroupOpacityProps) {
   if ((category !== "public-land" && category !== "parcels") || layers.length === 0) return null;
-  const { title, noun } = masterControlText[category];
-  const enabled = layers.filter((layer) => isLayerVisible(layer, controls.state)).length;
+  const title = groupOpacityTitle[category];
   const opacity = Math.round(averageOpacity(layers, controls.state) * 100);
   return (
-    <>
-      <label className="category-master-toggle">
-        <input
-          type="checkbox"
-          checked={enabled === layers.length}
-          ref={(input) => {
-            if (input) input.indeterminate = enabled > 0 && enabled < layers.length;
-          }}
-          onChange={(event) => {
-            layers.forEach((layer) => controls.onVisibilityChange(layer.id, event.target.checked));
-          }}
-        />
-        <span>
-          <strong>{title}</strong>
-          <small>
-            Turn every {noun} layer in the current area on or off. New layers that come into view
-            while every layer is on will join them automatically.
-          </small>
-        </span>
-      </label>
-      <label className="opacity-control category-master-opacity">
-        <span>All opacities</span>
-        <input
-          aria-label={`${title} opacity`}
-          type="range"
-          min="0"
-          max="100"
-          step="1"
-          value={opacity}
-          onChange={(event) => {
-            const next = Number(event.target.value) / 100;
-            layers.forEach((layer) => controls.onOpacityChange(layer.id, next));
-          }}
-        />
-        <output>{opacity}%</output>
-      </label>
-    </>
+    <label className="opacity-control category-group-opacity">
+      <span>All opacities</span>
+      <input
+        aria-label={`${title} opacity`}
+        type="range"
+        min="0"
+        max="100"
+        step="1"
+        value={opacity}
+        onChange={(event) => {
+          const next = Number(event.target.value) / 100;
+          layers.forEach((layer) => controls.onOpacityChange(layer.id, next));
+        }}
+      />
+      <output>{opacity}%</output>
+    </label>
   );
 }
 

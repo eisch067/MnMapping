@@ -27,11 +27,10 @@ export function TerrainSection({
     <section className="layer-category">
       <div className="layer-category-heading">
         <GroupHeading
-          id="layer-section-terrain"
+          groupId="terrain"
           label="3D terrain"
           layers={layers}
           state={state}
-          onVisibilityChange={onVisibilityChange}
           expanded={expanded}
           onToggleExpand={onToggleExpand}
         />
