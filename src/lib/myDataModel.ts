@@ -1,8 +1,11 @@
+import { localClock, localDate } from "./localTime";
+
 export const MY_DATA_SCHEMA_VERSION = 2 as const;
 export const UNFILED_VIEW_ID = "unfiled" as const;
 export const TRASH_VIEW_ID = "trash" as const;
 export const MY_DATA_SETTINGS_ID = "settings" as const;
 export const TRASH_RETENTION_DAYS = 30;
+export const MAX_NOTE_LENGTH = 2000;
 
 export type Clock = () => Date;
 export type IdFactory = () => string;
@@ -123,6 +126,23 @@ export function validateFolderName(name: string, folders: readonly MyDataFolder[
   return trimmed;
 }
 
+// The source filename and the user's local import time keep separate imports distinguishable.
+export function importFolderName(
+  filename: string,
+  importedAt: Date,
+  folders: readonly MyDataFolder[],
+): string {
+  const base = `${filename.trim() || "Import"} ${localDate(importedAt)} ${localClock(importedAt)}`;
+  const taken = new Set(
+    folders.filter((folder) => !folder.deletion).map((folder) => normalizeFolderName(folder.name)),
+  );
+  let candidate = base;
+  for (let suffix = 2; taken.has(normalizeFolderName(candidate)); suffix++) {
+    candidate = `${base} (${suffix})`;
+  }
+  return candidate;
+}
+
 export function generatedItemName(geometry: MyGeometry): string {
   if (geometry.type === "Point") return "Pin";
   if (geometry.type === "LineString") return "Line";
@@ -184,7 +204,7 @@ export function createMyDataItem(
     id: input.id ?? idFactory(),
     schemaVersion: MY_DATA_SCHEMA_VERSION,
     name: input.name?.trim() || generatedItemName(input.geometry),
-    note: input.note,
+    note: input.note?.slice(0, MAX_NOTE_LENGTH),
     folderId: input.folderId ?? null,
     geometry: input.geometry,
     appearance: input.appearance ?? defaults.appearance,
@@ -314,4 +334,14 @@ export function reviseRecord<T extends SynchronizedRecord>(
   idFactory: IdFactory = defaultIdFactory,
 ): T {
   return updateRecord(record, changes, operation, clock, idFactory);
+}
+
+// A record recreated on this device is queued to synchronize again without changing its content.
+export function requeueRecord<T extends SynchronizedRecord>(
+  record: T,
+  clock: Clock = defaultClock,
+  idFactory: IdFactory = defaultIdFactory,
+): T {
+  const operation = record.deletion ? "delete" : "upsert";
+  return { ...record, outbox: outbox(operation, clock().toISOString(), idFactory) };
 }

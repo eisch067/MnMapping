@@ -22,6 +22,11 @@ test("creates a folder, moves an item, trashes the bundle, and restores it", asy
       }],
     })),
   });
+  await expect(sheet.getByText(/^Imported into field-note\.geojson /)).toBeVisible();
+  await page.getByRole("navigation", { name: "Map tools" })
+    .getByRole("button", { name: "My Data", exact: true })
+    .click();
+  await sheet.getByRole("button", { name: /^field-note\.geojson / }).click();
   await expect(sheet.getByText("Imported pin", { exact: true })).toBeVisible();
 
   await sheet.getByLabel("New folder name").fill("Field Work");

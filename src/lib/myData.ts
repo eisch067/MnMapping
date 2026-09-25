@@ -1,3 +1,4 @@
+import type { RestorePlan } from "./exchange/archive";
 import {
   MY_DATA_SCHEMA_VERSION,
   MY_DATA_SETTINGS_ID,
@@ -6,6 +7,7 @@ import {
   createMyDataItem,
   defaultClock,
   defaultIdFactory,
+  importFolderName,
   isTrashExpired,
   restoreFolderBundle,
   restoreItem as restoreItemRecord,
@@ -229,6 +231,54 @@ export class MyDataStore {
     await this.put(itemStoreName, restoreItemRecord(item, snapshot.folders, this.clock, this.idFactory));
   }
 
+  // The folder and its items are written in one transaction, so a failure leaves nothing behind.
+  async importItems(
+    items: readonly NewMyDataItem[],
+    source: { filename: string; format: string },
+  ): Promise<{ folder: MyDataFolder; count: number }> {
+    if (items.length === 0) throw new Error("There are no items to import.");
+    const { folders, settings } = await readSnapshot(this.database);
+    const now = this.clock();
+    const folderName = importFolderName(source.filename, now, folders);
+    const folder = createFolder(folderName, folders, this.clock, this.idFactory);
+    const importedAt = now.toISOString();
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    await this.writeAll([itemStoreName, folderStoreName], (transaction) => {
+      transaction.objectStore(folderStoreName).put(folder);
+      for (const item of items) {
+        const record = createMyDataItem(
+          { ...item, folderId: folder.id, importProvenance: { ...source, importedAt, timezone } },
+          settings,
+          this.clock,
+          this.idFactory,
+        );
+        transaction.objectStore(itemStoreName).put(record);
+      }
+    });
+    return { folder, count: items.length };
+  }
+
+  async applyRestore(plan: Extract<RestorePlan, { ok: true }>): Promise<void> {
+    await this.writeAll([itemStoreName, folderStoreName, settingsStoreName], (transaction) => {
+      for (const folder of plan.foldersToAdd) transaction.objectStore(folderStoreName).put(folder);
+      for (const item of plan.itemsToAdd) transaction.objectStore(itemStoreName).put(item);
+      if (plan.settingsToApply) {
+        transaction.objectStore(settingsStoreName).put(plan.settingsToApply);
+      }
+    });
+  }
+
+  // The local half of delete-all: everything, Trash included, goes and the defaults return.
+  async deleteAll(): Promise<void> {
+    const settings = createDefaultSettings(this.clock, this.idFactory);
+    await this.writeAll([itemStoreName, folderStoreName, settingsStoreName], (transaction) => {
+      transaction.objectStore(itemStoreName).clear();
+      transaction.objectStore(folderStoreName).clear();
+      transaction.objectStore(settingsStoreName).clear();
+      transaction.objectStore(settingsStoreName).put(settings);
+    });
+  }
+
   async updateSettings(changes: Partial<MyDataSettings>): Promise<void> {
     const { settings } = await readSnapshot(this.database);
     await this.put(
@@ -254,6 +304,20 @@ export class MyDataStore {
 
   close() {
     this.database.close();
+  }
+
+  private async writeAll(storeNames: string[], apply: (transaction: IDBTransaction) => void) {
+    const transaction = this.database.transaction(storeNames, "readwrite");
+    const done = transactionDone(transaction);
+    try {
+      apply(transaction);
+    } catch (error) {
+      transaction.abort();
+      // The abort rejects `done`; the caller needs the original error, not the abort.
+      await done.catch(() => undefined);
+      throw error;
+    }
+    await done;
   }
 
   private async put(storeName: string, value: MyMapItem | MyDataFolder | MyDataSettings) {

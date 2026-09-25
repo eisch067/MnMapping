@@ -11,6 +11,8 @@ export interface SheetDefinition {
   tabGroup?: string;
   // The one tool-row action drawn raised above the others on a phone.
   primary?: boolean;
+  // Sheets a flow opens for itself (export, import result) have no tool-row action of their own.
+  secondary?: boolean;
   content: ReactNode;
 }
 

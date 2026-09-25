@@ -9,8 +9,10 @@ import { ToolRow } from "@/components/shell/ToolRow";
 import { shellSheets, sheetIds } from "@/components/shell/shellSheets";
 import { useLayerControls } from "@/components/shell/useLayerControls";
 import { useMapTools } from "@/components/shell/useMapTools";
+import { useExchange } from "@/components/shell/useExchange";
 import { useMyData } from "@/components/shell/useMyData";
 import { useSheetState } from "@/components/shell/useSheetState";
+import type { Bounds } from "@/lib/exchange/bounds";
 import type { MapLocation, ViewportBounds } from "@/lib/location";
 import { recordRecentLocation } from "@/lib/locationHistory";
 import { CesiumMap, type MapViewControls } from "./CesiumMap";
@@ -34,12 +36,23 @@ export function MapShell() {
   const layerControls = useLayerControls(location, viewportBounds);
   const myData = useMyData();
   const tools = useMapTools(myData.add);
+  const showBounds = useCallback(
+    (bounds: Bounds) => viewControls?.showBounds(bounds),
+    [viewControls],
+  );
   // A drawing tool is only armed while the Add sheet that shows it is open.
   const sheet = useSheetState({
     defaultId: sheetIds.layers,
     onChange: (openId) => {
       if (openId !== sheetIds.add) tools.reset();
     },
+  });
+
+  const exchange = useExchange({
+    myData,
+    openSheet: sheet.open,
+    closeSheet: sheet.close,
+    showBounds,
   });
 
   const showTerrainView = () => {
@@ -66,7 +79,12 @@ export function MapShell() {
 
   const sheets = shellSheets({
     layers: { ...layerControls.drawer, cameraHeight },
-    myData,
+    myData: {
+      ...myData,
+      onImportFile: exchange.importFile,
+      onExportScope: exchange.startExport,
+      onOpenBackup: exchange.openBackup,
+    },
     explore: { point: tools.inspection },
     add: {
       mode: tools.mode,
@@ -75,6 +93,20 @@ export function MapShell() {
       onFinish: () => void tools.finishDrawing(),
     },
     mapView: { onMapView: showMapView, onTerrainView: showTerrainView },
+    exchange: {
+      export: { scope: exchange.resolvedScope, folders: myData.folders },
+      importResult: {
+        result: exchange.importResult,
+        onShowOnMap: exchange.showImportOnMap,
+        onUndo: exchange.undoImport,
+      },
+      backup: {
+        restoreResult: exchange.restoreResult,
+        onArchive: exchange.archiveNow,
+        onRestore: exchange.restoreFile,
+        onDeleteAll: exchange.deleteAll,
+      },
+    },
   });
 
   return (

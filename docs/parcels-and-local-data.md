@@ -16,6 +16,6 @@ Deleting a folder confirms the number of contained items and moves the folder an
 
 Items save their appearance, primary-dimension choice, optional import provenance, timestamps, revision, deletion metadata, and a pending outbox mutation. Folders and My Data settings carry the same synchronization-ready metadata even though this slice has no sync adapter. All writes pass through the shared My Data store. Built-in point symbols use stable identifiers and fall back to the standard pin when an identifier is unavailable. Preferences unrelated to My Data remain in localStorage. No personal geometry is uploaded by MnMapping.
 
-The My Data sheet can hide personal geometry, create folders, move items, restore Trash, change defaults for future items, import GPX/KML/GeoJSON, and export active items to GPX/KML/GeoJSON.
+The My Data sheet can hide personal geometry, create folders, move items, restore Trash, change defaults for future items, select items, import GPX/KML/GeoJSON into an Import folder, and export active items to GPX/KML/GeoJSON. Its Backup and restore sheet downloads and restores a My Data archive and deletes everything in this browser. The rules for each are in [import-export.md](import-export.md).
 
-GPX represents polygons as tracks because GPX has no polygon primitive. KML and GeoJSON preserve areas. Measurements are deliberately labeled approximate.
+GPX represents polygons as closed tracks because GPX has no polygon primitive, and the export sheet says how many. KML and GeoJSON preserve areas. Measurements are deliberately labeled approximate.
