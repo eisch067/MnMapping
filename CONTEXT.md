@@ -124,6 +124,18 @@ _Avoid_: LakeFinder summary, statewide depth coverage
 An estimated area visible from an observer location based only on mapped terrain, observer height, and maximum distance.
 _Avoid_: Line of sight, visibility guarantee
 
+**Identify**:
+Listing what the visible layers and saved My Data hold at one exact clicked or tapped point, shown in the Explore sheet with the point's coordinates and a crosshair on the map.
+_Avoid_: Query, pick, popup, infobox
+
+**Identify result**:
+One feature or saved item found under an identified point, opened for its details from a list ordered topmost first.
+_Avoid_: Hit, match, feature info
+
+**Identify adapter**:
+The code that answers an identify for one layer source type, turning what the source returns into identify results; a new source type gains identify by supplying one.
+_Avoid_: Popup handler, picker
+
 **Sheet**:
 A panel of related controls or details that opens over the map: a bottom sheet on a phone and a side panel on a desktop, one at a time. Layers and My Data are sheets that share tabs; identify, drawing, DNR results, and terrain use the same host.
 _Avoid_: Modal, popup

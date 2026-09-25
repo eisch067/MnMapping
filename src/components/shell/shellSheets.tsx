@@ -1,14 +1,13 @@
 import { CompassIcon, FolderIcon, LayersIcon, MapIcon, PlusIcon } from "@/components/ui/MapIcons";
 import { AddSheet, type AddSheetProps } from "./AddSheet";
 import { BackupSheet, type BackupSheetProps } from "./BackupSheet";
-import { ExploreSheet } from "./ExploreSheet";
 import { ExportSheet, type ExportSheetProps } from "./ExportSheet";
+import { IdentifySheet, type IdentifySheetProps } from "./IdentifySheet";
 import { ImportResultSheet, type ImportResultSheetProps } from "./ImportResultSheet";
 import { LayerDrawer, type LayerDrawerProps } from "./LayerDrawer";
 import { MapViewSheet, type MapViewSheetProps } from "./MapViewSheet";
 import { MyDataSlot, type MyDataSlotProps } from "./MyDataSlot";
 import type { SheetDefinition } from "./sheets";
-import type { Position } from "./useMapTools";
 
 export const sheetIds = {
   explore: "explore",
@@ -24,7 +23,7 @@ export const sheetIds = {
 interface ShellSheetProps {
   layers: LayerDrawerProps;
   myData: MyDataSlotProps;
-  explore: { point: Position | null };
+  explore: IdentifySheetProps;
   add: AddSheetProps;
   mapView: MapViewSheetProps;
   exchange: {
@@ -44,7 +43,7 @@ export function shellSheets(props: ShellSheetProps): SheetDefinition[] {
       title: "Explore",
       icon: <CompassIcon />,
       size: "compact",
-      content: <ExploreSheet point={explore.point} />,
+      content: <IdentifySheet {...explore} />,
     },
     {
       id: sheetIds.layers,

@@ -2,7 +2,7 @@
 
 MnMapping queries authoritative Minnesota DNR FeatureServer layers only for the current viewport. The statewide group includes wildlife management areas, scientific and natural areas, park/recreation units, aquatic management acquisitions, and state-forest management units.
 
-The UI states what each polygon means. A unit or management boundary is not represented as proof that every enclosed acre is publicly owned. AMA interests and access may vary, and users should verify current rules before entering. Feature popups retain the agency, acreage/name fields supplied by the source, and the service-metadata link.
+The UI states what each polygon means. A unit or management boundary is not represented as proof that every enclosed acre is publicly owned. AMA interests and access may vary, and users should verify current rules before entering. Identify results retain the agency and the name and acreage fields supplied by the source.
 
 County supplements are registered in the same county definitions as imagery and parcels. A shared adapter queries MnGeo's official Government Ownership layer for parcels classified as `County Fee` or `Tax Forfeit`, filtered by county and the current viewport. The source currently contains one or both classifications in 56 counties. These polygons describe ownership classification only; they do not establish recreational access, so the UI labels them `access varies` and directs users to verify current county rules. Todd County's official public viewer also supplies a city-parks supplement.
 

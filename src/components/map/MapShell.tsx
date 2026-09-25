@@ -10,9 +10,11 @@ import { shellSheets, sheetIds } from "@/components/shell/shellSheets";
 import { useLayerControls } from "@/components/shell/useLayerControls";
 import { useMapTools } from "@/components/shell/useMapTools";
 import { useExchange } from "@/components/shell/useExchange";
+import { useIdentify } from "@/components/shell/useIdentify";
 import { useMyData } from "@/components/shell/useMyData";
 import { useSheetState } from "@/components/shell/useSheetState";
 import type { Bounds } from "@/lib/exchange/bounds";
+import type { IdentifyPoint } from "@/lib/identify/types";
 import type { MapLocation, ViewportBounds } from "@/lib/location";
 import { recordRecentLocation } from "@/lib/locationHistory";
 import { CesiumMap, type MapViewControls } from "./CesiumMap";
@@ -36,6 +38,13 @@ export function MapShell() {
   const layerControls = useLayerControls(location, viewportBounds);
   const myData = useMyData();
   const tools = useMapTools(myData.add);
+  const identify = useIdentify({
+    layers: layerControls.map.layers,
+    layerState: layerControls.map.layerState,
+    cameraHeight,
+    myData: myData.items,
+    myDataVisible: myData.visible,
+  });
   const showBounds = useCallback(
     (bounds: Bounds) => viewControls?.showBounds(bounds),
     [viewControls],
@@ -70,8 +79,9 @@ export function MapShell() {
     setViewportBounds(null);
     setLocation(null);
   };
-  const handleMapClick = (longitude: number, latitude: number) => {
-    tools.handleCoordinateClick(longitude, latitude);
+  const handleMapClick = (point: IdentifyPoint) => {
+    tools.handleCoordinateClick(point.longitude, point.latitude);
+    if (tools.mode === "inspect") void identify.identify(point);
     if (sheet.openId === null) sheet.open(sheetIds.explore);
   };
 
@@ -85,7 +95,7 @@ export function MapShell() {
       onExportScope: exchange.startExport,
       onOpenBackup: exchange.openBackup,
     },
-    explore: { point: tools.inspection },
+    explore: { state: identify, onSelect: identify.select, onClear: identify.clear },
     add: {
       mode: tools.mode,
       vertexCount: tools.draft.length,
@@ -122,7 +132,8 @@ export function MapShell() {
           interactionMode={tools.mode}
           myData={myData.items}
           myDataVisible={myData.visible}
-          onCoordinateClick={handleMapClick}
+          crosshair={identify.point}
+          onMapClick={handleMapClick}
           onCursorChange={(longitude, latitude) => setCursor([longitude, latitude])}
         />
       </main>
