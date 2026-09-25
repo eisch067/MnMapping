@@ -169,11 +169,26 @@ svg { flex: 0 0 auto; }
 .file-import { display: grid; gap: 6px; padding: 9px; border: 1px dashed rgba(153,116,255,.4); border-radius: 5px; color: var(--accent); }
 .file-import input { max-width: 100%; color: var(--muted); font-size: 9px; }
 .export-buttons { display: flex; gap: 5px; }
+.my-data-folders { display: grid; gap: 7px; }
+.my-data-view-buttons { display: flex; flex-wrap: wrap; gap: 5px; }
+.my-data-view-buttons button { min-height: 31px; padding: 0 10px; }
+.my-data-view-buttons button[aria-pressed="true"] { border-color: var(--accent); background: rgba(153,116,255,.18); color: var(--accent); }
+.folder-create { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+.folder-create input, .my-data-item select, .my-data-settings select { min-width: 0; border: 1px solid var(--panel-border); border-radius: 5px; padding: 7px 8px; background: #140D52; color: var(--text); font-size: 10px; }
 .my-data-list { display: grid; gap: 5px; }
-.my-data-list > div { display: flex; justify-content: space-between; align-items: center; padding: 7px; border-radius: 4px; background: rgba(255,255,255,.04); }
+.my-data-list > p { margin: 6px 0; }
+.my-data-item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 7px; align-items: center; padding: 7px; border-radius: 4px; background: rgba(255,255,255,.04); }
 .my-data-list strong, .my-data-list small { display: block; }
 .my-data-list small, .my-data-slot p { margin-top: 2px; color: var(--muted); font-size: 9px; }
-.delete-all { color: #f0a28a !important; }
+.my-data-item button { min-height: 31px; padding: 0 9px; }
+.delete-folder { justify-self: start; color: #f0a28a !important; }
+.my-data-error { margin: 0 !important; color: #ffb39d !important; }
+.my-data-settings { padding: 8px 9px; border: 1px solid var(--panel-border); border-radius: 5px; }
+.my-data-settings summary { cursor: pointer; color: var(--accent); font-weight: 700; }
+.my-data-settings > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 9px; }
+.my-data-settings label { display: grid; gap: 4px; color: var(--muted); }
+.my-data-settings input[type="color"] { width: 100%; min-height: 31px; border: 1px solid var(--panel-border); border-radius: 5px; background: #140D52; }
+.my-data-settings > small { display: block; margin-top: 7px; color: var(--muted); }
 
 @media (min-width: 721px) {
   .app-shell { --header-height: 52px; }

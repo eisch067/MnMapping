@@ -1,4 +1,4 @@
-import type { MyMapItem } from "./myData";
+import type { MyMapItem, NewMyDataItem } from "./myData";
 import { toGeoJson } from "./myData";
 
 export function exportText(items: readonly MyMapItem[], format: "geojson" | "kml" | "gpx"): string {
@@ -7,7 +7,7 @@ export function exportText(items: readonly MyMapItem[], format: "geojson" | "kml
   return `<?xml version="1.0"?><gpx version="1.1" creator="MnMapping" xmlns="http://www.topografix.com/GPX/1/1">${items.map(gpxItem).join("")}</gpx>`;
 }
 
-export function parseMapFile(text: string, extension: string): MyMapItem[] {
+export function parseMapFile(text: string, extension: string): NewMyDataItem[] {
   if (extension === "geojson" || extension === "json") {
     const value = JSON.parse(text) as { features?: Array<{ properties?: { name?: string; note?: string }; geometry: MyMapItem["geometry"] }> };
     return (value.features ?? []).map((feature, index) => item(feature.geometry, feature.properties?.name ?? `Imported ${index + 1}`, feature.properties?.note));
@@ -27,7 +27,9 @@ export function parseMapFile(text: string, extension: string): MyMapItem[] {
   });
 }
 
-function item(geometry: MyMapItem["geometry"], name: string, note?: string): MyMapItem { return { id: crypto.randomUUID(), name, note, geometry, createdAt: new Date().toISOString() }; }
+function item(geometry: MyMapItem["geometry"], name: string, note?: string): NewMyDataItem {
+  return { name, note, geometry };
+}
 function xml(value?: string) { return (value ?? "").replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[character]!); }
 function coordinates(item: MyMapItem) { return item.geometry.type === "Point" ? [item.geometry.coordinates] : item.geometry.type === "Polygon" ? item.geometry.coordinates[0] : item.geometry.coordinates; }
 function kmlItem(item: MyMapItem) {

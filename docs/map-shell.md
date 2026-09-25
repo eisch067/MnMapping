@@ -20,7 +20,7 @@ Every tool-row action opens one sheet, and the sheet host shows one sheet at a t
 | Explore | Compact | The coordinates of the last point clicked, with a copy button. Clicking the map while no sheet is open opens it |
 | Layers | Tall, tabbed with My Data | Layer visibility, opacity, ordering, and transfer totals |
 | Add | Compact | Pin, Line, and Area drawing tools |
-| My Data | Tall, tabbed with Layers | Import, export, list, and delete |
+| My Data | Tall, tabbed with Layers | Folders, Unfiled, 30-day Trash, defaults, import, and export |
 | Map | Compact | Map view and Terrain view |
 
 A drawing tool is armed only while the Add sheet is open. Closing it, or opening another sheet, returns the map to inspecting.
