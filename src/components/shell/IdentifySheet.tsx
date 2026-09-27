@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { isPersonalMode } from "@/config/appMode";
 import type { IdentifyLake, IdentifyResult } from "@/lib/identify/types";
 import { LinkList, RowList } from "./IdentifyParts";
+// The LakeFinder summary reaches a DNR service, so only the personal build imports it: the
+// isPersonalMode check lets the bundler drop this module, and everything it pulls in, from the
+// public build rather than shipping it inert.
 import { LakeSummary } from "./LakeSummary";
 import type { IdentifyState } from "./useIdentify";
 
@@ -147,7 +151,7 @@ function PointView({ state, coordinates, onSelect, onClear }: PointViewProps) {
   return (
     <div className="identify">
       <CoordinateBar coordinates={coordinates} onClear={onClear} />
-      {lake && <LakeSummary lake={lake} onBack={closeLake} />}
+      {isPersonalMode && lake && <LakeSummary lake={lake} onBack={closeLake} />}
       {!lake && selected && (
         <ResultDetail result={selected} onBack={() => onSelect(null)} onOpenLake={setLake} />
       )}
