@@ -164,7 +164,9 @@ export async function applyGeoJsonOpacity(dataSource: GeoJsonDataSource, layer: 
       entity.polyline.width = new ConstantProperty(Number(layer.options?.strokeWidth ?? 2));
     }
     // A point is a pin drawn in the layer's own color, so opacity only needs to fade it.
-    if (entity.billboard) entity.billboard.color = new ConstantProperty(Color.WHITE.withAlpha(opacity));
+    if (entity.billboard) {
+      entity.billboard.color = new ConstantProperty(Color.WHITE.withAlpha(opacity));
+    }
   }
 }
 

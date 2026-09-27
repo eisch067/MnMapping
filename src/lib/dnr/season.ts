@@ -62,7 +62,8 @@ export function serviceSeasonGate(
   now: Date,
 ): SeasonGate {
   const published = [...new Set(periods.map((period) => period.trim()))];
-  const allCurrent = published.length > 0 && published.every((period) => isPeriodCurrent(period, now));
+  const allCurrent =
+    published.length > 0 && published.every((period) => isPeriodCurrent(period, now));
   return allCurrent
     ? { status: "current", label: published.join(" / ") }
     : unverified(rule.lastVerifiedPeriod, source);
@@ -75,7 +76,9 @@ export function configuredSeasonGate(
   source: SeasonGateSource,
   now: Date,
 ): SeasonGate {
-  const through = isoDate.test(rule.verifiedThrough) ? Date.parse(rule.verifiedThrough) : Number.NaN;
+  const through = isoDate.test(rule.verifiedThrough)
+    ? Date.parse(rule.verifiedThrough)
+    : Number.NaN;
   const dayAfter = through + 24 * 60 * 60 * 1000;
   return now.getTime() < dayAfter
     ? { status: "current", label: rule.label }

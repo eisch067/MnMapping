@@ -29,7 +29,7 @@ A layer's row shows its Season label when it has one, its meaning statement, and
 
 ### Zoom in to load
 
-Public-water access holds about 3,000 sites and one query returns at most 2,000, so the layer does not draw a partial set. While it is on and the camera is above 300 km, its row reads "Zoom in to load Public-water access." and nothing is drawn; closer in, the sites in view load. The layer's `maxCameraHeight` option sets the height. The live smoke fails a layer that grows past 2,000 records without one.
+Public-water access holds about 3,000 sites and one query returns at most 2,000, so the layer does not draw a partial set. While it is on and the camera is above 150 km, its row reads "Zoom in to load Public-water access." and nothing is drawn; closer in, the sites in view load. The layer's `maxCameraHeight` option sets the height. The live smoke fails a layer that grows past 2,000 records without one.
 
 ## The season gate
 

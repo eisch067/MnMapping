@@ -147,6 +147,7 @@ const cwdZones: DnrLayerSpec = {
     moreFields: [
       { field: "dpa", label: "Deer permit area" },
       { field: "designatio", label: "Harvest designation" },
+      // DNR's own spelling of the field on this service; the deer service spells it specialreg.
       { field: "dpecialteg", label: "Special regulations" },
     ],
     linkFields: [
@@ -291,7 +292,7 @@ const waterAccessSites: DnrLayerSpec = {
     fillAlpha: 0.9,
     strokeWidth: 2,
     identifyNearby: true,
-    maxCameraHeight: 300_000,
+    maxCameraHeight: 150_000,
   },
 };
 

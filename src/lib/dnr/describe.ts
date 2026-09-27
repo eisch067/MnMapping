@@ -5,6 +5,7 @@ import type {
   LayerPopupField,
 } from "@/config/layers/types";
 import type { IdentifyLink, IdentifyRow } from "@/lib/identify/types";
+import { isDnrPage } from "./links";
 import { dnrAttribution, meaningStatements, verifyLinkLabel } from "./meaning";
 
 export interface DnrFeatureDetails {
@@ -47,15 +48,6 @@ function seasonLabel(dnr: DnrLayerInfo, attributes: Attributes): string | undefi
   return dnr.season.source === "configured"
     ? dnr.season.label
     : textOf(attributes[dnr.season.field], false);
-}
-
-function isDnrPage(href: string): boolean {
-  try {
-    const url = new URL(href);
-    return url.protocol === "https:" && /(^|\.)dnr\.state\.mn\.us$/.test(url.hostname);
-  } catch {
-    return false;
-  }
 }
 
 function linkFor(field: DnrLinkField, attributes: Attributes): IdentifyLink[] {

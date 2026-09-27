@@ -38,7 +38,8 @@ export function initialSeasonGates(layers: readonly LayerDefinition[], now: Date
 }
 
 function distinctPeriodsUrl(layer: LayerDefinition, field: string): URL {
-  const url = new URL(`${absoluteBrowserUrl(layer.url)}/${String(layer.options?.layerId ?? "0")}/query`);
+  const layerId = String(layer.options?.layerId ?? "0");
+  const url = new URL(`${absoluteBrowserUrl(layer.url)}/${layerId}/query`);
   url.searchParams.set("where", "1=1");
   url.searchParams.set("outFields", field);
   url.searchParams.set("returnDistinctValues", "true");
@@ -73,10 +74,13 @@ export async function loadSeasonGates(
             layer.id,
             serviceSeasonGate(rule, { officialUrl: dnr.verifyUrl }, periods, request.now),
           ],
-          (): [string, SeasonGate] => [
-            layer.id,
-            serviceSeasonGate(rule, { officialUrl: dnr.verifyUrl }, [], request.now),
-          ],
+          (error: unknown): [string, SeasonGate] => {
+            console.error(`Unable to read the season of ${layer.name}`, error);
+            return [
+              layer.id,
+              serviceSeasonGate(rule, { officialUrl: dnr.verifyUrl }, [], request.now),
+            ];
+          },
         ),
       ];
     }),

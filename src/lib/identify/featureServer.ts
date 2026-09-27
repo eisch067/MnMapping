@@ -9,12 +9,12 @@ interface FeatureQueryResponse {
   error?: ArcGisError;
 }
 
-// The same layer, filter, and fields the map draws, so an identify never reveals an attribute
-// the layer's own popup would not.
 // A layer of lines or points is hit within the click distance, since a fingertip cannot land on a
 // line. Several can fall inside it, so the list is kept short.
 const nearbyResultLimit = 10;
 
+// The same layer, filter, and fields the map draws, so an identify never reveals an attribute
+// the layer's own popup would not.
 function pointQueryUrl(
   layer: LayerDefinition,
   { longitude, latitude, toleranceMeters }: IdentifyContext["point"],

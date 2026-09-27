@@ -12,7 +12,7 @@ describe("awaitsZoom", () => {
   });
 
   it("is false once the camera is within the layer's loading height", () => {
-    expect(awaitsZoom(waterAccess, true, 300_000)).toBe(false);
+    expect(awaitsZoom(waterAccess, true, 150_000)).toBe(false);
     expect(awaitsZoom(waterAccess, true, 20_000)).toBe(false);
   });
 

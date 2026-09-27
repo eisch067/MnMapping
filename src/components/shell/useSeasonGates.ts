@@ -11,9 +11,8 @@ export function useSeasonGates(layers: readonly LayerDefinition[]): SeasonGates 
 
   useEffect(() => {
     const now = new Date();
-    if (!Object.values(initialSeasonGates(layers, now)).some((gate) => gate.status === "checking")) {
-      return;
-    }
+    const initial = Object.values(initialSeasonGates(layers, now));
+    if (!initial.some((gate) => gate.status === "checking")) return;
     const controller = new AbortController();
     loadSeasonGates(layers, {
       fetcher: (...args) => fetch(...args),
