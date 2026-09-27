@@ -80,6 +80,9 @@ describe("resolveUpstream", () => {
 
     expect(publicProxy.resolveUpstream("dnr-gis", cwdPath)).toBeNull();
     expect(publicProxy.resolveUpstream("dnr-lakefinder", ["by_id", "v1"])).toBeNull();
-    expect(publicProxy.resolveUpstream("mngeo-features", ["us_mn_state_dnr"])).not.toBeNull();
+    expect(publicProxy.resolveUpstream("mngeo-features", ["us_mn_state_dnr"])).toBeNull();
+    expect(
+      publicProxy.resolveUpstream("mngeo-features", ["us_mn_state_dnr", "env_buffer_protection_mn", "MapServer"]),
+    ).toBeNull();
   });
 });

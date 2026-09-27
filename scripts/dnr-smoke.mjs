@@ -26,6 +26,9 @@ const expectedCounts = {
   "mndnr-snowmobile-trails": 275,
   "mndnr-ohv-trails": 8044,
   "mndnr-lakes-lakefinder": 21989,
+  "mndnr-national-wetlands-inventory": 2372223,
+  "mndnr-buffer-protection-lines": 36598,
+  "mndnr-buffer-protection-basins": 14492,
 };
 const geometryTypes = {
   "mndnr-deer-permit-areas": "esriGeometryPolygon",
@@ -49,6 +52,26 @@ const geometryTypes = {
   "mndnr-lakes-lakefinder": "esriGeometryPolygon",
 };
 // Bathymetry outline and contour records DNR reported on 2026-09-23, and the layers the map draws.
+const referenceMapChecks = {
+  "mndnr-national-wetlands-inventory": {
+    id: 0,
+    name: "Statewide NWI",
+    geometry: "esriGeometryPolygon",
+    fields: ["attribute", "wetland_type", "acres", "hgm_desc", "spcc_desc", "cow_class1", "circ39_class"],
+  },
+  "mndnr-buffer-protection-lines": {
+    id: 1,
+    name: "Pw Watercourse Public Ditches Combined",
+    geometry: "esriGeometryPolyline",
+    fields: ["description", "buffer_ft", "dnr_sl_cla", "field_review", "potential_trout_delisting"],
+  },
+  "mndnr-buffer-protection-basins": {
+    id: 2,
+    name: "Pw Basins For Buffer Map",
+    geometry: "esriGeometryPolygon",
+    fields: ["pw_basin_name", "buffer_ft", "dnr_sl_class", "dow_lake_number"],
+  },
+};
 const depthMapChecks = [
   // The fields are the ones identify reads (src/lib/dnr/lakeDepth.ts).
   {
@@ -155,6 +178,7 @@ function requestedFields(layer) {
 }
 
 async function checkLayer(layer) {
+  if (referenceMapChecks[layer.id]) return checkReferenceMap(layer);
   if (layer.sourceType === "arcgis-mapserver") return checkDepthMap(layer);
   const problems = [];
   let count;
@@ -297,6 +321,35 @@ function isCurrent(period) {
   const start = Date.UTC(Number(match[2]), first, 1);
   const end = Date.UTC(Number(match[4]), last + 1, 1);
   return Date.now() >= start && Date.now() < end;
+}
+
+async function checkReferenceMap(layer) {
+  const check = referenceMapChecks[layer.id];
+  const problems = [];
+  try {
+    const serviceUrl = new URL(`${layer.sourceUrl.split("/").slice(0, -1).join("/")}?f=json`);
+    const service = await getJson(serviceUrl);
+    if (!String(service.capabilities ?? "").includes("Map")) problems.push("the service does not advertise Map");
+    const sourceLayer = (service.layers ?? []).find((entry) => entry.id === check.id);
+    if (sourceLayer?.name !== check.name) problems.push(`layer ${check.id} is "${sourceLayer?.name}", expected "${check.name}"`);
+    problems.push(...(await checkReferenceLayer(layer, check)));
+  } catch (error) {
+    problems.push(error instanceof Error ? error.message : String(error));
+  }
+  return { name: layer.name, count: undefined, problems };
+}
+
+async function checkReferenceLayer(layer, check) {
+  const metadata = await getJson(new URL(`${layer.sourceUrl}?f=json`));
+  const present = new Set((metadata.fields ?? []).map((field) => field.name));
+  const missing = check.fields.filter((field) => !present.has(field));
+  const problems = missing.length > 0 ? [`layer ${check.id} no longer has fields ${missing.join(", ")}`] : [];
+  if (metadata.geometryType !== check.geometry) problems.push(`layer ${check.id} has unexpected geometry ${metadata.geometryType}`);
+  const countUrl = new URL(`${layer.sourceUrl}/query`);
+  for (const [key, value] of Object.entries({ f: "json", where: "1=1", returnCountOnly: "true" })) countUrl.searchParams.set(key, value);
+  const { count } = await getJson(countUrl);
+  problems.push(...checkCount(layer, count));
+  return problems;
 }
 
 // The depth map is a live map service, so it is checked for the layers the map draws and for the

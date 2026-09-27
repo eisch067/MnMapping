@@ -71,6 +71,8 @@ export type DnrHeading =
 // What a DNR Recreation result claims, and refuses to claim, about the place it describes.
 export type DnrMeaningClass =
   | "regulation-zone"
+  | "inventory-reference"
+  | "regulatory-guide"
   | "enrolled-private-land"
   | "facility"
   | "access-varies"

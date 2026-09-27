@@ -114,6 +114,10 @@ test.describe("the public build", () => {
     await expect(page.getByRole("checkbox", { name: /^Boundary Waters Canoe Area/ })).toHaveCount(0);
     const response = await request.get("/api/gis-proxy/dnr-gis/Hosted/Anything/FeatureServer/0");
     expect(response.status()).toBe(400);
+    const restrictedMapServer = await request.get(
+      "/api/gis-proxy/mngeo-features/us_mn_state_dnr/env_buffer_protection_mn/MapServer/1",
+    );
+    expect(restrictedMapServer.status()).toBe(400);
     const lakeFinder = await request.get("/api/gis-proxy/dnr-lakefinder/by_id/v1?id=04013500");
     expect(lakeFinder.status()).toBe(400);
     expect((await request.get("/api/lake-map/b0025010.pdf")).status()).toBe(404);
@@ -150,6 +154,21 @@ test.describe("the personal build", () => {
     }
     await page.getByRole("button", { name: /^Public lands\b/ }).click();
     await expect(page.getByRole("checkbox", { name: /^Boundary Waters Canoe Area/ })).toBeVisible();
+  });
+
+  test("lists the wetlands and buffer layers with their non-ownership meanings", async ({ page }) => {
+    await openDnrRecreation(page);
+    await headingButton(page, "Water & regulatory reference").click();
+
+    const nwi = layerCheckbox(page, /^National Wetlands Inventory/);
+    const bufferLines = layerCheckbox(page, /^Buffer Protection — public waters/);
+    const bufferBasins = layerCheckbox(page, /^Buffer Protection — lakes/);
+    await expect(nwi).toBeVisible();
+    await expect(bufferLines).toBeVisible();
+    await expect(bufferBasins).toBeVisible();
+    await expect(nwi).not.toBeChecked();
+    await expect(page.getByText(/no legal or regulatory status/)).toBeVisible();
+    await expect(page.getByText(/not parcel ownership or a compliance determination/)).toHaveCount(2);
   });
 
   test("stale trail freshness warns without disabling OHV or snowmobile", async ({ page }) => {

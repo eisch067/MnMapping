@@ -144,6 +144,17 @@ describe("auditDnrLayers", () => {
     ]);
   });
 
+  it("limits wetland and buffer image layers to the intended sublayers and zoom-gates", () => {
+    const bufferLines = dnrRecreationLayers.find((layer) => layer.id === "mndnr-buffer-protection-lines")!;
+
+    expect(audit([{ ...bufferLines, options: { ...bufferLines.options, layers: "0,1,2" } }])).toEqual([
+      expect.stringMatching(/must request only 1/),
+    ]);
+    expect(audit([{ ...bufferLines, options: { layers: "1" } }])).toEqual([
+      expect.stringMatching(/camera-height gate/),
+    ]);
+  });
+
   it("keeps the undocumented migratory-waterfowl electric_m field omitted", () => {
     expect(String(migratory.options?.outFields).split(",")).not.toContain("electric_m");
   });

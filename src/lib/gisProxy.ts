@@ -78,6 +78,7 @@ function isSafePath(path: readonly string[]): boolean {
 
 export function resolveUpstream(provider: string, path: readonly string[]): URL | null {
   if (!isProvider(provider) || !isSafePath(path)) return null;
+  if (provider === "mngeo-features" && path[0] === "us_mn_state_dnr" && !isPersonalMode) return null;
   const root = providerRoots[provider];
   if (!root) return null;
   const upstream = new URL(path.join("/"), root);
