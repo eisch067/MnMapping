@@ -62,14 +62,16 @@ test("a drawing tool stays armed only while the Add sheet is open", async ({ pag
   await openMap(page);
   const add = toolRow(page).getByRole("button", { name: "Add", exact: true });
   const line = sheetHost(page).getByRole("button", { name: "Line", exact: true });
+  const drawingLine = sheetHost(page).getByText("Drawing line", { exact: true });
 
   await add.click();
   await line.click();
-  await expect(line).toHaveAttribute("aria-pressed", "true");
+  await expect(drawingLine).toBeVisible();
 
   await add.click();
   await add.click();
-  await expect(line).toHaveAttribute("aria-pressed", "false");
+  await expect(drawingLine).toBeHidden();
+  await expect(line).toBeVisible();
 });
 
 test("clicking the map with no sheet open shows the point in the Explore sheet", async ({

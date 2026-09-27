@@ -18,6 +18,7 @@ import {
   type MyDataFolder,
   type MyDataSettings,
   type MyDataSnapshot,
+  type MyGeometry,
   type MyMapItem,
   type NewMyDataItem,
 } from "./myDataModel";
@@ -190,6 +191,18 @@ export class MyDataStore {
     await this.put(itemStoreName, reviseRecord(item, { folderId }, "upsert", this.clock, this.idFactory));
   }
 
+  async updateItemGeometry(
+    itemId: string,
+    geometry: MyGeometry,
+    primaryDimension?: MyMapItem["primaryDimension"],
+  ): Promise<void> {
+    const { items } = await readSnapshot(this.database);
+    const item = items.find((value) => value.id === itemId && !value.deletion);
+    if (!item) throw new Error("The item no longer exists.");
+    const changes = primaryDimension === undefined ? { geometry } : { geometry, primaryDimension };
+    await this.put(itemStoreName, reviseRecord(item, changes, "upsert", this.clock, this.idFactory));
+  }
+
   async trashItem(itemId: string): Promise<void> {
     const { items } = await readSnapshot(this.database);
     const item = items.find((value) => value.id === itemId && !value.deletion);
@@ -356,28 +369,4 @@ export function toGeoJson(items: readonly MyMapItem[]) {
       geometry: item.geometry,
     })),
   };
-}
-
-export function roughLengthMeters(coordinates: [number, number][]): number {
-  return coordinates.slice(1).reduce((sum, point, index) => sum + haversine(coordinates[index], point), 0);
-}
-
-export function roughAreaSquareMeters(ring: [number, number][]): number {
-  if (ring.length < 3) return 0;
-  const latitude = ring.reduce((sum, point) => sum + point[1], 0) / ring.length;
-  const scaleX = 111_320 * Math.cos(latitude * Math.PI / 180);
-  const scaleY = 110_540;
-  return Math.abs(ring.reduce((sum, point, index) => {
-    const next = ring[(index + 1) % ring.length];
-    return sum + point[0] * scaleX * next[1] * scaleY - next[0] * scaleX * point[1] * scaleY;
-  }, 0) / 2);
-}
-
-function haversine(a: [number, number], b: [number, number]): number {
-  const radians = (value: number) => value * Math.PI / 180;
-  const dLat = radians(b[1] - a[1]);
-  const dLon = radians(b[0] - a[0]);
-  const value = Math.sin(dLat / 2) ** 2
-    + Math.cos(radians(a[1])) * Math.cos(radians(b[1])) * Math.sin(dLon / 2) ** 2;
-  return 6_371_000 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }

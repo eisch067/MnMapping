@@ -19,13 +19,13 @@ Every tool-row action opens one sheet, and the sheet host shows one sheet at a t
 | --- | --- | --- |
 | Explore | Compact | The last point clicked: its coordinates with a copy button, and the [identify](identify.md) results under it. Clicking the map while no sheet is open opens it |
 | Layers | Tall, tabbed with My Data | Layer visibility, opacity, ordering, and transfer totals |
-| Add | Compact | Pin, Line, and Area drawing tools |
+| Add | Compact | Pin, Line, and Area drawing tools; active drawing/editing actions and measurements |
 | My Data | Tall, tabbed with Layers | Folders, Unfiled, 30-day Trash, defaults, select mode, import, and entry points to export and backup |
 | Map | Compact | Map view and Terrain view |
 
 Some sheets belong to a flow and have no tool-row action: they carry `secondary: true` in `shellSheets` and are opened with `useSheetState().open`. Export, Import result, and Backup and restore are opened from My Data this way (see [import-export.md](import-export.md)).
 
-A drawing tool is armed only while the Add sheet is open. Closing it, or opening another sheet, returns the map to inspecting.
+A drawing tool is armed only while the Add sheet is open. Line and Area show numbered vertices, geodesic segment labels, a running primary dimension, and explicit Undo, Cancel, and Finish actions. Editing a saved line or polygon reuses the same contextual sheet with midpoint insertion and Save shape. Closing it, or opening another sheet, cancels the active draft or unsaved edit and returns the map to inspecting.
 
 Layers and My Data are separate sheets that share a tab group, so they appear as two tabs of one sheet. On a phone, swiping left or right across the sheet header switches between them; on any screen the tabs are buttons. A swipe must move at least 45 px and more sideways than up or down, and only touch and pen input counts.
 
@@ -39,4 +39,4 @@ The state that decides which sheet is open, whether the rail is pinned, and whet
 
 ## Tests
 
-`tests/e2e/shell.spec.ts` covers the shell at 390×844 and 1280×800: each action opens its sheet, swiping and the tabs switch sheets, the map fills the viewport around the header and tool row, and pinning the rail resizes the map. `tests/e2e/identify.spec.ts` covers identify. `tests/e2e/layers.spec.ts` and `tests/e2e/location.spec.ts` cover layer toggles, opacity, ordering, and the location gate. These tests stub every remote service, so they run offline.
+`tests/e2e/shell.spec.ts` covers the shell at 390×844 and 1280×800: each action opens its sheet, swiping and the tabs switch sheets, the map fills the viewport around the header and tool row, and pinning the rail resizes the map. `tests/e2e/identify.spec.ts` covers identify. `tests/e2e/draw-edit.spec.ts` runs in both layouts and covers vertex Undo, draft cancellation, midpoint insertion, and persistence after reload. `tests/e2e/layers.spec.ts` and `tests/e2e/location.spec.ts` cover layer toggles, opacity, ordering, and the location gate. These tests stub every remote service, so they run offline.

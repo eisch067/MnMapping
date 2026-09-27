@@ -30,6 +30,7 @@ export interface MyDataSlotProps {
   onRestoreItem: (itemId: string) => Promise<unknown>;
   onRestoreFolder: (folderId: string) => Promise<unknown>;
   onUpdateSettings: (changes: Partial<MyDataSettings>) => Promise<unknown>;
+  onEditItem?: (item: MyMapItem) => void;
 }
 
 function FolderNavigation(props: {
@@ -70,6 +71,7 @@ function ItemRow(props: {
   onSelectedChange: (selected: boolean) => void;
   onMove: (folderId: string | null) => Promise<unknown>;
   onDelete: () => Promise<unknown>;
+  onEdit?: () => void;
 }) {
   return (
     <div className={`my-data-item ${props.selecting ? "is-selecting" : ""}`}>
@@ -86,6 +88,7 @@ function ItemRow(props: {
         <option value="">Unfiled</option>
         {props.folders.filter((folder) => !folder.deletion).map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
       </select>
+      {props.onEdit && <button type="button" onClick={props.onEdit}>Edit shape</button>}
       <button type="button" aria-label={`Move ${props.item.name} to Trash`} onClick={() => void props.onDelete()}>×</button>
     </div>
   );
@@ -116,14 +119,31 @@ function TrashView(props: Pick<MyDataSlotProps, "allItems" | "folders" | "onRest
 function SettingsEditor(props: Pick<MyDataSlotProps, "settings" | "onUpdateSettings">) {
   const settings = props.settings;
   if (!settings) return null;
+  const updatePoint = (changes: Partial<MyDataSettings["point"]>) => (
+    props.onUpdateSettings({ point: { ...settings.point, ...changes } })
+  );
+  const updateLine = (changes: Partial<MyDataSettings["line"]>) => (
+    props.onUpdateSettings({ line: { ...settings.line, ...changes } })
+  );
+  const updatePolygon = (changes: Partial<MyDataSettings["polygon"]>) => (
+    props.onUpdateSettings({ polygon: { ...settings.polygon, ...changes } })
+  );
   return (
     <details className="my-data-settings">
       <summary>My Data settings</summary>
       <div>
-        <label>Default pin symbol<select value={settings.point.symbolId} onChange={(event) => void props.onUpdateSettings({ point: { ...settings.point, symbolId: event.target.value } })}>{builtInSymbols.map((symbol) => <option key={symbol.id} value={symbol.id}>{symbol.glyph} {symbol.label}</option>)}</select></label>
-        <label>Pin color<input type="color" value={settings.point.color} onChange={(event) => void props.onUpdateSettings({ point: { ...settings.point, color: event.target.value } })} /></label>
-        <label>Line distance<select value={settings.line.dimensionKind} onChange={(event) => void props.onUpdateSettings({ line: { ...settings.line, dimensionKind: event.target.value as MyDataSettings["line"]["dimensionKind"] } })}><option value="horizontal">Horizontal</option><option value="direct">Direct</option><option value="ground">Ground</option></select></label>
-        <label>Polygon dimension<select value={settings.polygon.dimensionKind} onChange={(event) => void props.onUpdateSettings({ polygon: { ...settings.polygon, dimensionKind: event.target.value as MyDataSettings["polygon"]["dimensionKind"] } })}><option value="area">Area</option><option value="perimeter">Perimeter</option><option value="both">Both</option></select></label>
+        <label>Default pin symbol<select value={settings.point.symbolId} onChange={(event) => void updatePoint({ symbolId: event.target.value })}>{builtInSymbols.map((symbol) => <option key={symbol.id} value={symbol.id}>{symbol.glyph} {symbol.label}</option>)}</select></label>
+        <label>Pin color<input type="color" value={settings.point.color} onChange={(event) => void updatePoint({ color: event.target.value })} /></label>
+        <label>Line color<input type="color" value={settings.line.color} onChange={(event) => void updateLine({ color: event.target.value })} /></label>
+        <label>Line width<input type="range" min="1" max="10" step="1" value={settings.line.width} onChange={(event) => void updateLine({ width: event.target.valueAsNumber })} /><output>{settings.line.width}px</output></label>
+        <label>Line distance<select value={settings.line.dimensionKind} onChange={(event) => void updateLine({ dimensionKind: event.target.value as MyDataSettings["line"]["dimensionKind"] })}><option value="horizontal">Horizontal</option><option value="direct" disabled>Direct (S12)</option><option value="ground" disabled>Ground (S12)</option></select></label>
+        <label>Line unit<select value={settings.line.unit} onChange={(event) => void updateLine({ unit: event.target.value as MyDataSettings["line"]["unit"] })}><option value="miles">Miles</option><option value="feet">Feet</option><option value="kilometers">Kilometers</option><option value="meters">Meters</option></select></label>
+        <label>Polygon outline<input type="color" value={settings.polygon.outlineColor} onChange={(event) => void updatePolygon({ outlineColor: event.target.value })} /></label>
+        <label>Polygon fill<input type="color" value={settings.polygon.fillColor} onChange={(event) => void updatePolygon({ fillColor: event.target.value })} /></label>
+        <label>Fill opacity<input type="range" min="0" max="1" step="0.05" value={settings.polygon.opacity} onChange={(event) => void updatePolygon({ opacity: event.target.valueAsNumber })} /><output>{Math.round(settings.polygon.opacity * 100)}%</output></label>
+        <label>Polygon dimension<select value={settings.polygon.dimensionKind} onChange={(event) => void updatePolygon({ dimensionKind: event.target.value as MyDataSettings["polygon"]["dimensionKind"] })}><option value="area">Area</option><option value="perimeter">Perimeter</option><option value="both">Both</option></select></label>
+        <label>Area unit<select value={settings.polygon.areaUnit} onChange={(event) => void updatePolygon({ areaUnit: event.target.value as MyDataSettings["polygon"]["areaUnit"] })}><option value="acres">Acres</option><option value="square-feet">Square feet</option><option value="square-miles">Square miles</option><option value="hectares">Hectares</option></select></label>
+        <label>Perimeter unit<select value={settings.polygon.perimeterUnit} onChange={(event) => void updatePolygon({ perimeterUnit: event.target.value as MyDataSettings["polygon"]["perimeterUnit"] })}><option value="miles">Miles</option><option value="feet">Feet</option><option value="kilometers">Kilometers</option><option value="meters">Meters</option></select></label>
       </div>
       <small>Changes apply to new items only.</small>
     </details>
@@ -204,6 +224,7 @@ export function MyDataSlot(props: MyDataSlotProps) {
                 onSelectedChange={(selected) => setSelected(item.id, selected)}
                 onMove={(folderId) => props.onMoveItem(item.id, folderId)}
                 onDelete={() => props.onDeleteItem(item.id)}
+                onEdit={item.geometry.type === "Point" ? undefined : () => props.onEditItem?.(item)}
               />
             ))}
             {!shownItems.length && <p>No items in this view.</p>}

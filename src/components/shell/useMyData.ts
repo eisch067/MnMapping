@@ -66,6 +66,13 @@ export function useMyData() {
     onMoveItem: (itemId: string, folderId: string | null) => mutate(
       async () => (await getMyDataStore()).moveItem(itemId, folderId),
     ),
+    onUpdateItemGeometry: (
+      itemId: string,
+      geometry: MyMapItem["geometry"],
+      primaryDimension: MyMapItem["primaryDimension"],
+    ) => mutate(
+      async () => (await getMyDataStore()).updateItemGeometry(itemId, geometry, primaryDimension),
+    ),
     onDeleteItem: (itemId: string) => mutate(async () => (await getMyDataStore()).trashItem(itemId)),
     onDeleteFolder: (folderId: string) => mutate(
       async () => (await getMyDataStore()).trashFolder(folderId),
