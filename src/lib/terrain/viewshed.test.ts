@@ -28,5 +28,6 @@ describe("calculateViewshed", () => {
     expect(highObserver[2 * 5 + 4]).toBe(1);
     expect([...shortRange].filter(Boolean)).toHaveLength(5);
     expect(validateViewshedRequest(terrain(Array(25).fill(0), { width: VIEWSHED_CELL_BUDGET + 1, height: 1 }))).toContain("device limit");
+    expect(validateViewshedRequest(terrain(Array(VIEWSHED_CELL_BUDGET).fill(0), { width: 1, height: VIEWSHED_CELL_BUDGET, observerX: 0, observerY: 0 }))).toContain("too many visibility checks");
   });
 });

@@ -41,7 +41,7 @@ export function useViewshedAnalysis({
     }, 0);
     const controller = new AbortController();
     let worker: Worker | null = null;
-    const positions = makeGrid(observer, dimension, 10);
+    const positions = makeObserverSamplePositions(observer, dimension, 10);
     void sampleElevations(positions, fetch, controller.signal).then((samples) => {
       if (controller.signal.aborted) return;
       worker = new Worker(new URL("../../lib/terrain/viewshed.worker.ts", import.meta.url), { type: "module" });
@@ -79,7 +79,7 @@ export function useViewshedAnalysis({
   return { status, error, result: result?.requestKey === requestKey ? result : null, budgetMessage };
 }
 
-function makeGrid(observer: Position, dimension: number, spacingMeters: number): Position[] {
+function makeObserverSamplePositions(observer: Position, dimension: number, spacingMeters: number): Position[] {
   const latitudeStep = spacingMeters / 111_320;
   const longitudeStep = spacingMeters / (111_320 * Math.max(0.1, Math.cos(observer[1] * Math.PI / 180)));
   const center = Math.floor(dimension / 2);

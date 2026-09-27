@@ -25,6 +25,7 @@ export function TerrainAnalysisSheet({ observer, pickingObserver, thresholdBound
   const [saveError, setSaveError] = useState<string | null>(null);
   const analysis = useViewshedAnalysis({ enabled: tool === "viewshed", observer, rangeMeters, observerHeightFeet });
   const result = analysis.result;
+  const clippedBounds = thresholdBounds ? clipToMinnesota(thresholdBounds) : minnesotaBounds;
 
   return (
     <section className="terrain-analysis" aria-label="Terrain analysis">
@@ -33,7 +34,7 @@ export function TerrainAnalysisSheet({ observer, pickingObserver, thresholdBound
         <button type="button" aria-pressed={tool === "viewshed"} onClick={() => { setTool("viewshed"); setSaved(false); setSaveError(null); }}>Viewshed</button>
       </div>
       {tool === "threshold" ? (
-        <ThresholdControls thresholdFeet={thresholdFeet} bounds={thresholdBounds ?? minnesotaBounds} onThresholdChange={(feet) => { setThresholdFeet(feet); setSaved(false); setSaveError(null); }} />
+        <ThresholdControls thresholdFeet={thresholdFeet} bounds={clippedBounds} onThresholdChange={(feet) => { setThresholdFeet(feet); setSaved(false); setSaveError(null); }} />
       ) : (
         <ViewshedControls
           pickingObserver={pickingObserver}
@@ -51,7 +52,7 @@ export function TerrainAnalysisSheet({ observer, pickingObserver, thresholdBound
       {saveError && <p role="alert">{saveError}</p>}
       <p className="terrain-accuracy-note">{accuracyDisclosure}</p>
       <p className="terrain-performance-note">Large windows take longer; changing parameters cancels the active computation.</p>
-      {tool === "threshold" && <SaveAnalysis label={`Threshold result · ${temporaryLabel}`} saved={saved} onSave={() => saveAnalysis({ kind: "threshold", thresholdFeet, bounds: thresholdBounds ?? minnesotaBounds }, setSaved, setSaveError)} />}
+      {tool === "threshold" && clippedBounds && <SaveAnalysis label={`Threshold result · ${temporaryLabel}`} saved={saved} onSave={() => void saveAnalysis({ kind: "threshold", thresholdFeet, bounds: clippedBounds }, setSaved, setSaveError, thresholdImageUrl(thresholdFeet, clippedBounds))} />}
       {tool === "viewshed" && observer && result && !analysis.error && !analysis.budgetMessage && <SaveAnalysis label={`Viewshed result · ${temporaryLabel}`} saved={saved} onSave={() => saveAnalysis({ kind: "viewshed", observer, rangeMeters, observerHeightFeet, visible: Array.from(result.visible), size: result.size }, setSaved, setSaveError)} />}
     </section>
   );
@@ -59,18 +60,20 @@ export function TerrainAnalysisSheet({ observer, pickingObserver, thresholdBound
 
 function ThresholdControls({ thresholdFeet, bounds, onThresholdChange }: {
   thresholdFeet: number;
-  bounds: ViewportBounds;
+  bounds: ViewportBounds | null;
   onThresholdChange: (feet: number) => void;
 }) {
-  const query = new URLSearchParams({ west: String(bounds.west), south: String(bounds.south), east: String(bounds.east), north: String(bounds.north), minimum: String(thresholdFeet) });
-  const aspectRatio = (bounds.east - bounds.west) / (bounds.north - bounds.south);
+  const imageUrl = bounds ? thresholdImageUrl(thresholdFeet, bounds) : null;
+  const aspectRatio = bounds ? (bounds.east - bounds.west) / (bounds.north - bounds.south) : 4 / 3;
   return (
     <>
       <label>Minimum elevation: {thresholdFeet.toLocaleString()} ft
         <input type="range" min="600" max="2300" step="10" value={thresholdFeet} onChange={(event) => onThresholdChange(Number(event.target.value))} />
         <small>Threshold mask uses server-side Remap and Colormap on the MnGeo lidar DEM.</small>
       </label>
-      <div className="terrain-threshold-result" role="img" aria-label={`Elevation threshold mask above ${thresholdFeet.toLocaleString()} feet`} style={{ aspectRatio, backgroundImage: `url("/api/terrain/threshold?${query}")` }} />
+      {imageUrl
+        ? <div className="terrain-threshold-result" role="img" aria-label={`Elevation threshold mask above ${thresholdFeet.toLocaleString()} feet`} style={{ aspectRatio, backgroundImage: `url("${imageUrl}")` }} />
+        : <p role="status">Threshold analysis is available only within Minnesota.</p>}
 
     </>
   );
@@ -128,13 +131,52 @@ function ViewshedPreview({ visible, size }: { visible: Uint8Array; size: number 
   return <canvas ref={canvasRef} className="viewshed-preview" role="img" aria-label="Computed viewshed result" />;
 }
 
-function saveAnalysis(data: object, onSaved: (saved: boolean) => void, onError: (error: string | null) => void) {
+function thresholdImageUrl(thresholdFeet: number, bounds: ViewportBounds): string {
+  const query = new URLSearchParams({
+    west: String(bounds.west), south: String(bounds.south), east: String(bounds.east),
+    north: String(bounds.north), minimum: String(thresholdFeet),
+  });
+  return `/api/terrain/threshold?${query}`;
+}
+
+function clipToMinnesota(bounds: ViewportBounds): ViewportBounds | null {
+  const clipped = {
+    west: Math.max(bounds.west, minnesotaBounds.west),
+    south: Math.max(bounds.south, minnesotaBounds.south),
+    east: Math.min(bounds.east, minnesotaBounds.east),
+    north: Math.min(bounds.north, minnesotaBounds.north),
+  };
+  return clipped.west < clipped.east && clipped.south < clipped.north ? clipped : null;
+}
+
+async function saveAnalysis(
+  data: object,
+  onSaved: (saved: boolean) => void,
+  onError: (error: string | null) => void,
+  imageUrl?: string,
+) {
   try {
-    localStorage.setItem("mnmapping.temporary-terrain-analysis", JSON.stringify({ ...data, savedAt: Date.now() }));
+    const imageData = imageUrl ? await fetchThresholdImage(imageUrl) : undefined;
+    localStorage.setItem("mnmapping.temporary-terrain-analysis", JSON.stringify({ ...data, imageData, savedAt: Date.now() }));
     onSaved(true);
     onError(null);
   } catch {
     onSaved(false);
     onError("This browser could not save the temporary analysis.");
   }
+}
+
+async function fetchThresholdImage(imageUrl: string): Promise<string> {
+  const response = await fetch(imageUrl);
+  if (!response.ok) throw new Error("Threshold image unavailable.");
+  return readBlobAsDataUrl(await response.blob());
+}
+
+function readBlobAsDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Invalid image data."));
+    reader.onerror = () => reject(reader.error ?? new Error("Unable to read threshold image."));
+    reader.readAsDataURL(blob);
+  });
 }

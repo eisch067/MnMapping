@@ -11,11 +11,14 @@ export interface ViewshedRequest {
 }
 
 export const VIEWSHED_CELL_BUDGET = 40_000;
+const maximumRayChecks = 8_100_000;
 
 export function validateViewshedRequest(request: ViewshedRequest): string | null {
   const cells = request.width * request.height;
   if (!Number.isInteger(request.width) || !Number.isInteger(request.height) || cells <= 0) return "The elevation window is invalid.";
   if (cells > VIEWSHED_CELL_BUDGET) return `This view needs ${cells.toLocaleString()} cells; the device limit is ${VIEWSHED_CELL_BUDGET.toLocaleString()}. Reduce the range or use a wider cell spacing.`;
+  const rayChecks = cells * Math.max(request.width, request.height);
+  if (rayChecks > maximumRayChecks) return "This elevation window would require too many visibility checks for this device.";
   if (request.elevations.length !== cells) return "The elevation window is incomplete.";
   if (request.observerX < 0 || request.observerX >= request.width || request.observerY < 0 || request.observerY >= request.height) return "The observer is outside the elevation window.";
   if (!Number.isFinite(request.cellSizeMeters) || request.cellSizeMeters <= 0 || !Number.isFinite(request.rangeMeters) || request.rangeMeters <= 0) return "The cell spacing and range must be positive.";
