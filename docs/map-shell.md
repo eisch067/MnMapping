@@ -17,7 +17,7 @@ Every tool-row action opens one sheet, and the sheet host shows one sheet at a t
 
 | Action | Sheet | Holds |
 | --- | --- | --- |
-| Explore | Compact | The coordinates of the last point clicked, with a copy button. Clicking the map while no sheet is open opens it |
+| Explore | Compact | The last point clicked: its coordinates with a copy button, and the [identify](identify.md) results under it. Clicking the map while no sheet is open opens it |
 | Layers | Tall, tabbed with My Data | Layer visibility, opacity, ordering, and transfer totals |
 | Add | Compact | Pin, Line, and Area drawing tools |
 | My Data | Tall, tabbed with Layers | Folders, Unfiled, 30-day Trash, defaults, select mode, import, and entry points to export and backup |
@@ -39,4 +39,4 @@ The state that decides which sheet is open, whether the rail is pinned, and whet
 
 ## Tests
 
-`tests/e2e/shell.spec.ts` covers the shell at 390×844 and 1280×800: each action opens its sheet, swiping and the tabs switch sheets, the map fills the viewport around the header and tool row, and pinning the rail resizes the map. `tests/e2e/layers.spec.ts` and `tests/e2e/location.spec.ts` cover layer toggles, opacity, ordering, and the location gate. These tests stub every remote service, so they run offline.
+`tests/e2e/shell.spec.ts` covers the shell at 390×844 and 1280×800: each action opens its sheet, swiping and the tabs switch sheets, the map fills the viewport around the header and tool row, and pinning the rail resizes the map. `tests/e2e/identify.spec.ts` covers identify. `tests/e2e/layers.spec.ts` and `tests/e2e/location.spec.ts` cover layer toggles, opacity, ordering, and the location gate. These tests stub every remote service, so they run offline.

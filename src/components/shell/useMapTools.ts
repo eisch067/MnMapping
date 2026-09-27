@@ -45,7 +45,6 @@ function promptForDrawing(mode: DrawMode, draft: Position[]): NewMyDataItem {
 export function useMapTools(addItem: (item: NewMyDataItem) => Promise<void>) {
   const [mode, setMode] = useState<InteractionMode>("inspect");
   const [draft, setDraft] = useState<Position[]>([]);
-  const [inspection, setInspection] = useState<Position | null>(null);
 
   const selectMode = (next: InteractionMode) => {
     setMode(next);
@@ -53,7 +52,6 @@ export function useMapTools(addItem: (item: NewMyDataItem) => Promise<void>) {
   };
 
   const handleCoordinateClick = (longitude: number, latitude: number) => {
-    setInspection([longitude, latitude]);
     if (mode === "pin") {
       void addItem(promptForPin([longitude, latitude]));
       setMode("inspect");
@@ -71,7 +69,6 @@ export function useMapTools(addItem: (item: NewMyDataItem) => Promise<void>) {
   return {
     mode,
     draft,
-    inspection,
     selectMode,
     reset: () => selectMode("inspect"),
     handleCoordinateClick,
