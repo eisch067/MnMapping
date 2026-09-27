@@ -17,6 +17,12 @@ export interface IdentifyLink {
   href: string;
 }
 
+// A lake a result names, from which the LakeFinder summary can be opened.
+export interface IdentifyLake {
+  dow: string;
+  name?: string;
+}
+
 export interface IdentifyResult {
   id: string;
   // The layer name, or "My Data" for a saved item.
@@ -33,6 +39,8 @@ export interface IdentifyResult {
   // A closure or condition notice the source posts, shown above the summary.
   banner?: string;
   attribution?: string;
+  // Present when the result names a lake whose LakeFinder summary can be opened.
+  lake?: IdentifyLake;
 }
 
 export interface IdentifyFailure {

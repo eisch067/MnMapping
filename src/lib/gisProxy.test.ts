@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dnrGisRoot, resolveUpstream } from "@/lib/gisProxy";
+import { dnrGisRoot, dnrLakeFinderRoot, resolveUpstream } from "@/lib/gisProxy";
 
 const cwdPath = [
   "Hosted",
@@ -62,13 +62,24 @@ describe("resolveUpstream", () => {
     });
   });
 
-  it("gives the public build no route to the DNR GIS server", async () => {
+  describe("the DNR LakeFinder provider", () => {
+    it("reaches the by-ID API and nothing else on the host", () => {
+      const upstream = resolveUpstream("dnr-lakefinder", ["by_id", "v1"]);
+
+      expect(dnrLakeFinderRoot).toBe("https://services.dnr.state.mn.us/api/lakefinder/");
+      expect(upstream?.href).toBe("https://services.dnr.state.mn.us/api/lakefinder/by_id/v1");
+      expect(resolveUpstream("dnr-lakefinder", ["..", "..", "other"])).toBeNull();
+    });
+  });
+
+  it("gives the public build no route to the DNR GIS server or LakeFinder", async () => {
     vi.stubEnv("NEXT_PUBLIC_APP_MODE", "public");
     vi.resetModules();
 
     const publicProxy = await import("@/lib/gisProxy");
 
     expect(publicProxy.resolveUpstream("dnr-gis", cwdPath)).toBeNull();
+    expect(publicProxy.resolveUpstream("dnr-lakefinder", ["by_id", "v1"])).toBeNull();
     expect(publicProxy.resolveUpstream("mngeo-features", ["us_mn_state_dnr"])).not.toBeNull();
   });
 });

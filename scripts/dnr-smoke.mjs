@@ -15,6 +15,7 @@ const expectedCounts = {
   "mndnr-hunter-walking-trails": 304,
   "mndnr-public-water-access": 3025,
   "mndnr-fishing-sites": 463,
+  "mndnr-lakes-lakefinder": 21989,
 };
 const geometryTypes = {
   "mndnr-deer-permit-areas": "esriGeometryPolygon",
@@ -25,7 +26,16 @@ const geometryTypes = {
   "mndnr-hunter-walking-trails": "esriGeometryPolyline",
   "mndnr-public-water-access": "esriGeometryPoint",
   "mndnr-fishing-sites": "esriGeometryPoint",
+  "mndnr-lakes-lakefinder": "esriGeometryPolygon",
 };
+// Bathymetry outline and contour records DNR reported on 2026-09-23, and the layers the map draws.
+const depthMapChecks = [
+  { id: 1, name: "Lake Bathymetric Outline", expected: 7499 },
+  { id: 0, name: "Lake Bathymetric Contours", expected: 46306 },
+  { id: 3, name: "Lake Bathymetric Elevation Model" },
+];
+// A lake DNR has surveyed, used to check that LakeFinder still answers in the shape the app reads.
+const knownLake = { dow: "04013500", name: "Beltrami" };
 // One query returns at most this many records, so a layer that grows past it must gain a zoom gate.
 const recordLimit = 2_000;
 const dayInMilliseconds = 24 * 60 * 60 * 1_000;
@@ -33,7 +43,11 @@ const configuredSeasonWarningDays = 30;
 const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
 const layers = await loadLayers();
-const results = await Promise.all(layers.map(checkLayer));
+const lakeModules = await loadBundle(`
+  export { parseLakeFinder } from "./src/lib/dnr/lakefinder";
+  export { lakeMapPath } from "./src/lib/dnr/lakeMap";
+`);
+const results = await Promise.all([...layers.map(checkLayer), checkLakeFinder()]);
 const failed = results.filter((result) => result.problems.length > 0);
 
 console.log(`DNR live smoke: ${results.length - failed.length}/${results.length} layers passed (${new Date().toISOString().slice(0, 10)}).`);
@@ -42,6 +56,23 @@ for (const result of results) {
   for (const problem of result.problems) console.log(`  - ${problem}`);
 }
 if (failed.length > 0) process.exitCode = 1;
+
+async function loadBundle(contents) {
+  const built = await build({
+    stdin: {
+      contents,
+      resolveDir: process.cwd(),
+      sourcefile: "dnr-smoke-lake-entry.ts",
+      loader: "ts",
+    },
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    write: false,
+    tsconfig: "tsconfig.json",
+  });
+  return import(`data:text/javascript;base64,${Buffer.from(built.outputFiles[0].text).toString("base64")}`);
+}
 
 async function loadLayers() {
   const built = await build({
@@ -88,6 +119,7 @@ function requestedFields(layer) {
 }
 
 async function checkLayer(layer) {
+  if (layer.sourceType === "arcgis-mapserver") return checkDepthMap(layer);
   const problems = [];
   let count;
   try {
@@ -164,4 +196,57 @@ function isCurrent(period) {
   const start = Date.UTC(Number(match[2]), first, 1);
   const end = Date.UTC(Number(match[4]), last + 1, 1);
   return Date.now() >= start && Date.now() < end;
+}
+
+// The depth map is a live map service, so it is checked for the layers the map draws and for the
+// outline and contour records identify reads, rather than for a feature count of its own.
+async function checkDepthMap(layer) {
+  const problems = [];
+  try {
+    const metadata = await getJson(new URL(`${layer.sourceUrl}?f=json`));
+    if (!String(metadata.capabilities ?? "").includes("Map")) problems.push("the service does not advertise Map");
+    for (const check of depthMapChecks) {
+      const found = (metadata.layers ?? []).find((entry) => entry.id === check.id);
+      if (found?.name !== check.name) problems.push(`layer ${check.id} is "${found?.name}", expected "${check.name}"`);
+      if (check.expected !== undefined) problems.push(...(await checkDepthLayer(layer, check)));
+    }
+  } catch (error) {
+    problems.push(error instanceof Error ? error.message : String(error));
+  }
+  return { name: layer.name, count: undefined, problems };
+}
+
+async function checkDepthLayer(layer, { id, expected }) {
+  const url = new URL(`${layer.sourceUrl}/${id}/query`);
+  for (const [key, value] of Object.entries({ f: "json", where: "1=1", returnCountOnly: "true" })) url.searchParams.set(key, value);
+  const { count } = await getJson(url);
+  if (typeof count !== "number") return [`layer ${id} returned no count`];
+  return count < expected * 0.5 || count > expected * 2 ? [`layer ${id} has ${count} records, far from the ${expected} recorded on 2026-09-23`] : [];
+}
+
+// LakeFinder is read through the app's own adapter, so a change in its response shows here first.
+async function checkLakeFinder() {
+  const name = "LakeFinder by-ID API and lake map PDF";
+  const problems = [];
+  try {
+    const url = new URL("https://services.dnr.state.mn.us/api/lakefinder/by_id/v1/");
+    url.searchParams.set("id", knownLake.dow);
+    const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+    if (!response.ok) throw new Error(`${response.status} ${response.statusText} from ${url.pathname}`);
+    const outcome = lakeModules.parseLakeFinder(knownLake.dow, JSON.parse(await response.text()));
+    if (outcome.status !== "found") problems.push(`the app cannot read the LakeFinder record for ${knownLake.name}: ${outcome.status}`);
+    else problems.push(...(await checkLakeMap(outcome.lake)));
+  } catch (error) {
+    problems.push(error instanceof Error ? error.message : String(error));
+  }
+  return { name, count: undefined, problems };
+}
+
+// The PDF's file name is inferred from the map ID (see src/lib/dnr/lakeMap.ts), so it is checked.
+async function checkLakeMap(lake) {
+  if (!lake.resources.lakeMap || lake.mapIds.length === 0) return [`${lake.name} no longer reports a lake map`];
+  const file = lakeModules.lakeMapPath(lake.mapIds[0]).split("/").at(-1);
+  const response = await fetch(`https://files.dnr.state.mn.us/lakefind/data/lakemaps/${file}`, { method: "HEAD", signal: AbortSignal.timeout(30_000) });
+  if (!response.ok) return [`DNR has no lake map file ${file}; the naming in lakeMap.ts has changed`];
+  return response.headers.get("content-type")?.includes("pdf") ? [] : [`${file} is not a PDF`];
 }

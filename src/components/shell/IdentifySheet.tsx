@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { IdentifyResult } from "@/lib/identify/types";
+import type { IdentifyLake, IdentifyResult } from "@/lib/identify/types";
+import { LinkList, RowList } from "./IdentifyParts";
+import { LakeSummary } from "./LakeSummary";
 import type { IdentifyState } from "./useIdentify";
 
 export interface IdentifySheetProps {
@@ -91,21 +93,13 @@ function ResultList({ state, onSelect }: Pick<IdentifySheetProps, "state" | "onS
   );
 }
 
-function RowList({ rows }: { rows: IdentifyResult["rows"] }) {
-  if (rows.length === 0) return null;
-  return (
-    <dl>
-      {rows.map((row) => (
-        <div key={row.label}>
-          <dt>{row.label}</dt>
-          <dd>{row.value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+interface ResultDetailProps {
+  result: IdentifyResult;
+  onBack: () => void;
+  onOpenLake: (lake: IdentifyLake) => void;
 }
 
-function ResultDetail({ result, onBack }: { result: IdentifyResult; onBack: () => void }) {
+function ResultDetail({ result, onBack, onOpenLake }: ResultDetailProps) {
   return (
     <article className="identify-detail">
       <button type="button" className="identify-back" onClick={onBack}>
@@ -119,16 +113,21 @@ function ResultDetail({ result, onBack }: { result: IdentifyResult; onBack: () =
         </p>
       )}
       <RowList rows={result.rows} />
+      {result.lake && (
+        <button
+          type="button"
+          className="identify-action"
+          onClick={() => result.lake && onOpenLake(result.lake)}
+        >
+          Open lake summary
+        </button>
+      )}
       {result.notes.map((note) => (
         <p key={note} className="sheet-hint">
           {note}
         </p>
       ))}
-      {result.links.map((link) => (
-        <a key={link.href} href={link.href} target="_blank" rel="noreferrer">
-          {link.label} ↗
-        </a>
-      ))}
+      <LinkList links={result.links} />
       {result.moreRows && result.moreRows.length > 0 && (
         <details className="identify-more">
           <summary>More details</summary>
@@ -140,19 +139,40 @@ function ResultDetail({ result, onBack }: { result: IdentifyResult; onBack: () =
   );
 }
 
-export function IdentifySheet({ state, onSelect, onClear }: IdentifySheetProps) {
-  const { point, selectedId, results } = state;
-  if (!point) return <p className="sheet-hint">Click or tap the map to see coordinates.</p>;
-  const coordinates = `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}`;
-  const selected = results.find((result) => result.id === selectedId);
+interface PointViewProps extends IdentifySheetProps {
+  coordinates: string;
+}
+
+function PointView({ state, coordinates, onSelect, onClear }: PointViewProps) {
+  const [lake, setLake] = useState<IdentifyLake | null>(null);
+  const selected = state.results.find((result) => result.id === state.selectedId);
+  const closeLake = () => setLake(null);
   return (
     <div className="identify">
-      <CoordinateBar key={coordinates} coordinates={coordinates} onClear={onClear} />
-      {selected ? (
-        <ResultDetail result={selected} onBack={() => onSelect(null)} />
+      <CoordinateBar coordinates={coordinates} onClear={onClear} />
+      {lake ? (
+        <LakeSummary lake={lake} onBack={closeLake} />
+      ) : selected ? (
+        <ResultDetail result={selected} onBack={() => onSelect(null)} onOpenLake={setLake} />
       ) : (
         <ResultList state={state} onSelect={onSelect} />
       )}
     </div>
+  );
+}
+
+export function IdentifySheet({ state, onSelect, onClear }: IdentifySheetProps) {
+  const { point } = state;
+  if (!point) return <p className="sheet-hint">Click or tap the map to see coordinates.</p>;
+  const coordinates = `${point.latitude.toFixed(6)}, ${point.longitude.toFixed(6)}`;
+  // A new point starts without the lake summary the last one opened.
+  return (
+    <PointView
+      key={coordinates}
+      state={state}
+      coordinates={coordinates}
+      onSelect={onSelect}
+      onClear={onClear}
+    />
   );
 }

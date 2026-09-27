@@ -1,0 +1,102 @@
+{
+  "recorded": "2026-09-27",
+  "body": {
+    "message": "",
+    "status": "OK",
+    "results": [
+      {
+        "invasiveSpecies": [
+          "starry stonewort"
+        ],
+        "notes": "",
+        "fishSpecies": [
+          "black crappie,bluegill,bowfin (dogfish),brown bullhead,hybrid sunfish,largemouth bass,northern pike,northern sunfish,pumpkinseed,rock bass,smallmouth bass,tullibee (cisco),walleye,white sucker,yellow bullhead,yellow perch"
+        ],
+        "nearest_town": "Bemidji",
+        "id": "04013500",
+        "mapid": [
+          "B0025"
+        ],
+        "pca_id": "04-0135-00",
+        "county_id": 4,
+        "bbox": {
+          "epsg:4326": [
+            -94.842324,
+            47.585227,
+            -94.784145,
+            47.602769
+          ],
+          "epsg:26915": [
+            361513,
+            5271766,
+            365884,
+            5273759
+          ]
+        },
+        "morphology": {
+          "shore_length": 7.18,
+          "littoral_area": 300,
+          "area": 725.82,
+          "max_depth": 50,
+          "mean_depth": 13
+        },
+        "name": "Beltrami",
+        "county": "Beltrami",
+        "border": "",
+        "specialFishingRegs": [
+          {
+            "location": "",
+            "locDisplayType": 1,
+            "regs": [
+              {
+                "species": [
+                  "Northern Pike"
+                ],
+                "text": "All from 22-30\" must be immediately released. Possession limit 10, only one over 30\"."
+              }
+            ]
+          },
+          {
+            "location": "Including connected Turtle River Fox Lake",
+            "locDisplayType": 1,
+            "regs": [
+              {
+                "species": [
+                  "Sunfish"
+                ],
+                "text": "Daily limit five."
+              }
+            ]
+          }
+        ],
+        "apr_ids": [
+          "1738"
+        ],
+        "resources": {
+          "waterQuality": 1,
+          "waterLevels": 1,
+          "lakeHealth": 1,
+          "lakeSurvey": 1,
+          "specialFishingRegs": 1,
+          "iceOut": 1,
+          "waterAccess": 1,
+          "fishStocking": 1,
+          "sentinelLake": 0,
+          "fca": 1,
+          "iceIn": 1,
+          "lakeMap": 1
+        },
+        "point": {
+          "epsg:4326": [
+            -94.813234,
+            47.593998
+          ],
+          "epsg:26915": [
+            363699,
+            5272762
+          ]
+        }
+      }
+    ]
+  }
+}

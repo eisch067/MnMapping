@@ -1,0 +1,77 @@
+{
+  "recorded": "2026-09-27",
+  "body": {
+    "message": "",
+    "results": [
+      {
+        "mapid": [
+          "C1316"
+        ],
+        "border": "",
+        "county": "Anoka",
+        "morphology": {
+          "littoral_area": 412,
+          "area": 551.92,
+          "shore_length": 8.18,
+          "mean_depth": 0,
+          "max_depth": 18
+        },
+        "point": {
+          "epsg:26915": [
+            495306,
+            5003295
+          ],
+          "epsg:4326": [
+            -93.059752,
+            45.183124
+          ]
+        },
+        "name": "Peltier",
+        "county_id": 2,
+        "pca_id": "02-0004-00",
+        "invasiveSpecies": [
+          "Eurasian watermilfoil"
+        ],
+        "resources": {
+          "fishStocking": 1,
+          "waterQuality": 1,
+          "lakeSurvey": 1,
+          "specialFishingRegs": 0,
+          "lakeMap": 1,
+          "waterLevels": 1,
+          "iceOut": 1,
+          "sentinelLake": 1,
+          "iceIn": 1,
+          "fca": 1,
+          "lakeHealth": 1,
+          "waterAccess": 1
+        },
+        "apr_ids": [
+          "1994"
+        ],
+        "bbox": {
+          "epsg:4326": [
+            -93.070999,
+            45.166878,
+            -93.048505,
+            45.19937
+          ],
+          "epsg:26915": [
+            494421,
+            5001491,
+            496190,
+            5005099
+          ]
+        },
+        "nearest_town": "Centerville (Anoka)",
+        "id": "02000400",
+        "fishSpecies": [
+          "black bullhead,black crappie,bluegill,bowfin (dogfish),brown bullhead,common carp,green sunfish,hybrid sunfish,largemouth bass,northern pike,pumpkinseed,redhorse,walleye,white sucker,yellow bullhead,yellow perch"
+        ],
+        "notes": "",
+        "specialFishingRegs": []
+      }
+    ],
+    "status": "OK"
+  }
+}

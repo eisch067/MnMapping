@@ -5,6 +5,9 @@ import { isPersonalMode } from "@/config/appMode";
 export const dnrGisRoot =
   "https://gis.dnr.state.mn.us/arcgis/sharing/servers/8462b6a81c46461484c68d4bd638134c/rest/services/";
 
+// LakeFinder's by-ID API sits beside, not under, the GIS server, so it has its own pinned root.
+export const dnrLakeFinderRoot = "https://services.dnr.state.mn.us/api/lakefinder/";
+
 const providerRoots = {
   hubbard: "https://gis.co.hubbard.mn.us/arcgis/rest/services/",
   becker: "https://gis-server.co.becker.mn.us/arcgis/rest/services/",
@@ -56,7 +59,7 @@ const providerRoots = {
   "wilkin-imagery": "https://gisweb.co.wilkin.mn.us/arcgis/rest/services/",
   "yellow-medicine-imagery": "https://gis.co.ym.mn.gov/arcgis/rest/services/",
   // DNR data awaits DNR confirmation before any public release, so only the personal build reaches it.
-  ...(isPersonalMode ? { "dnr-gis": dnrGisRoot } : {}),
+  ...(isPersonalMode ? { "dnr-gis": dnrGisRoot, "dnr-lakefinder": dnrLakeFinderRoot } : {}),
 } as const;
 
 type Provider = keyof typeof providerRoots;

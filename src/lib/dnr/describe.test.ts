@@ -6,6 +6,7 @@ import cwd from "./fixtures/cwd-zone.json";
 import deer from "./fixtures/deer-permit-area-201.json";
 import fishing from "./fixtures/fishing-site.json";
 import hunterTrail from "./fixtures/hunter-walking-trail.json";
+import basin from "./fixtures/public-waters-basin.json";
 import turkey from "./fixtures/turkey-permit-area-502.json";
 import waterAccess from "./fixtures/water-access-with-alert.json";
 import walkIn from "./fixtures/walk-in-access-1001.json";
@@ -195,5 +196,63 @@ describe("links DNR publishes in the data", () => {
     const hrefs = describeFeature(layer, attributes).links.map((link) => link.href);
 
     expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+});
+
+describe("a lake result (Public Waters basin)", () => {
+  const layer = layerNamed("mndnr-lakes-lakefinder");
+  const details = describeFeature(layer, basin.attributes);
+
+  it("names the basin, its DOW number, and its size, under the reference statement", () => {
+    expect(details.title).toBe("Beltrami");
+    expect(rowValue(details.rows, "DOW number")).toBe("04013500");
+    expect(rowValue(details.rows, "Acres")).toBe("733.37");
+    expect(details.notes).toEqual(["DNR reference data — not for navigation; coverage varies."]);
+  });
+
+  it("offers to open the LakeFinder summary for the basin's DOW number", () => {
+    expect(details.lake).toEqual({ dow: "04013500", name: "Beltrami" });
+  });
+
+  it("links a LakeFinder search, and the regulations, for a basin with no usable DOW number", () => {
+    const unnumbered = describeFeature(layer, { ...basin.attributes, dowlknum: " " });
+
+    expect(unnumbered.lake).toBeUndefined();
+    expect(unnumbered.links.map((link) => link.label)).toEqual([
+      "Verify current regulations",
+      "Search LakeFinder",
+    ]);
+  });
+});
+
+describe("a facility result that names a lake", () => {
+  it("opens the lake summary from a fishing site, whether or not the outline layer is on", () => {
+    const details = describeFeature(layerNamed("mndnr-fishing-sites"), fishing.attributes);
+
+    expect(details.lake).toEqual({ dow: "11030700", name: "Norway" });
+  });
+
+  it("opens no summary where the site names no lake, or one that is not a DOW number", () => {
+    const access = layerNamed("mndnr-public-water-access");
+
+    expect(describeFeature(access, waterAccess.attributes).lake).toBeUndefined();
+    expect(describeFeature(access, { ...waterAccess.attributes, dow_lake_id: "12345" }).lake).toBeUndefined();
+    expect(
+      describeFeature(access, { ...waterAccess.attributes, dow_lake_id: "04013500", lake_name: "Beltrami" }).lake,
+    ).toEqual({ dow: "04013500", name: "Beltrami" });
+  });
+});
+
+describe("the Lake depth map layer", () => {
+  const layer = layerNamed("mndnr-lake-depth-map");
+
+  it("is a live map service drawing only the contours, outlines, and elevation model", () => {
+    expect(layer.sourceType).toBe("arcgis-mapserver");
+    expect(layer.options).toMatchObject({ layers: "0,1,3", usePreCachedTilesIfAvailable: false });
+    expect(layer.defaultVisible).toBe(false);
+  });
+
+  it("warns that coverage is incomplete and historical", () => {
+    expect(layer.dnr?.caution).toMatch(/incomplete and historical/);
   });
 });

@@ -1,7 +1,7 @@
 import type { LayerDefinition, LayerPopupField, ParcelFieldMap } from "@/config/layers/types";
 import { describeDnrFeature } from "@/lib/dnr/describe";
 import { normalizeParcel } from "@/lib/parcels";
-import type { IdentifyLink, IdentifyRow } from "./types";
+import type { IdentifyLake, IdentifyLink, IdentifyRow } from "./types";
 
 export interface FeatureDetails {
   title: string;
@@ -11,6 +11,7 @@ export interface FeatureDetails {
   moreRows?: IdentifyRow[];
   banner?: string;
   attribution?: string;
+  lake?: IdentifyLake;
 }
 
 const accessMeaningNotes: Record<NonNullable<LayerDefinition["accessMeaning"]>, string> = {

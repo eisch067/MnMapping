@@ -87,6 +87,7 @@ function LayerRow({ layer, controls }: { layer: LayerDefinition; controls: Layer
         <output>{Math.round(layerState.opacity * 100)}%</output>
       </label>
       <LayerInfo layer={layer} />
+      {layer.dnr?.caution && <p className="layer-caution">{layer.dnr.caution}</p>}
       <SeasonNotice gate={gate} />
       <ZoomHint layer={layer} visible={layerState.visible} cameraHeight={controls.cameraHeight} />
       {layerState.visible && (
