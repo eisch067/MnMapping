@@ -30,7 +30,7 @@ Every layer is queried live, and nothing is stored for offline use. Every layer 
 
 All but CWD zones are on MnGeo's `enterprise.gisdata.mn.gov` under `us_mn_state_dnr`, reached through the existing `mngeo-features` proxy provider. CWD zones come from the season-specific DNR service, because that is where DNR publishes the current effective period. The layers are defined in `src/config/layers/dnrRecreation.ts`; each names its source, attribution, meaning class, verify link, heading, and the date it was last checked against DNR.
 
-Water & regulatory reference holds no layer yet. It remains listed with a disabled control so the five headings are always there.
+Water & regulatory reference contains National Wetlands Inventory and Buffer Protection reference layers. NWI is an inventory reference with no legal or regulatory status; Buffer Protection is a guide to minimum state requirements. Neither is parcel ownership or a site-specific determination.
 
 State forest campgrounds use layer 1, the current output derived from the Parks and Trails Enterprise Information System. Layer 0 is explicitly named `Orig`, uses the legacy GDRS field set, and is not used. The migratory-waterfowl `electric_m` field remains omitted: although the program page describes where small electric motors are permitted, the service does not document the flag's contract.
 
@@ -94,9 +94,19 @@ The same file records five RGMA unit-map filenames that returned 404 on 2026-09-
 | enrolled-private-land | Participating private land — WIA validation required, Sept 1–May 31, landowners may opt out. |
 | facility | Marks a facility or route, not access to adjoining land or permission to take any species. |
 | access-varies | Rules vary by landowner along the trail. |
-| managed-land | DNR habitat designation — does not show ownership or permission to enter; verify boundary signs. |
+| managed-land | DNR habitat designation — does not show ownership or permission to enter. |
+| inventory-reference | Wetland inventory — planning reference mapped from 2009–2014 imagery. It has no legal or regulatory status and is not a wetland boundary or permit determination. |
+| regulatory-guide | Minimum state buffer requirement — a general guide to waters where Minnesota's buffer law applies. It is not parcel ownership or a compliance determination; exemptions and stricter local rules are not shown. Confirm with your SWCD. |
 
 The wording, the fields each layer shows, and its links are in `src/lib/dnr/meaning.ts`, `src/config/layers/dnrRecreation.ts`, and `src/lib/dnr/describe.ts`. The deer permit area report PDF is not linked, because the base address that its file names resolve against has not been verified.
+
+## Wetlands and buffer reference
+
+**National Wetlands Inventory** displays DNR's `water_nat_wetlands_inv_2009_2014` MapServer layer 0 as gated image tiles. Its row and identify results state that the inventory has no legal or regulatory status and is not a wetland boundary or permit determination. The mapped vintage is 2009–2014 imagery, not a claim of current conditions. Point identify queries only layer 0 and displays its selected Cowardin, wetland-type, acreage, and classification attributes.
+
+**Buffer Protection** displays MapServer layer 1 (public-water and public-ditch lines) and layer 2 (basin polygons) as gated image tiles. Layer 0 is excluded. Identify queries the clicked point; line queries use a 15 m search distance, while basin queries use exact intersection. The map draws the mapped water features, not buffer strips: source positional accuracy is comparable to the buffer width. The results describe this as a general guide, not parcel ownership, legal compliance, or a precise boundary. They link DNR, BWSR, and Minn. Stat. 103F.48.
+
+The current camera-height limits are conservative provisional values. Before release, measure uncached 512 px exports from the deployed Worker and a phone connection, then adjust the gates and record the measurements in [the source verification note](wetland-and-buffer-reference-sources.md). A USFWS national wetlands data page says its nationwide data are updated twice a year, but that does not confirm whether Minnesota edits newer than the DNR 2009–2014 layer have been incorporated; do not describe this DNR layer as the newest available.
 
 ## LakeFinder and the Lake depth map
 

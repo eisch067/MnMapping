@@ -61,12 +61,14 @@ const providerRoots = {
   "washington-imagery": "https://maps.co.washington.mn.us/arcgis/rest/services/",
   "wilkin-imagery": "https://gisweb.co.wilkin.mn.us/arcgis/rest/services/",
   "yellow-medicine-imagery": "https://gis.co.ym.mn.gov/arcgis/rest/services/",
-  // DNR data awaits DNR confirmation before any public release, so only the personal build reaches it.
-  ...(isPersonalMode ? {
-      "dnr-gis": dnrGisRoot,
-      "dnr-gis-item": dnrCwdItemRoot,
-      "dnr-lakefinder": dnrLakeFinderRoot,
-    } : {}),
+  // Direct DNR-hosted services and item metadata are personal-build only.
+  ...(isPersonalMode
+    ? {
+        "dnr-gis": dnrGisRoot,
+        "dnr-gis-item": dnrCwdItemRoot,
+        "dnr-lakefinder": dnrLakeFinderRoot,
+      }
+    : {}),
 } as const;
 
 type Provider = keyof typeof providerRoots;
@@ -86,6 +88,14 @@ function isSafePath(path: readonly string[]): boolean {
 export function resolveUpstream(provider: string, path: readonly string[]): URL | null {
   if (!isProvider(provider) || !isSafePath(path)) return null;
   if (provider === "dnr-gis-item" && (path.length !== 1 || path[0] !== cwdItemId)) return null;
+  if (
+    provider === "mngeo-features" &&
+    !isPersonalMode &&
+    path[0] === "us_mn_state_dnr" &&
+    ["water_nat_wetlands_inv_2009_2014", "env_buffer_protection_mn"].includes(path[1] ?? "")
+  ) {
+    return null;
+  }
   const root = providerRoots[provider];
   if (!root) return null;
   const upstream = new URL(path.join("/"), root);

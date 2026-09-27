@@ -15,6 +15,15 @@ function isOfficialSource(href: string | undefined): boolean {
   }
 }
 
+function isOfficialReferencePage(href: string): boolean {
+  if (isDnrPage(href)) return true;
+  try {
+    return ["bwsr.state.mn.us", "www.revisor.mn.gov"].includes(new URL(href).hostname);
+  } catch {
+    return false;
+  }
+}
+
 function isDnrLayer(layer: LayerDefinition): boolean {
   return layer.category === "dnr-recreation" || layer.dnr !== undefined;
 }
@@ -62,8 +71,8 @@ function metadataIssues(layer: LayerDefinition): string[] {
     ...(dnr.links ?? []).map(({ href }) => href),
     ...(dnr.nameLinks ?? []).flatMap(({ pages }) => Object.values(pages)),
   ];
-  if (programLinks.some((href) => !isDnrPage(href))) {
-    issues.push("program links must use an official DNR page over https");
+  if (programLinks.some((href) => !isOfficialReferencePage(href))) {
+    issues.push("program links must use an official DNR, BWSR, or Revisor page over https");
   }
   if (generalizedTrailIds.has(layer.id)) {
     const height = Number(layer.options?.maxCameraHeight);
@@ -84,6 +93,21 @@ function coverageIssue(layer: LayerDefinition): string | undefined {
     : undefined;
 }
 
+function referenceMapIssues(layer: LayerDefinition): string[] {
+  const expectedLayers: Record<string, string> = {
+    "mndnr-national-wetlands-inventory": "0",
+    "mndnr-buffer-protection-lines": "1",
+    "mndnr-buffer-protection-basins": "2",
+  };
+  const expected = expectedLayers[layer.id];
+  if (!expected) return [];
+  const issues: string[] = [];
+  if (layer.sourceType !== "arcgis-mapserver") issues.push("must use MapServer image tiles");
+  if (layer.options?.layers !== expected) issues.push(`must request only ${expected}`);
+  if (!(Number(layer.options?.maxCameraHeight) > 0)) issues.push("must have a camera-height gate");
+  return issues;
+}
+
 function layerIssues(layer: LayerDefinition): string[] {
   const issues: string[] = [];
   const coverage = coverageIssue(layer);
@@ -94,7 +118,7 @@ function layerIssues(layer: LayerDefinition): string[] {
     issues.push("must name its source on an official DNR or MnGeo host");
   }
   if (!layer.attribution.trim()) issues.push("must name its attribution");
-  return [...issues, ...metadataIssues(layer)].map((message) => `${layer.id}: ${message}.`);
+  return [...issues, ...metadataIssues(layer), ...referenceMapIssues(layer)].map((message) => `${layer.id}: ${message}.`);
 }
 
 function membershipIssues(

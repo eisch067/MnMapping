@@ -12,6 +12,7 @@ const cwdService = "Hosted/CWD_Sampling_and_Regulations_for_MN_2020_Deer_Seasons
 const cwdSource =
   "https://gis.dnr.state.mn.us/arcgis/sharing/servers/8462b6a81c46461484c68d4bd638134c/rest/services";
 const verifiedOn = "2026-09-26";
+const waterReferenceVerifiedOn = "2026-09-27";
 const attribution = "Minnesota Department of Natural Resources";
 
 type DnrLayerSpec = Omit<LayerDefinition, "category" | "sourceType" | "defaultVisible" | "attribution"> & {
@@ -726,6 +727,70 @@ const lakeDepthMap: DnrLayerSpec = {
   },
 };
 
+const nationalWetlandsInventory: DnrLayerSpec = {
+  id: "mndnr-national-wetlands-inventory",
+  name: "National Wetlands Inventory",
+  sourceType: "arcgis-mapserver",
+  url: `${mngeoRoot}/water_nat_wetlands_inv_2009_2014/MapServer`,
+  sourceUrl: `${mngeoSource}/water_nat_wetlands_inv_2009_2014/MapServer/0`,
+  defaultOpacity: 0.65,
+  description:
+    "Minnesota NWI inventory mapped from 2009–2014 imagery. This is a planning reference, not current conditions, a wetland boundary, or a jurisdictional determination.",
+  nameField: "wetland_type",
+  popupFields: [],
+  dnr: {
+    heading: "water-regulatory-reference",
+    meaningClass: "inventory-reference",
+    verifyUrl: "https://www.dnr.state.mn.us/wetlands/index.html",
+    verifiedOn: waterReferenceVerifiedOn,
+    caution: "Mapped from 2009–2014 imagery; not current conditions.",
+    notes: [
+      "The NWI has no legal or regulatory status. It is not a jurisdictional wetland determination.",
+      "Contact your local government or the Army Corps of Engineers before work near water.",
+    ],
+    links: [{ label: "DNR wetlands information", href: "https://www.dnr.state.mn.us/wetlands/index.html" }],
+  },
+  options: { layers: "0", enablePickFeatures: false, maxCameraHeight: 20_000 },
+};
+
+const bufferProtectionLines: DnrLayerSpec = {
+  id: "mndnr-buffer-protection-lines",
+  name: "Buffer Protection — public waters & ditches",
+  sourceType: "arcgis-mapserver",
+  url: `${mngeoRoot}/env_buffer_protection_mn/MapServer`,
+  sourceUrl: `${mngeoSource}/env_buffer_protection_mn/MapServer/1`,
+  defaultOpacity: 0.9,
+  description:
+    "Water features used as a general guide to minimum state buffer requirements. Buffer strips are not drawn because source positional accuracy is similar to the buffer width.",
+  nameField: "description",
+  popupFields: [],
+  dnr: {
+    heading: "water-regulatory-reference",
+    meaningClass: "regulatory-guide",
+    verifyUrl: "https://www.dnr.state.mn.us/buffers/index.html",
+    verifiedOn: waterReferenceVerifiedOn,
+    caution: "Statewide revision of August 2019; confirm site conditions and local requirements.",
+    notes: [
+      "This is a general guide, not parcel ownership or a compliance determination. Exemptions and stricter local rules are not shown. Confirm with your SWCD.",
+      "Statewide revision of August 2019.",
+    ],
+    links: [
+      { label: "DNR Buffer Mapping Project", href: "https://www.dnr.state.mn.us/buffers/index.html" },
+      { label: "BWSR Minnesota Buffer Law", href: "https://bwsr.state.mn.us/minnesota-buffer-law" },
+      { label: "Minn. Stat. 103F.48", href: "https://www.revisor.mn.gov/statutes/cite/103F.48" },
+    ],
+  },
+  options: { layers: "1", enablePickFeatures: false, maxCameraHeight: 40_000 },
+};
+
+const bufferProtectionBasins: DnrLayerSpec = {
+  ...bufferProtectionLines,
+  id: "mndnr-buffer-protection-basins",
+  name: "Buffer Protection — lakes & basins",
+  sourceUrl: `${mngeoSource}/env_buffer_protection_mn/MapServer/2`,
+  options: { layers: "2", enablePickFeatures: false, maxCameraHeight: 40_000 },
+};
+
 // Drawn bottom to top, so the drawer, which lists the topmost first, reads in the order below it.
 // The annotation lets a public build drop the whole collection: without it the bundler must keep
 // the call, and with it the specs and every service address in them.
@@ -741,6 +806,9 @@ export const dnrRecreationLayers: readonly LayerDefinition[] = /* @__PURE__ */ [
   ruffedGrouseManagementAreas,
   migratoryWaterfowlAreas,
   lakeDepthMap,
+  nationalWetlandsInventory,
+  bufferProtectionLines,
+  bufferProtectionBasins,
   lakes,
   fishingSites,
   waterAccessSites,

@@ -88,6 +88,14 @@ describe("resolveUpstream", () => {
     expect(publicProxy.resolveUpstream("dnr-gis", cwdPath)).toBeNull();
     expect(publicProxy.resolveUpstream("dnr-gis-item", ["8462b6a81c46461484c68d4bd638134c"])).toBeNull();
     expect(publicProxy.resolveUpstream("dnr-lakefinder", ["by_id", "v1"])).toBeNull();
-    expect(publicProxy.resolveUpstream("mngeo-features", ["us_mn_state_dnr"])).not.toBeNull();
+    expect(
+      publicProxy.resolveUpstream("mngeo-features", ["us_mn_state_dnr", "env_buffer_protection_mn", "MapServer"]),
+    ).toBeNull();
+    expect(
+      publicProxy.resolveUpstream("mngeo-features", ["us_mn_state_dnr", "water_nat_wetlands_inv_2009_2014", "MapServer"]),
+    ).toBeNull();
+    expect(
+      publicProxy.resolveUpstream("mngeo-features", ["us_mn_state_dnr", "bdry_deer_permit_areas", "FeatureServer", "0"]),
+    ).not.toBeNull();
   });
 });
