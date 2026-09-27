@@ -14,6 +14,7 @@ One `main` branch produces two different deployments, distinguished only by a bu
 | Vendor county imagery (EagleView/Pictometry/etc., docs/licensing RISK-REGISTER.md item B1) | Embedded live | Linked out via "External imagery" only |
 | Parcel owner/mailing-address/tax fields for the 10 counties in item H2 | Shown | Redacted, with a link to the county's own site |
 | Esri 3D terrain (item H1) | Included | Not included |
+| DNR Recreation layers and the `dnr-gis` proxy provider ([DNR Recreation](dnr-recreation.md)) | Included | Not included; DNR must confirm a public release first |
 | Worker name / `wrangler.jsonc` environment | `mn-mapping` (default env) | `public-mn-mapping` (`env.public`) |
 | Access | Password-protected (Cloudflare Access) — operator only | Open to anyone |
 
@@ -111,6 +112,8 @@ The `CI` workflow (`.github/workflows/ci.yml`) runs on every pull request. It ne
 | `Lint, typecheck, tests` | `npm run lint` (zero warnings allowed), `npm run typecheck`, and `npm test` (Vitest plus the registry audit) |
 | `Build and smoke (personal)` | `npm run build:vinext` with `NEXT_PUBLIC_APP_MODE=personal`, then the Playwright tests at both viewports (390×844 and 1280×800) |
 | `Build and smoke (public)` | The same with `NEXT_PUBLIC_APP_MODE=public` and `CLOUDFLARE_ENV=public` |
+
+The `DNR live smoke` workflow (`.github/workflows/dnr-smoke.yml`) is separate: it runs `npm run smoke:dnr` against DNR's live services weekly and on demand, and is not a pull-request check.
 
 Branch protection on `main` requires all three checks to pass and blocks direct pushes, so every change reaches `main` through a pull request. Actions in the workflow are pinned to commit SHAs with a version comment; update the SHA and the comment together. When a Playwright run fails, the workflow uploads its report and traces as an artifact for seven days.
 

@@ -23,7 +23,7 @@ The map shows no Cesium infobox and no selection frame; the sheet is the only pl
 | `src/lib/identify/identify.ts` | `identifyAt` picks the layers to ask, runs their adapters together, and orders the results |
 | `src/lib/identify/adapters.ts` | The adapter for each layer source type |
 | `src/lib/identify/featureServer.ts` | The adapter for ArcGIS feature services: a point query using the layer's own `where` and `outFields` |
-| `src/lib/identify/featureDetails.ts` | Turns a feature's attributes into a title, rows, notes, and links from the layer's `nameField`, `popupFields`, or `parcelFields` |
+| `src/lib/identify/featureDetails.ts` | Turns a feature's attributes into a title, rows, notes, and links from the layer's `nameField`, `popupFields`, or `parcelFields`, or hands a DNR Recreation layer to `src/lib/dnr/describe.ts` |
 | `src/lib/identify/myData.ts` | Finds saved items under a point |
 | `src/lib/map/layerStack.ts` | The order the map draws layers, which identify reads top down |
 | `src/components/shell/useIdentify.ts` | Holds the point, the results, and the selection; cancels a request that a newer click replaces |
@@ -34,10 +34,12 @@ The map shows no Cesium infobox and no selection frame; the sheet is the only pl
 
 `identifyAdapters` lists every `LayerSourceType`. A `null` entry means the source has nothing to report at a point. To identify a new kind of source, such as the DNR services, write a function of type `LayerIdentifyAdapter` that takes the layer and the point and returns `IdentifyResult` values, and put it in that table. Nothing else changes: the ordering, the failure notice, and the sheet already handle its results.
 
-The feature-service adapter asks for the exact point, which suits the polygon layers there are today. A layer of lines or points needs its adapter to add a search distance from `IdentifyPoint.toleranceMeters`.
+The feature-service adapter asks for the exact point, which suits polygon layers. A layer of lines or points sets its `identifyNearby` option, and the adapter then asks for features within `IdentifyPoint.toleranceMeters` of the click and keeps at most ten. The DNR Recreation trails, fishing sites, and water access sites use it.
+
+A layer with a `dnr` definition is described by `src/lib/dnr/describe.ts` instead of the generic field list. Its result adds an alerts banner, a **More details** group of secondary fields, and an attribution line to the title, rows, notes, and links every result has. See [DNR Recreation](dnr-recreation.md#results).
 
 An adapter should send only the fields the layer's own configuration allows, so the identify never shows an attribute the layer is set up to hide. In the public build that includes the owner and mailing fields removed from county parcel layers.
 
 ## Tests
 
-`src/lib/identify/*.test.ts` cover the ordering, the layers skipped, a failing layer, the point query sent to a feature service, the feature titles and rows, and the saved-item hit tests. `tests/e2e/identify.spec.ts` runs at 390×844 and 1280×800 with the layer services mocked: results listed topmost first, details, copying coordinates, a touch tap, a saved pin, a failing layer, and no Cesium infobox.
+`src/lib/identify/*.test.ts` and `src/lib/dnr/describe.test.ts` cover the ordering, the layers skipped, a failing layer, the point query sent to a feature service, the feature titles and rows, and the saved-item hit tests. `tests/e2e/identify.spec.ts` runs at 390×844 and 1280×800 with the layer services mocked: results listed topmost first, details, copying coordinates, a touch tap, a saved pin, a failing layer, and no Cesium infobox.

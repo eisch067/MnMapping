@@ -21,6 +21,7 @@ Once the main map opens, you can:
 - Display statewide lidar hillshade and 10-foot or property-scale 2-foot contours.
 - Inspect parcel boundaries and available assessment attributes at parcel scale.
 - View Minnesota DNR management areas, state parks, forests, county-fee land, tax-forfeit land, and verified county supplements.
+- In the personal build, view DNR Recreation layers: deer, bear, and turkey permit areas, CWD zones, Walk-In Access sites, Hunter Walking Trails, public-water access, and fishing sites. A seasonal layer is unavailable unless its season is verified as current.
 - Reorder layers, adjust opacity, disable active layers, and monitor browser-reported request and transfer activity.
 - Add pins and drawings, organize them in folders, recover them from 30-day Trash, import GPX, KML, and GeoJSON files into an Import folder, export them for OnX or GIS tools, and back up or restore everything as a My Data archive.
 - Use the same map on a phone or a desktop: a bottom dock and swipeable sheets on a phone, and a left rail with a dockable panel on a desktop.
@@ -123,6 +124,7 @@ Cloudflare configuration and GitHub deployment details are documented in [Cloudf
 - [Map shell: tool row and sheets](docs/map-shell.md)
 - [Identify: what is under a click](docs/identify.md)
 - [Layer controls and persistence](docs/layer-controls.md)
+- [DNR Recreation](docs/dnr-recreation.md)
 - [Imagery source inventory](docs/imagery-sources.md)
 - [County imagery research tracker](docs/imagery-research-tracker.md)
 - [MnDOT public map catalog](docs/mndot-map-catalog.md)

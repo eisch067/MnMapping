@@ -13,7 +13,7 @@ The Layers action in the tool row opens the Layers sheet: a bottom sheet on a ph
 
 ## Group controls
 
-Each layer group heading has a checkbox that suspends and restores the group's **active subset**: the layers the user has switched on. A group is a category, or an Imagery scope (County, each county, Statewide, NAIP, CIR).
+Each layer group heading has a checkbox that suspends and restores the group's **active subset**: the layers the user has switched on. A group is a category, an Imagery scope (County, each county, Statewide, NAIP, CIR), or one of the five headings under DNR Recreation. The DNR Recreation control and a heading's control work independently: each remembers its own subset, and a layer switched on again by hand leaves every remembered subset it was in. See [DNR Recreation](dnr-recreation.md).
 
 - **Suspend.** Unchecking the control hides every layer in the group and remembers the ones that were on. The heading reads, for example, "0 on · 2 suspended".
 - **Restore.** Checking a suspended group switches on exactly the remembered layers. Layers that were not on stay off, and each layer keeps its opacity.
@@ -22,7 +22,11 @@ Each layer group heading has a checkbox that suspends and restores the group's *
 - **A layer that comes into view** by panning or zooming is never added to the active subset.
 - **A new location search** resets county layers to their defaults and forgets any suspended county layers, so a restore never brings back a layer from the previous search.
 
-3D terrain holds a single layer and has no group control. Public lands and Parcels also have an All opacities slider that sets every layer in the group at once.
+3D terrain holds a single layer and has no group control. Public lands, DNR Recreation, and Parcels also have an All opacities slider that sets every layer in the group at once.
+
+## Layers that are unavailable
+
+A DNR Recreation layer whose season is not verified as current stays in its group but cannot be switched on. Its row reads "Season data not verified", and a stored "on" is ignored rather than removed. Group controls skip such a layer, and the heading counts show only layers that are drawn. A DNR layer that loads only from a close view shows "Zoom in to load" while it is on and the camera is too high. Both are described in [DNR Recreation](dnr-recreation.md).
 
 The transitions live in `src/lib/map/layerGroups.ts` as pure functions over the layer state and the suspended subsets, and are covered by `src/lib/map/layerGroups.test.ts`.
 
