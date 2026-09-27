@@ -38,6 +38,23 @@ describe("auditDnrLayers", () => {
     expect(issues).not.toContainEqual(expect.stringMatching(/mndnr-deer-permit-areas/));
   });
 
+  it("requires a live map service to warn about the limits of its coverage", () => {
+    const depthMap = dnrRecreationLayers.find((layer) => layer.id === "mndnr-lake-depth-map")!;
+
+    expect(audit([withDnr(depthMap, { caution: " " })])).toEqual([
+      expect.stringMatching(/mndnr-lake-depth-map.*coverage/),
+    ]);
+    expect(audit([withDnr(depthMap, { caution: undefined })])).toHaveLength(1);
+  });
+
+  it("requires a layer that opens a lake summary to name its DOW attribute", () => {
+    const lakes = dnrRecreationLayers.find((layer) => layer.id === "mndnr-lakes-lakefinder")!;
+
+    expect(audit([withDnr(lakes, { lake: { dowField: "" } })])).toEqual([
+      expect.stringMatching(/mndnr-lakes-lakefinder.*DOW/),
+    ]);
+  });
+
   it("requires a DNR layer to default off", () => {
     const issues = audit([{ ...deer, defaultVisible: true }]);
 

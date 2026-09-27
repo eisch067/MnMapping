@@ -72,6 +72,16 @@ describe("streamLakeMap", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("refuses to serve a response that is not a PDF", async () => {
+    const response = await streamLakeMap(
+      "b0025010.pdf",
+      async () => new Response("<html>Maintenance</html>", { headers: { "content-type": "text/html" } }),
+    );
+
+    expect(response.status).toBe(502);
+    expect(response.headers.get("content-type")).not.toMatch(/pdf/);
+  });
+
   it("reports DNR not answering as a bad gateway, uncached", async () => {
     const response = await streamLakeMap("b0025010.pdf", async () => {
       throw new TypeError("Failed to fetch");

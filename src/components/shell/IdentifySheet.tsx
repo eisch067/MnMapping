@@ -100,6 +100,7 @@ interface ResultDetailProps {
 }
 
 function ResultDetail({ result, onBack, onOpenLake }: ResultDetailProps) {
+  const { lake } = result;
   return (
     <article className="identify-detail">
       <button type="button" className="identify-back" onClick={onBack}>
@@ -113,12 +114,8 @@ function ResultDetail({ result, onBack, onOpenLake }: ResultDetailProps) {
         </p>
       )}
       <RowList rows={result.rows} />
-      {result.lake && (
-        <button
-          type="button"
-          className="identify-action"
-          onClick={() => result.lake && onOpenLake(result.lake)}
-        >
+      {lake && (
+        <button type="button" className="identify-action" onClick={() => onOpenLake(lake)}>
           Open lake summary
         </button>
       )}
@@ -150,13 +147,11 @@ function PointView({ state, coordinates, onSelect, onClear }: PointViewProps) {
   return (
     <div className="identify">
       <CoordinateBar coordinates={coordinates} onClear={onClear} />
-      {lake ? (
-        <LakeSummary lake={lake} onBack={closeLake} />
-      ) : selected ? (
+      {lake && <LakeSummary lake={lake} onBack={closeLake} />}
+      {!lake && selected && (
         <ResultDetail result={selected} onBack={() => onSelect(null)} onOpenLake={setLake} />
-      ) : (
-        <ResultList state={state} onSelect={onSelect} />
       )}
+      {!lake && !selected && <ResultList state={state} onSelect={onSelect} />}
     </div>
   );
 }

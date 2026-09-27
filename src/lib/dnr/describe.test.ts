@@ -9,6 +9,7 @@ import hunterTrail from "./fixtures/hunter-walking-trail.json";
 import basin from "./fixtures/public-waters-basin.json";
 import turkey from "./fixtures/turkey-permit-area-502.json";
 import waterAccess from "./fixtures/water-access-with-alert.json";
+import waterAccessOnLake from "./fixtures/water-access-with-lake.json";
 import walkIn from "./fixtures/walk-in-access-1001.json";
 
 function layerNamed(id: string): LayerDefinition {
@@ -237,9 +238,15 @@ describe("a facility result that names a lake", () => {
 
     expect(describeFeature(access, waterAccess.attributes).lake).toBeUndefined();
     expect(describeFeature(access, { ...waterAccess.attributes, dow_lake_id: "12345" }).lake).toBeUndefined();
-    expect(
-      describeFeature(access, { ...waterAccess.attributes, dow_lake_id: "04013500", lake_name: "Beltrami" }).lake,
-    ).toEqual({ dow: "04013500", name: "Beltrami" });
+  });
+
+  it("opens the summary from a public water access on a lake, as DNR records it", () => {
+    const details = describeFeature(
+      layerNamed("mndnr-public-water-access"),
+      waterAccessOnLake.attributes,
+    );
+
+    expect(details.lake).toEqual({ dow: "69099400", name: "West Two Rivers Reservoir" });
   });
 });
 

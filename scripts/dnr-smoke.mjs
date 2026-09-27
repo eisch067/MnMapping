@@ -30,8 +30,19 @@ const geometryTypes = {
 };
 // Bathymetry outline and contour records DNR reported on 2026-09-23, and the layers the map draws.
 const depthMapChecks = [
-  { id: 1, name: "Lake Bathymetric Outline", expected: 7499 },
-  { id: 0, name: "Lake Bathymetric Contours", expected: 46306 },
+  // The fields are the ones identify reads (src/lib/dnr/lakeDepth.ts).
+  {
+    id: 1,
+    name: "Lake Bathymetric Outline",
+    expected: 7499,
+    fields: ["dowlknum", "lake_name", "cty_name", "acres", "island"],
+  },
+  {
+    id: 0,
+    name: "Lake Bathymetric Contours",
+    expected: 46306,
+    fields: ["dowlknum", "lake_name", "abs_depth"],
+  },
   { id: 3, name: "Lake Bathymetric Elevation Model" },
 ];
 // A lake DNR has surveyed, used to check that LakeFinder still answers in the shape the app reads.
@@ -216,7 +227,11 @@ async function checkDepthMap(layer) {
   return { name: layer.name, count: undefined, problems };
 }
 
-async function checkDepthLayer(layer, { id, expected }) {
+async function checkDepthLayer(layer, { id, expected, fields }) {
+  const metadata = await getJson(new URL(`${layer.sourceUrl}/${id}?f=json`));
+  const present = new Set((metadata.fields ?? []).map((field) => field.name));
+  const missing = fields.filter((field) => !present.has(field));
+  if (missing.length > 0) return [`layer ${id} no longer has the fields ${missing.join(", ")}`];
   const url = new URL(`${layer.sourceUrl}/${id}/query`);
   for (const [key, value] of Object.entries({ f: "json", where: "1=1", returnCountOnly: "true" })) url.searchParams.set(key, value);
   const { count } = await getJson(url);

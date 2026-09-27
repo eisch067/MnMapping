@@ -29,10 +29,14 @@ export async function streamLakeMap(
     const upstream = await fetcher(`${sheetRoot}${file}`, { cache: "no-store" });
     if (upstream.status === 404) return refusal("DNR has no lake map by that name.", 404);
     if (!upstream.ok) return refusal("The DNR lake map did not load.", 502);
+    // A page that is not a PDF would otherwise be served inline as one.
+    if (!upstream.headers.get("content-type")?.includes("application/pdf")) {
+      return refusal("DNR did not return a PDF for that lake map.", 502);
+    }
     return new Response(upstream.body, {
       status: 200,
       headers: {
-        "content-type": upstream.headers.get("content-type") ?? "application/pdf",
+        "content-type": "application/pdf",
         "content-disposition": `inline; filename="${file}"`,
         "cache-control": "no-store",
       },

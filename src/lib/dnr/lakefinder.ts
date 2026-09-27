@@ -87,19 +87,25 @@ function surveyedSpeciesOf(value: unknown): string[] {
   return [...new Set(names.map((name) => name.trim()).filter((name) => name !== ""))];
 }
 
+function regulationOf(reg: unknown, location: string): LakeRegulation | undefined {
+  if (!isRecord(reg) || !Array.isArray(reg.species)) return undefined;
+  if (typeof reg.text !== "string" || reg.text.trim() === "") return undefined;
+  return { species: textList(reg.species), text: reg.text, location };
+}
+
+function regulationsOfGroup(group: unknown): LakeRegulation[] | undefined {
+  if (!isRecord(group) || !Array.isArray(group.regs)) return undefined;
+  const location = textOf(group.location) ?? "";
+  const regulations = group.regs.map((reg) => regulationOf(reg, location));
+  return regulations.every((reg) => reg !== undefined) ? regulations : undefined;
+}
+
+// One malformed regulation makes the whole list unreadable, since leaving it out would read as
+// "no special regulations".
 function regulationsOf(value: unknown): LakeRegulation[] | undefined {
   if (!Array.isArray(value)) return undefined;
-  const regulations: LakeRegulation[] = [];
-  for (const group of value) {
-    if (!isRecord(group) || !Array.isArray(group.regs)) return undefined;
-    const location = textOf(group.location) ?? "";
-    for (const reg of group.regs) {
-      if (!isRecord(reg) || !Array.isArray(reg.species)) return undefined;
-      if (typeof reg.text !== "string" || reg.text.trim() === "") return undefined;
-      regulations.push({ species: textList(reg.species), text: reg.text, location });
-    }
-  }
-  return regulations;
+  const groups = value.map(regulationsOfGroup);
+  return groups.every((group) => group !== undefined) ? groups.flat() : undefined;
 }
 
 function isFlagged(resources: unknown, key: string): boolean {
@@ -159,8 +165,9 @@ export async function fetchLakeFinder(
   if (!isDow(dow)) return { status: "none" };
   try {
     const response = await fetcher(`${apiPath}?id=${dow}`, { signal });
+    if (!response.ok) return { status: "unavailable" };
     // DNR labels the JSON text/plain, so the body is parsed whatever its type says.
-    return response.ok ? parseLakeFinder(dow, JSON.parse(await response.text())) : { status: "unavailable" };
+    return parseLakeFinder(dow, JSON.parse(await response.text()));
   } catch (error) {
     // A caller that aborted has moved on, so the answer is dropped rather than shown.
     if (signal?.aborted) throw error;

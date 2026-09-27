@@ -9,12 +9,18 @@ export interface LakeRegulationEntry {
   location: string;
 }
 
+export interface LakeRegulations {
+  entries: LakeRegulationEntry[];
+  emptyMessage?: string;
+  verifyLink: IdentifyLink;
+}
+
 export interface LakeSummaryView {
   title: string;
-  // Present when the summary is only links: no record, no answer, or an answer that cannot be read.
+  // Present when the summary is only links: no record, no answer, or an unreadable answer.
   notice?: string;
   facts: IdentifyRow[];
-  regulations?: { entries: LakeRegulationEntry[]; emptyMessage?: string; verifyLink: IdentifyLink };
+  regulations?: LakeRegulations;
   // Invasive species and DNR's notes, hidden when DNR lists none.
   details: IdentifyRow[];
   species?: { heading: string; names: string[]; caveat: string };
@@ -32,10 +38,13 @@ export interface LakeSummaryInput {
 const lakeFinderRoot = "https://www.dnr.state.mn.us/lakefind";
 
 export const emptyRegulationsMessage =
-  "No lake-specific special regulations listed by DNR. Statewide, border-water, method, and seasonal rules may still apply.";
+  "No lake-specific special regulations listed by DNR. " +
+  "Statewide, border-water, method, and seasonal rules may still apply.";
 
 const speciesCaveat =
-  "Based on DNR's most recent survey or the last ten years. The list can leave out species anglers catch and include species they rarely do. Surveyed species do not show what may be taken or by what method.";
+  "Based on DNR's most recent survey or the last ten years. " +
+  "The list can leave out species anglers catch and include species they rarely do. " +
+  "Surveyed species do not show what may be taken or by what method.";
 
 const notices = {
   none: "DNR has no LakeFinder record for this lake.",
@@ -43,7 +52,10 @@ const notices = {
   changed: "DNR lake data came back in a form this app cannot read — official links below",
 } as const;
 
-const searchLink: IdentifyLink = { label: "Search LakeFinder", href: `${lakeFinderRoot}/index.html` };
+const searchLink: IdentifyLink = {
+  label: "Search LakeFinder",
+  href: `${lakeFinderRoot}/index.html`,
+};
 const regulationsLink: IdentifyLink = {
   label: verifyLinkLabel,
   href: "https://www.dnr.state.mn.us/regulations/fishing/index.html",
@@ -54,7 +66,7 @@ function lakePageLink(dow: string): IdentifyLink {
 }
 
 function feet(value: number | undefined): string {
-  return value === undefined ? "Not reported" : `${value.toLocaleString("en-US")} ft`;
+  return value === undefined ? "Unavailable" : `${value.toLocaleString("en-US")} ft`;
 }
 
 function factsFor(lake: LakeRecord): IdentifyRow[] {
@@ -62,10 +74,8 @@ function factsFor(lake: LakeRecord): IdentifyRow[] {
   if (lake.county) rows.push({ label: "County", value: lake.county });
   if (lake.nearestTown) rows.push({ label: "Nearest town", value: lake.nearestTown });
   if (lake.acres !== undefined) {
-    rows.push({
-      label: "Area",
-      value: `${lake.acres.toLocaleString("en-US", { maximumFractionDigits: 1 })} acres`,
-    });
+    const acres = lake.acres.toLocaleString("en-US", { maximumFractionDigits: 1 });
+    rows.push({ label: "Area", value: `${acres} acres` });
   }
   rows.push({ label: "Maximum depth", value: feet(lake.maxDepthFeet) });
   rows.push({ label: "Mean depth", value: feet(lake.meanDepthFeet) });
@@ -81,27 +91,40 @@ function detailsFor(lake: LakeRecord): IdentifyRow[] {
   return rows;
 }
 
-function linksFor(lake: LakeRecord): IdentifyLink[] {
-  const { dow, resources } = lake;
-  const reports: [boolean, IdentifyLink][] = [
-    [resources.waterLevels, { label: "Water-level report", href: `${lakeFinderRoot}/showlevel.html?downum=${dow}` }],
-    [resources.lakeSurvey, { label: "Fisheries lake survey", href: `${lakeFinderRoot}/showreport.html?downum=${dow}` }],
-    [
-      resources.fishStocking,
-      { label: "Fish stocking", href: `${lakeFinderRoot}/showstocking.html?downum=${dow}&context=desktop` },
-    ],
-    [resources.lakeMap, { label: "Lake depth maps on DNR's site", href: `${lakeFinderRoot}/showmap.html?downum=${dow}` }],
+// Each report is offered only where DNR flags that it exists.
+function reportLinks({ dow, resources }: LakeRecord): IdentifyLink[] {
+  const reports = [
+    { offered: resources.waterLevels, label: "Water-level report", page: "showlevel", query: "" },
+    { offered: resources.lakeSurvey, label: "Fisheries lake survey", page: "showreport", query: "" },
+    {
+      offered: resources.fishStocking,
+      label: "Fish stocking",
+      page: "showstocking",
+      query: "&context=desktop",
+    },
+    {
+      offered: resources.lakeMap,
+      label: "Lake depth maps on DNR's site",
+      page: "showmap",
+      query: "",
+    },
   ];
-  const pdf = resources.lakeMap && lake.mapIds[0] ? [{ label: "Lake map (PDF)", href: lakeMapPath(lake.mapIds[0]) }] : [];
-  return [
-    lakePageLink(dow),
-    ...reports.filter(([offered]) => offered).map(([, link]) => link),
-    ...pdf,
-  ];
+  return reports
+    .filter((report) => report.offered)
+    .map(({ label, page, query }) => ({
+      label,
+      href: `${lakeFinderRoot}/${page}.html?downum=${dow}${query}`,
+    }));
+}
+
+function mapPdfLinks(lake: LakeRecord): IdentifyLink[] {
+  const [mapId] = lake.mapIds;
+  return lake.resources.lakeMap && mapId
+    ? [{ label: "Lake map (PDF)", href: lakeMapPath(mapId) }]
+    : [];
 }
 
 function foundSummary(lake: LakeRecord): LakeSummaryView {
-  const speciesNames = lake.surveyedSpecies;
   return {
     title: lake.name,
     facts: factsFor(lake),
@@ -116,15 +139,20 @@ function foundSummary(lake: LakeRecord): LakeSummaryView {
     },
     details: detailsFor(lake),
     species:
-      speciesNames.length > 0
-        ? { heading: "Species encountered in DNR fisheries surveys", names: speciesNames, caveat: speciesCaveat }
+      lake.surveyedSpecies.length > 0
+        ? {
+            heading: "Species encountered in DNR fisheries surveys",
+            names: lake.surveyedSpecies,
+            caveat: speciesCaveat,
+          }
         : undefined,
-    links: linksFor(lake),
+    links: [lakePageLink(lake.dow), ...reportLinks(lake), ...mapPdfLinks(lake)],
     attribution: dnrAttribution,
   };
 }
 
-export function describeLakeSummary({ dow, fallbackName, outcome }: LakeSummaryInput): LakeSummaryView {
+export function describeLakeSummary(input: LakeSummaryInput): LakeSummaryView {
+  const { dow, fallbackName, outcome } = input;
   if (outcome.status === "found") return foundSummary(outcome.lake);
   return {
     title: fallbackName ?? `Lake ${dow}`,
@@ -132,7 +160,10 @@ export function describeLakeSummary({ dow, fallbackName, outcome }: LakeSummaryI
     facts: [{ label: "DOW number", value: dow }],
     details: [],
     // A lake DNR has no record of has no page to open, so only the search is offered.
-    links: outcome.status === "none" ? [searchLink] : [searchLink, lakePageLink(dow), regulationsLink],
+    links:
+      outcome.status === "none"
+        ? [searchLink]
+        : [searchLink, lakePageLink(dow), regulationsLink],
     attribution: dnrAttribution,
   };
 }

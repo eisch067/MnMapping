@@ -99,7 +99,7 @@ describe("a record with no special regulations", () => {
 
   it("marks a depth DNR does not report as unavailable rather than hiding it", () => {
     expect(summary.facts).toContainEqual({ label: "Maximum depth", value: "18 ft" });
-    expect(summary.facts).toContainEqual({ label: "Mean depth", value: "Not reported" });
+    expect(summary.facts).toContainEqual({ label: "Mean depth", value: "Unavailable" });
   });
 });
 

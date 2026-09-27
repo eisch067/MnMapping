@@ -28,7 +28,12 @@ interface DepthLake {
 }
 
 // A contour is a line, so it is found within the click distance rather than under the point.
-function queryUrl(layer: LayerDefinition, layerId: number, context: IdentifyContext, fields: string) {
+function queryUrl(
+  layer: LayerDefinition,
+  layerId: number,
+  context: IdentifyContext,
+  fields: string,
+) {
   const { longitude, latitude, toleranceMeters } = context.point;
   const url = new URL(`${absoluteBrowserUrl(layer.url)}/${layerId}/query`);
   url.searchParams.set("where", "1=1");
@@ -71,7 +76,10 @@ function lakeEntry(lakes: Map<string, DepthLake>, attributes: Attributes): Depth
   return created;
 }
 
-function collectLakes(outlines: readonly Attributes[], contours: readonly Attributes[]): DepthLake[] {
+function collectLakes(
+  outlines: readonly Attributes[],
+  contours: readonly Attributes[],
+): DepthLake[] {
   const lakes = new Map<string, DepthLake>();
   // An island polygon is land inside a lake, so a point on one is not on the lake.
   for (const outline of outlines.filter((entry) => entry.island !== "Y")) {

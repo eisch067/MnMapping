@@ -41,6 +41,9 @@ function metadataIssues(layer: LayerDefinition): string[] {
   }
   if (!dnrHeadings.some(({ id }) => id === dnr.heading)) issues.push("must have a known heading");
   if (!isDnrPage(dnr.verifyUrl)) issues.push("must have a verify link on a DNR page over https");
+  if (dnr.lake && !/^\w+$/.test(dnr.lake.dowField)) {
+    issues.push("must name the attribute that holds its lake's DOW number");
+  }
   if (!isoDate.test(dnr.verifiedOn)) {
     issues.push("must record the date it was verified as YYYY-MM-DD");
   }
@@ -49,8 +52,19 @@ function metadataIssues(layer: LayerDefinition): string[] {
   return issues;
 }
 
+// A live map service draws whatever DNR has mapped, so its row and results must say how far that
+// coverage goes.
+function coverageIssue(layer: LayerDefinition): string | undefined {
+  const isLiveMap = layer.sourceType === "arcgis-mapserver";
+  return isLiveMap && !layer.dnr?.caution?.trim()
+    ? "must warn about the limits of its coverage"
+    : undefined;
+}
+
 function layerIssues(layer: LayerDefinition): string[] {
   const issues: string[] = [];
+  const coverage = coverageIssue(layer);
+  if (coverage) issues.push(coverage);
   if (layer.category !== "dnr-recreation") issues.push("must be in the dnr-recreation category");
   if (layer.defaultVisible) issues.push("must default off");
   if (!isOfficialSource(layer.sourceUrl)) {

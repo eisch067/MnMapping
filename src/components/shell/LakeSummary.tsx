@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { fetchLakeFinder, type LakeFinderOutcome } from "@/lib/dnr/lakefinder";
-import { describeLakeSummary, type LakeSummaryView } from "@/lib/dnr/lakeSummary";
+import {
+  describeLakeSummary,
+  type LakeRegulations,
+  type LakeSummaryView,
+} from "@/lib/dnr/lakeSummary";
 import type { IdentifyLake } from "@/lib/identify/types";
 import { LinkList, RowList } from "./IdentifyParts";
 
@@ -26,7 +30,7 @@ function useLakeFinder(dow: string): LakeFinderOutcome | undefined {
   return loaded?.dow === dow ? loaded.outcome : undefined;
 }
 
-function Regulations({ regulations }: { regulations: NonNullable<LakeSummaryView["regulations"]> }) {
+function Regulations({ regulations }: { regulations: LakeRegulations }) {
   const { entries, emptyMessage, verifyLink } = regulations;
   return (
     <section className="lake-regulations" aria-label="DNR special fishing regulations">
