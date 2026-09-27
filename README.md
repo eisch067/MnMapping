@@ -22,7 +22,7 @@ Once the main map opens, you can:
 - Inspect parcel boundaries and available assessment attributes at parcel scale.
 - View Minnesota DNR management areas, state parks, forests, county-fee land, tax-forfeit land, and verified county supplements.
 - Reorder layers, adjust opacity, disable active layers, and monitor browser-reported request and transfer activity.
-- Add pins and drawings, organize them in folders, recover them from 30-day Trash, import GPX, KML, and GeoJSON files into an Import folder, export them for OnX or GIS tools, and back up or restore everything as a My Data archive.
+- Add pins and WGS84-measured lines or areas, edit shapes with midpoint insertion and Undo, organize items in folders, recover them from 30-day Trash, import or export GPX, KML, and GeoJSON files, and back up or restore everything as a My Data archive.
 - Use the same map on a phone or a desktop: a bottom dock and swipeable sheets on a phone, and a left rail with a dockable panel on a desktop.
 
 ## Coverage and source approach

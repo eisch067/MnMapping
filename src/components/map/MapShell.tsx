@@ -12,6 +12,7 @@ import { useMapTools } from "@/components/shell/useMapTools";
 import { useExchange } from "@/components/shell/useExchange";
 import { useIdentify } from "@/components/shell/useIdentify";
 import { useMyData } from "@/components/shell/useMyData";
+import { useShapeDrawing } from "@/components/shell/useShapeDrawing";
 import { useSheetState } from "@/components/shell/useSheetState";
 import type { Bounds } from "@/lib/exchange/bounds";
 import type { IdentifyPoint } from "@/lib/identify/types";
@@ -38,6 +39,7 @@ export function MapShell() {
   const layerControls = useLayerControls(location, viewportBounds);
   const myData = useMyData();
   const tools = useMapTools(myData.add);
+  const shapes = useShapeDrawing(myData.add, myData.onUpdateItemGeometry);
   const identify = useIdentify({
     layers: layerControls.map.layers,
     layerState: layerControls.map.layerState,
@@ -53,7 +55,10 @@ export function MapShell() {
   const sheet = useSheetState({
     defaultId: sheetIds.layers,
     onChange: (openId) => {
-      if (openId !== sheetIds.add) tools.reset();
+      if (openId !== sheetIds.add) {
+        tools.reset();
+        shapes.cancel();
+      }
     },
   });
 
@@ -80,6 +85,10 @@ export function MapShell() {
     setLocation(null);
   };
   const handleMapClick = (point: IdentifyPoint) => {
+    if (shapes.active) {
+      if (!shapes.active.item) shapes.addPoint(point.longitude, point.latitude);
+      return;
+    }
     tools.handleCoordinateClick(point.longitude, point.latitude);
     if (tools.mode === "inspect") void identify.identify(point);
     if (sheet.openId === null) sheet.open(sheetIds.explore);
@@ -94,13 +103,36 @@ export function MapShell() {
       onImportFile: exchange.importFile,
       onExportScope: exchange.startExport,
       onOpenBackup: exchange.openBackup,
+      onEditItem: (item) => {
+        shapes.startEditing(item);
+        sheet.open(sheetIds.add);
+      },
     },
     explore: { state: identify, onSelect: identify.select, onClear: identify.clear },
     add: {
       mode: tools.mode,
-      vertexCount: tools.draft.length,
-      onModeChange: tools.selectMode,
-      onFinish: () => void tools.finishDrawing(),
+      settingsReady: Boolean(myData.settings),
+      shape: shapes.active ? {
+        editing: Boolean(shapes.active.item),
+        kind: shapes.active.kind,
+        itemName: shapes.active.item?.name,
+        vertexCount: shapes.active.state.vertices.length,
+        minimumVertices: shapes.minimumVertices,
+        canUndo: shapes.active.state.history.length > 0,
+        measurement: shapes.measurement,
+        polygonDimension: shapes.active.primaryDimension && "areaUnit" in shapes.active.primaryDimension
+          ? shapes.active.primaryDimension.kind
+          : undefined,
+        onDimensionChange: shapes.setPolygonDimension,
+        onUndo: shapes.undo,
+        onCancel: shapes.cancel,
+        onSave: () => void shapes.save(),
+      } : null,
+      onPinToggle: () => tools.selectMode(tools.mode === "pin" ? "inspect" : "pin"),
+      onStartShape: (kind) => {
+        tools.reset();
+        shapes.startDrawing(kind, myData.settings);
+      },
     },
     mapView: { onMapView: showMapView, onTerrainView: showTerrainView },
     exchange: {
@@ -129,11 +161,13 @@ export function MapShell() {
           onViewControlsReady={setViewControls}
           onViewportChange={setViewportBounds}
           onCameraHeightChange={setCameraHeight}
-          interactionMode={tools.mode}
+          interactionMode={shapes.active ? (shapes.active.item ? "edit" : shapes.active.kind) : tools.mode}
           myData={myData.items}
           myDataVisible={myData.visible}
           crosshair={identify.point}
           onMapClick={handleMapClick}
+          drawingOverlay={shapes.overlay}
+          onMidpointInsert={shapes.insertMidpoint}
           onCursorChange={(longitude, latitude) => setCursor([longitude, latitude])}
         />
       </main>

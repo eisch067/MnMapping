@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { GeoJsonDataSource, ImageryLayer, TerrainProvider, Viewer } from "cesium";
+import type { CustomDataSource, GeoJsonDataSource, ImageryLayer, TerrainProvider, Viewer } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
 import { isLayerAvailableAtCameraHeight, isTerrainLayer } from "@/config/layers/types";
 import { cameraHeightForLocation, type MapLocation, type ViewportBounds } from "@/lib/location";
@@ -11,6 +11,8 @@ import { imageryStackBand } from "@/lib/map/layerStack";
 import type { LayerStateById } from "@/lib/map/layerState";
 import type { LayerRuntimeState } from "@/lib/map/layerRuntime";
 import type { Bounds } from "@/lib/exchange/bounds";
+import { createDrawingOverlay, type DrawingOverlayState } from "@/lib/map/drawingOverlay";
+import { applyMyDataAppearance } from "@/lib/map/myDataAppearance";
 import type { MyMapItem } from "@/lib/myData";
 import { toGeoJson } from "@/lib/myData";
 import { useCrosshair } from "./useCrosshair";
@@ -18,7 +20,7 @@ import { useCrosshair } from "./useCrosshair";
 // How far from a click, on screen, a saved line or pin still counts as under it.
 const clickToleranceInPixels = 20;
 
-export type InteractionMode = "inspect" | "pin" | "line" | "polygon";
+export type InteractionMode = "inspect" | "pin" | "line" | "polygon" | "edit";
 
 interface CesiumMapProps {
   layers: readonly LayerDefinition[];
@@ -34,6 +36,8 @@ interface CesiumMapProps {
   myDataVisible: boolean;
   crosshair: IdentifyPoint | null;
   onMapClick: (point: IdentifyPoint) => void;
+  drawingOverlay: DrawingOverlayState | null;
+  onMidpointInsert: (segmentIndex: number) => void;
   onCursorChange: (longitude: number, latitude: number) => void;
   retryVersion: Readonly<Record<string, number>>;
   onLayerStatusChange: (id: string, state: LayerRuntimeState) => void;
@@ -59,6 +63,8 @@ export function CesiumMap({
   myDataVisible,
   crosshair,
   onMapClick,
+  drawingOverlay,
+  onMidpointInsert,
   onCursorChange,
   retryVersion,
   onLayerStatusChange,
@@ -86,6 +92,9 @@ export function CesiumMap({
   const retryVersionRef = useRef<Record<string, number>>({});
   const activeLayerIdsRef = useRef(new Set(layers.map((layer) => layer.id)));
   const personalDataRef = useRef<GeoJsonDataSource | null>(null);
+  const drawingDataRef = useRef<CustomDataSource | null>(null);
+  const drawingOverlayRef = useRef(drawingOverlay);
+  const midpointInsertRef = useRef(onMidpointInsert);
   const [mapReady, setMapReady] = useState(false);
   const [viewportBounds, setInternalViewportBounds] = useState<ViewportBounds | null>(null);
   const [cameraHeight, setCameraHeight] = useState(Number.POSITIVE_INFINITY);
@@ -191,6 +200,12 @@ export function CesiumMap({
         if (point) cursorChangeRef.current(point[0], point[1]);
       }, ScreenSpaceEventType.MOUSE_MOVE);
       handler.setInputAction((event: { position: import("cesium").Cartesian2 }) => {
+        const picked = viewer.scene.pick(event.position) as { id?: { id?: string } } | undefined;
+        const pickedId = picked?.id?.id;
+        if (drawingOverlayRef.current?.editing && pickedId?.startsWith("drawing-segment-")) {
+          midpointInsertRef.current(Number(pickedId.slice("drawing-segment-".length)));
+          return;
+        }
         const point = positionAt(event.position);
         if (!point) return;
         const edge = positionAt(
@@ -218,6 +233,7 @@ export function CesiumMap({
       for (const controller of dataAborts.values()) controller.abort();
       dataAborts.clear();
       personalDataRef.current = null;
+      drawingDataRef.current = null;
       terrainRef.current = null;
       pendingTerrainRef.current = false;
       ellipsoidTerrainRef.current = null;
@@ -230,6 +246,8 @@ export function CesiumMap({
   useEffect(() => { mapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { cursorChangeRef.current = onCursorChange; }, [onCursorChange]);
   useEffect(() => { layerStatusChangeRef.current = onLayerStatusChange; }, [onLayerStatusChange]);
+  useEffect(() => { drawingOverlayRef.current = drawingOverlay; }, [drawingOverlay]);
+  useEffect(() => { midpointInsertRef.current = onMidpointInsert; }, [onMidpointInsert]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -237,6 +255,7 @@ export function CesiumMap({
     let cancelled = false;
     void import("cesium").then(async ({ Color, ConstantProperty, GeoJsonDataSource }) => {
       const dataSource = await GeoJsonDataSource.load(toGeoJson(myData), { clampToGround: false, markerColor: Color.fromCssColorString("#de6b48"), stroke: Color.fromCssColorString("#de6b48"), fill: Color.fromCssColorString("#de6b48").withAlpha(0.2), strokeWidth: 3 });
+      await applyMyDataAppearance(dataSource, myData);
       for (const entity of dataSource.entities.values) {
         if (entity.polygon) {
           entity.polygon.height = new ConstantProperty(0);
@@ -254,6 +273,27 @@ export function CesiumMap({
     });
     return () => { cancelled = true; };
   }, [mapReady, myData, myDataVisible]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!mapReady || !viewer) return;
+    let cancelled = false;
+    const replaceOverlay = async () => {
+      const previous = drawingDataRef.current;
+      if (!drawingOverlay) {
+        drawingDataRef.current = null;
+        if (previous) viewer.dataSources.remove(previous, true);
+        return;
+      }
+      const next = await createDrawingOverlay(drawingOverlay);
+      if (cancelled || viewer.isDestroyed()) return;
+      await viewer.dataSources.add(next);
+      drawingDataRef.current = next;
+      if (previous) viewer.dataSources.remove(previous, true);
+    };
+    void replaceOverlay();
+    return () => { cancelled = true; };
+  }, [drawingOverlay, mapReady]);
 
   useEffect(() => {
     layerStateRef.current = layerState;

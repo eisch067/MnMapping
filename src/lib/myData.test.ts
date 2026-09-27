@@ -171,3 +171,24 @@ describe("archive restore and delete-all", () => {
     expect((await store.load()).items).toEqual([]);
   });
 });
+
+describe("shape persistence", () => {
+  it("saves edited geometry with a new revision", async () => {
+    const store = await MyDataStore.open({ name: "shape-edit", indexedDB: new IDBFactory() });
+    const item = await store.addItem({
+      name: "Scout route",
+      geometry: { type: "LineString", coordinates: [[-95, 47], [-94, 47]] },
+    });
+
+    await store.updateItemGeometry(item.id, {
+      type: "LineString",
+      coordinates: [[-95, 47], [-94.5, 47.2], [-94, 47]],
+    });
+
+    const saved = (await store.load()).items[0];
+    expect(saved.geometry.type).toBe("LineString");
+    expect(saved.geometry.coordinates).toHaveLength(3);
+    expect(saved.revision).toBe(2);
+    store.close();
+  });
+});

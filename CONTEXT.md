@@ -81,8 +81,12 @@ My Data kept on a single device with no synchronization, as in the public build.
 _Avoid_: Offline mode, guest mode
 
 **Primary dimension**:
-The user's chosen unit and measurement displayed directly on a line or polygon; its details may also show equivalent measurements in other units.
+The user's chosen WGS84 geodesic unit and measurement displayed directly on a line or polygon; its details may also show equivalent measurements in other units.
 _Avoid_: Default unit, only measurement
+
+**Shape edit mode**:
+The explicit My Data workflow that exposes a saved line or polygon's numbered vertices and midpoint insertion handles; changes remain a draft until Save shape.
+_Avoid_: Automatic editing, reshape tool
 
 **Horizontal distance**:
 Distance over the earth between mapped positions without accounting for terrain height.
