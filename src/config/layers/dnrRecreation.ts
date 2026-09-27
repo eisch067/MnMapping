@@ -8,6 +8,7 @@ import {
 const mngeoRoot = "/api/gis-proxy/mngeo-features/us_mn_state_dnr";
 const mngeoSource = "https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_dnr";
 const cwdService = "Hosted/CWD_Sampling_and_Regulations_for_MN_2020_Deer_Seasons_Public_View";
+
 const cwdSource =
   "https://gis.dnr.state.mn.us/arcgis/sharing/servers/8462b6a81c46461484c68d4bd638134c/rest/services";
 const verifiedOn = "2026-09-26";
@@ -57,6 +58,51 @@ function defineDnrLayer(spec: DnrLayerSpec): LayerDefinition {
         : spec.options,
   };
 }
+
+const cwdSamplingLayer: DnrLayerSpec = {
+  id: "mndnr-cwd-sampling-sites",
+  name: "CWD sampling & self-service sites",
+  url: `/api/gis-proxy/dnr-gis/${cwdService}/FeatureServer`,
+  sourceUrl: `${cwdSource}/${cwdService}/FeatureServer/1`,
+  defaultOpacity: 0.95,
+  description:
+    "DNR-listed sites for CWD sampling, including self-service barrels. Stations and hours can change or close; verify current details with DNR.",
+  nameField: "sitename",
+  popupFields: [
+    { field: "nearestcity", label: "Nearest city" },
+    { field: "servicetype", label: "Service" },
+    { field: "cwdareas", label: "Requirement" },
+    { field: "dpa", label: "Listed by DNR for hunters" },
+    { field: "sampletime", label: "In-person hours" },
+    { field: "selfsrtime", label: "Self-service hours" },
+    { field: "address", label: "Address" },
+    { field: "directions", label: "Directions" },
+  ],
+  dnr: {
+    heading: "hunting-zones-health",
+    meaningClass: "facility",
+    verifyUrl: "https://www.dnr.state.mn.us/cwd/index.html",
+    titlePrefix: "CWD sampling site: ",
+    verifiedOn,
+    season: { source: "configured", label: "July 2026 - June 2027", verifiedThrough: "2027-06-30" },
+    moreFields: [
+      { field: "notes", label: "Site notes" },
+      { field: "admin", label: "Administrator" },
+      { field: "last_edited_date", label: "DNR record last edited" },
+    ],
+    dateFields: ["last_edited_date"],
+    linkFields: [{ field: "moredetail", label: "More details" }],
+  },
+  options: {
+    layerId: 1,
+    where: "show = 'Yes' AND servicetype NOT LIKE '%no longer available%'",
+    fillColor: "#8f5db7",
+    strokeColor: "#d5afe9",
+    fillAlpha: 0.9,
+    strokeWidth: 2,
+    identifyNearby: true,
+  },
+};
 
 const deerPermitAreas: DnrLayerSpec = {
   id: "mndnr-deer-permit-areas",
@@ -751,6 +797,7 @@ const bufferProtectionBasins: DnrLayerSpec = {
 export const dnrRecreationLayers: readonly LayerDefinition[] = /* @__PURE__ */ [
   cwdZones,
   turkeyPermitAreas,
+  cwdSamplingLayer,
   bearPermitAreas,
   deerPermitAreas,
   walkInAccessSites,

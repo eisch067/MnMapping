@@ -63,15 +63,38 @@ function mockDnrServices({
       if (url.pathname.includes("/dnr-lakefinder/")) {
         return lakeFinder ? route.fulfill(lakeFinder) : route.abort();
       }
+      if (url.pathname.includes("/dnr-gis-item/")) {
+        return route.fulfill({ json: { title: "CWD_Sampling_and_Regulations_for_MN_2026_Deer_Seasons_Public_View_SC" } });
+      }
       if (url.pathname.includes("/water_lake_bathymetry/MapServer/")) {
         return route.fulfill({ json: { features: bathymetryAt(url) } });
       }
       if (!url.pathname.includes("/FeatureServer")) return route.abort();
+      if (url.pathname.endsWith("/FeatureServer")) {
+        return route.fulfill({ json: { layers: [
+          { id: 1, name: "wld_cwd_hunter_resource_sites_web" },
+          { id: 3, name: "wld_cwd_dpa_sampling_area_web" },
+        ] } });
+      }
+      if (url.pathname.endsWith("/FeatureServer/1")) {
+        return route.fulfill({ json: {
+          objectIdField: "objectid",
+          maxRecordCount: 1000,
+          name: "wld_cwd_hunter_resource_sites_web",
+          fields: ["sitename", "nearestcity", "servicetype", "cwdareas", "dpa", "sampletime", "selfsrtime", "address", "directions", "notes", "admin", "last_edited_date", "moredetail", "show"].map((name) => ({ name })),
+        } });
+      }
       if (!url.pathname.endsWith("/query")) {
         return route.fulfill({ json: { objectIdField: "objectid", maxRecordCount: 1000 } });
       }
       if (url.searchParams.get("returnDistinctValues") === "true") {
         return route.fulfill({ json: { features: [{ attributes: { effperiod: period } }] } });
+      }
+      if (url.pathname.endsWith("/3/query")) {
+        return route.fulfill({ json: { features: [{ attributes: { effperiod: period } }] } });
+      }
+      if (url.pathname.endsWith("/1/query")) {
+        return route.fulfill({ json: { features: [{ attributes: { last_edited_date: Date.UTC(2026, 8, 20) } }] } });
       }
       if (url.searchParams.get("geometryType") === "esriGeometryPoint") {
         pointQueries.push(url);
@@ -120,6 +143,8 @@ test.describe("the public build", () => {
     expect(restrictedMapServer.status()).toBe(400);
     const lakeFinder = await request.get("/api/gis-proxy/dnr-lakefinder/by_id/v1?id=04013500");
     expect(lakeFinder.status()).toBe(400);
+    const cwdItem = await request.get("/api/gis-proxy/dnr-gis-item/8462b6a81c46461484c68d4bd638134c");
+    expect(cwdItem.status()).toBe(400);
     expect((await request.get("/api/lake-map/b0025010.pdf")).status()).toBe(404);
   });
 });
@@ -242,11 +267,11 @@ test.describe("the personal build", () => {
     await headingButton(page, "Hunting zones & health").click();
     await headingButton(page, "Hunting access & habitat").click();
 
-    for (const layer of [/^Deer permit areas/, /^Bear permit areas/, /^CWD zones/, /^Turkey permit/]) {
+    for (const layer of [/^Deer permit areas/, /^Bear permit areas/, /^CWD zones/, /^CWD sampling/, /^Turkey permit/]) {
       await expect(layerCheckbox(page, layer)).toBeDisabled();
       await expect(layerCheckbox(page, layer)).not.toBeChecked();
     }
-    await expect(page.getByText("Season data not verified")).toHaveCount(4);
+    await expect(page.getByText("Season data not verified")).toHaveCount(5);
     await expect(page.getByText("Last verified: July 2026 - June 2027").first()).toBeVisible();
     await expect(page.getByText("Last verified: 2026 season")).toBeVisible();
     await expect(
@@ -265,6 +290,17 @@ test.describe("the personal build", () => {
     await expect(page.getByText(`Season: ${currentPeriod}`).first()).toBeVisible();
     await deer.check();
     await expect(deer).toBeChecked();
+  });
+
+  test("CWD sampling becomes available after all five source checks pass", async ({ page }) => {
+    await openDnrRecreation(page);
+    await headingButton(page, "Hunting zones & health").click();
+
+    const sites = layerCheckbox(page, /^CWD sampling & self-service sites/);
+    await expect(sites).toBeEnabled();
+    await expect(page.getByText(`Season: ${currentPeriod}`).first()).toBeVisible();
+    await sites.check();
+    await expect(sites).toBeChecked();
   });
 
   test("a result shows the meaning statement, verify link, attribution, and more details", async ({

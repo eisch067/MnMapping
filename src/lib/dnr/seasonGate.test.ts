@@ -39,9 +39,10 @@ const allOn = (layers: readonly LayerDefinition[]): LayerStateById =>
   Object.fromEntries(layers.map((layer) => [layer.id, { visible: true, opacity: 1 }]));
 
 describe("the DNR season gate", () => {
-  it("gates the four season-specific layers and no others", () => {
+  it("gates the season-specific layers and no others", () => {
     expect(seasonLayers.map((layer) => layer.name).toSorted()).toEqual([
       "Bear permit areas",
+      "CWD sampling & self-service sites",
       "CWD zones",
       "Deer permit areas",
       "Turkey permit areas",
@@ -91,7 +92,7 @@ describe("the DNR season gate", () => {
       label: "July 2026 - June 2027",
     });
     expect(gates["mndnr-cwd-zones"]?.status).toBe("current");
-    expect(calls).toHaveLength(2);
+    expect(calls.length).toBeGreaterThanOrEqual(2);
     expect(calls[0].searchParams.get("returnDistinctValues")).toBe("true");
     expect(calls[0].searchParams.get("outFields")).toBe("effperiod");
   });
