@@ -50,7 +50,6 @@ async function downloadText(download: Download): Promise<string> {
 }
 
 test("an imported KML file becomes an Import folder that can be undone", async ({ page }) => {
-  test.setTimeout(60_000);
   await openMap(page);
   const sheet = await importFile(page, kmlFile);
 
@@ -93,7 +92,6 @@ test("an unsupported or malformed file imports nothing and says why", async ({ p
 });
 
 test("a folder exports as KML and as GPX with the area notice", async ({ page }) => {
-  test.setTimeout(60_000);
   await openMap(page);
   const area = {
     type: "Feature",

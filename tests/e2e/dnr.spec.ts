@@ -1,10 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openMap } from "./support/map";
 
-// Cesium renders in software on CI and busy machines, so a desktop-size map can take many
-// seconds to start up.
-test.describe.configure({ timeout: 60_000 });
-
 // The two builds differ in what they list, and CI runs this file against each.
 const personal = process.env.NEXT_PUBLIC_APP_MODE === "personal";
 

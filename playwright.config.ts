@@ -7,6 +7,11 @@ export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
+  // Cesium renders in software on CI and busy machines, so a desktop-size map can take many
+  // seconds to start and every step after it runs slowly. Two specs at a time failed on the 30 s
+  // default, so the allowance is set here rather than in each spec.
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: `http://localhost:${port}`,
