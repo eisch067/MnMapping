@@ -5,6 +5,7 @@ import type { CustomDataSource, GeoJsonDataSource, ImageryLayer, TerrainProvider
 import type { LayerDefinition } from "@/config/layers";
 import { isLayerAvailableAtCameraHeight, isTerrainLayer } from "@/config/layers/types";
 import { cameraHeightForLocation, type MapLocation, type ViewportBounds } from "@/lib/location";
+import { geodesicMidpoint } from "@/lib/geodesy";
 import type { IdentifyPoint } from "@/lib/identify/types";
 import { applyGeoJsonOpacity, createLayerResource } from "@/lib/map/createLayer";
 import { imageryStackBand } from "@/lib/map/layerStack";
@@ -218,7 +219,24 @@ export function CesiumMap({
       handler.setInputAction((event: { position: import("cesium").Cartesian2 }) => {
         const picked = viewer.scene.pick(event.position) as { id?: { id?: string } } | undefined;
         const pickedId = picked?.id?.id;
-        if (drawingOverlayRef.current?.editing) {
+        const overlay = drawingOverlayRef.current;
+        if (overlay?.editing) {
+          const segmentCount = overlay.closed ? overlay.vertices.length : overlay.vertices.length - 1;
+          for (let segmentIndex = 0; segmentIndex < segmentCount; segmentIndex += 1) {
+            const start = overlay.vertices[segmentIndex];
+            const end = overlay.vertices[(segmentIndex + 1) % overlay.vertices.length];
+            const midpoint = geodesicMidpoint(start, end);
+            const screenPosition = viewer.scene.cartesianToCanvasCoordinates(
+              Cartesian3.fromDegrees(midpoint[0], midpoint[1]),
+            );
+            if (screenPosition && Math.hypot(
+              screenPosition.x - event.position.x,
+              screenPosition.y - event.position.y,
+            ) <= 32) {
+              midpointInsertRef.current(segmentIndex);
+              return;
+            }
+          }
           const segmentId = [pickedId, ...(viewer.scene.drillPick(event.position, 8) as { id?: { id?: string } }[]).map((value) => value.id?.id)]
             .find((id) => id?.startsWith("drawing-segment-"));
           if (segmentId) {
