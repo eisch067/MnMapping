@@ -28,6 +28,11 @@ export interface IdentifyResult {
   rows: IdentifyRow[];
   notes: string[];
   links: IdentifyLink[];
+  // Source fields a result keeps out of its summary, shown on request.
+  moreRows?: IdentifyRow[];
+  // A closure or condition notice the source posts, shown above the summary.
+  banner?: string;
+  attribution?: string;
 }
 
 export interface IdentifyFailure {

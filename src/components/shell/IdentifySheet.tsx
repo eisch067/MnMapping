@@ -91,6 +91,20 @@ function ResultList({ state, onSelect }: Pick<IdentifySheetProps, "state" | "onS
   );
 }
 
+function RowList({ rows }: { rows: IdentifyResult["rows"] }) {
+  if (rows.length === 0) return null;
+  return (
+    <dl>
+      {rows.map((row) => (
+        <div key={row.label}>
+          <dt>{row.label}</dt>
+          <dd>{row.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function ResultDetail({ result, onBack }: { result: IdentifyResult; onBack: () => void }) {
   return (
     <article className="identify-detail">
@@ -99,16 +113,12 @@ function ResultDetail({ result, onBack }: { result: IdentifyResult; onBack: () =
       </button>
       <span className="identify-kicker">{resultKind(result)}</span>
       <h3>{result.title}</h3>
-      {result.rows.length > 0 && (
-        <dl>
-          {result.rows.map((row) => (
-            <div key={row.label}>
-              <dt>{row.label}</dt>
-              <dd>{row.value}</dd>
-            </div>
-          ))}
-        </dl>
+      {result.banner && (
+        <p role="alert" className="identify-banner">
+          {result.banner}
+        </p>
       )}
+      <RowList rows={result.rows} />
       {result.notes.map((note) => (
         <p key={note} className="sheet-hint">
           {note}
@@ -119,6 +129,13 @@ function ResultDetail({ result, onBack }: { result: IdentifyResult; onBack: () =
           {link.label} ↗
         </a>
       ))}
+      {result.moreRows && result.moreRows.length > 0 && (
+        <details className="identify-more">
+          <summary>More details</summary>
+          <RowList rows={result.moreRows} />
+        </details>
+      )}
+      {result.attribution && <small className="identify-attribution">{result.attribution}</small>}
     </article>
   );
 }

@@ -1,5 +1,6 @@
 import type { LayerCategory, LayerDefinition } from "@/config/layers/types";
 import type { RestrictedImagerySource } from "@/config/restrictedImagery";
+import { DnrRecreationSection } from "./DnrRecreationSection";
 import { GroupHeading } from "./GroupHeading";
 import { ImagerySection, type SectionState } from "./ImagerySection";
 import { LayerRows, type LayerControls } from "./LayerRow";
@@ -14,8 +15,37 @@ interface CategorySectionProps {
   pendingCounties: readonly string[];
 }
 
-export function CategorySection(props: CategorySectionProps) {
+function CategoryBody(props: CategorySectionProps) {
   const { category, layers, controls, sections, externalImagery, pendingCounties } = props;
+  if (category === "imagery") {
+    return (
+      <ImagerySection
+        layers={layers}
+        externalImagery={externalImagery}
+        controls={controls}
+        sections={sections}
+      />
+    );
+  }
+  if (category === "dnr-recreation") {
+    return (
+      <div className="layer-list">
+        <GroupOpacity category={category} layers={layers} controls={controls} />
+        <DnrRecreationSection layers={layers} controls={controls} sections={sections} />
+      </div>
+    );
+  }
+  return (
+    <div className="layer-list" id={`layer-section-${category}`}>
+      <GroupOpacity category={category} layers={layers} controls={controls} />
+      <LayerRows layers={layers} controls={controls} reverse />
+      <PendingCountyNotes category={category} counties={pendingCounties} />
+    </div>
+  );
+}
+
+export function CategorySection(props: CategorySectionProps) {
+  const { category, layers, controls, sections } = props;
   const collapsed = sections.isCollapsed(category);
   return (
     <section className="layer-category">
@@ -30,34 +60,25 @@ export function CategorySection(props: CategorySectionProps) {
           onToggleExpand={() => sections.toggle(category)}
         />
       </div>
-      {!collapsed &&
-        (category === "imagery" ? (
-          <ImagerySection
-            layers={layers}
-            externalImagery={externalImagery}
-            controls={controls}
-            sections={sections}
-          />
-        ) : (
-          <div className="layer-list" id={`layer-section-${category}`}>
-            <GroupOpacity category={category} layers={layers} controls={controls} />
-            <LayerRows layers={layers} controls={controls} reverse />
-            <PendingCountyNotes category={category} counties={pendingCounties} />
-          </div>
-        ))}
+      {!collapsed && <CategoryBody {...props} />}
     </section>
   );
 }
 
 const groupOpacityTitle = {
   "public-land": "All public lands",
+  "dnr-recreation": "All DNR Recreation",
   parcels: "All parcels",
 } as const;
 
 type GroupOpacityProps = Pick<CategorySectionProps, "category" | "layers" | "controls">;
 
+function hasGroupOpacity(category: LayerCategory): category is keyof typeof groupOpacityTitle {
+  return Object.hasOwn(groupOpacityTitle, category);
+}
+
 function GroupOpacity({ category, layers, controls }: GroupOpacityProps) {
-  if ((category !== "public-land" && category !== "parcels") || layers.length === 0) return null;
+  if (!hasGroupOpacity(category) || layers.length === 0) return null;
   const title = groupOpacityTitle[category];
   const opacity = Math.round(averageOpacity(layers, controls.state) * 100);
   return (

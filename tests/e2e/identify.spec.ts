@@ -1,10 +1,6 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { openMap } from "./support/map";
 
-// Cesium renders in software on CI and busy machines, so a desktop-size map can take many
-// seconds to start up.
-test.describe.configure({ timeout: 60_000 });
-
 const toolRow = (page: Page) => page.getByRole("navigation", { name: "Map tools" });
 const sheetHost = (page: Page) => page.getByRole("complementary", { name: "Map sheet" });
 const resultTitles = (page: Page) => sheetHost(page).locator(".identify-result strong");

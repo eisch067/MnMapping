@@ -5,6 +5,7 @@ import { countyRegistry } from "@/config/counties";
 import { layerRegistry } from "@/config/layers";
 import { isTerrainLayer, type LayerDefinition } from "@/config/layers/types";
 import { restrictedImageryForCounty } from "@/config/restrictedImagery";
+import { isSeasonAvailable, maskUnavailableLayers } from "@/lib/dnr/seasonGate";
 import { latestDisplayableImagery } from "@/lib/countyImagery";
 import {
   initialCountyForName,
@@ -22,6 +23,7 @@ import {
   type LayerStateById,
 } from "@/lib/map/layerState";
 import type { LayerDrawerProps } from "./LayerDrawer";
+import { useSeasonGates } from "./useSeasonGates";
 
 const layerRegistryById = new Map(layerRegistry.map((layer) => [layer.id, layer]));
 const imageryLayerIds = new Set(
@@ -196,10 +198,17 @@ export function useLayerControls(
     verticalExaggeration,
     setVerticalExaggeration,
   } = useLayerPreferences();
-  const area = useAreaLayers(location, viewportBounds, selection.layers, layerOrder);
+  const seasonGates = useSeasonGates(layerRegistry);
+  // A layer whose season is not current is hidden whatever the user left on, and stays listed.
+  const layerState = useMemo(
+    () => maskUnavailableLayers(selection.layers, seasonGates),
+    [selection.layers, seasonGates],
+  );
+  const area = useAreaLayers(location, viewportBounds, layerState, layerOrder);
   const runtime = useLayerRuntime();
 
   const setVisible = (id: string, visible: boolean) => {
+    if (visible && !isSeasonAvailable(seasonGates, id)) return;
     setSelection((current) => setLayerVisible(current, id, visible));
   };
   const setOpacity = (id: string, opacity: number) => {
@@ -209,7 +218,8 @@ export function useLayerControls(
     }));
   };
   const toggleLayerGroup = (groupId: string, layerIds: readonly string[]) => {
-    setSelection((current) => toggleGroup(current, groupId, layerIds));
+    const available = layerIds.filter((id) => isSeasonAvailable(seasonGates, id));
+    setSelection((current) => toggleGroup(current, groupId, available));
   };
   const moveLayer = (id: string, direction: "up" | "down") => {
     const target = findMoveTarget(area.activeLayers, id, direction);
@@ -218,8 +228,9 @@ export function useLayerControls(
 
   const drawer: Omit<LayerDrawerProps, "cameraHeight"> = {
     layers: area.activeLayers,
-    state: selection.layers,
+    state: layerState,
     suspended: selection.suspended,
+    seasonGates,
     terrainExaggeration: verticalExaggeration,
     onVisibilityChange: setVisible,
     onToggleGroup: toggleLayerGroup,
@@ -238,7 +249,7 @@ export function useLayerControls(
     drawer,
     map: {
       layers: area.activeLayers,
-      layerState: selection.layers,
+      layerState,
       verticalExaggeration,
       retryVersion: runtime.retryVersion,
       onLayerStatusChange: runtime.updateStatus,

@@ -11,7 +11,14 @@ export const layerSourceTypes = [
 ] as const;
 
 export type LayerSourceType = (typeof layerSourceTypes)[number];
-export type LayerCategory = "basemap" | "imagery" | "elevation" | "public-land" | "parcels" | "reference";
+export type LayerCategory =
+  | "basemap"
+  | "imagery"
+  | "elevation"
+  | "public-land"
+  | "dnr-recreation"
+  | "parcels"
+  | "reference";
 export type CountyZone = "north" | "south";
 export type ParcelAvailability = "available" | "partial" | "pending";
 export type ParcelSourceType = "arcgis-feature" | "mngeo-open" | "download" | "none";
@@ -54,6 +61,56 @@ export interface ParcelFieldMap {
 export type AccessMeaning = "public-access" | "managed-land" | "administrative-boundary" | "access-varies";
 export type ImageryGroup = "naip" | "cir";
 
+export type DnrHeading =
+  | "hunting-zones-health"
+  | "hunting-access-habitat"
+  | "fishing-water-access"
+  | "recreation-trails"
+  | "water-regulatory-reference";
+
+// What a DNR Recreation result claims, and refuses to claim, about the place it describes.
+export type DnrMeaningClass = "regulation-zone" | "enrolled-private-land" | "facility" | "access-varies";
+
+// A layer whose meaning depends on a season is unavailable unless its effective period is
+// current: read from the service when it publishes one, otherwise configured and verified by hand.
+export type DnrSeasonRule =
+  | { source: "service"; field: string; lastVerifiedPeriod: string }
+  | { source: "configured"; label: string; verifiedThrough: string };
+
+export interface DnrLink {
+  label: string;
+  href: string;
+}
+
+export interface DnrLinkField {
+  field: string;
+  label: string;
+  // Joined to the attribute when DNR publishes only a file name.
+  baseUrl?: string;
+}
+
+export interface DnrLayerInfo {
+  heading: DnrHeading;
+  meaningClass: DnrMeaningClass;
+  // The official DNR page a result links as "Verify current regulations".
+  verifyUrl: string;
+  // When the source service was last checked against DNR, as YYYY-MM-DD.
+  verifiedOn: string;
+  season?: DnrSeasonRule;
+  // Shown under "More details" rather than in the summary.
+  moreFields?: readonly LayerPopupField[];
+  // Attributes holding a web address DNR published, shown as links when they are DNR pages.
+  linkFields?: readonly DnrLinkField[];
+  // Official pages that apply to every result of the layer.
+  links?: readonly DnrLink[];
+  // Attributes DNR stores as epoch milliseconds, shown as dates.
+  dateFields?: readonly string[];
+  // Prepended to the name field, for a source whose name is only a number.
+  titlePrefix?: string;
+  // An attribute DNR uses for a closure or condition notice, shown as a banner above the summary.
+  alertField?: string;
+}
+
 export interface LayerDefinition {
   id: string;
   name: string;
@@ -80,6 +137,7 @@ export interface LayerDefinition {
   accessMeaning?: AccessMeaning;
   nameField?: string;
   popupFields?: readonly LayerPopupField[];
+  dnr?: DnrLayerInfo;
   parcelFields?: ParcelFieldMap;
   options?: Record<string, string | number | boolean | string[]>;
 }

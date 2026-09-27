@@ -108,6 +108,10 @@ _Avoid_: All DNR data
 A permit, management, or regulation boundary for hunting that does not establish land ownership or permission to enter; one that changes by season carries a Season label.
 _Avoid_: Hunting land, public-access boundary
 
+**Meaning statement**:
+The one line a DNR Recreation result shows for its class of layer, saying what the result does not establish, such as ownership, permission to enter, or the right to take a species.
+_Avoid_: Disclaimer, legal notice
+
 **Season label**:
 The effective period shown with a season-specific hunting layer, taken from the DNR service when it publishes one and from a MnMapping-verified label otherwise; a layer whose season label is not current is unavailable rather than drawn.
 _Avoid_: Layer year, version

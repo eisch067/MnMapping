@@ -17,6 +17,7 @@
     "test": "vitest run && npm run audit:registry",
     "test:e2e": "playwright test",
     "smoke:remote:north": "node scripts/remote-source-smoke.mjs",
+    "smoke:dnr": "node scripts/dnr-smoke.mjs",
     "predev:vinext": "npm run copy-cesium-assets && npm run generate-licensing-docs",
     "dev:vinext": "vinext dev --port 3001",
     "prebuild:vinext": "npm run copy-cesium-assets && npm run generate-licensing-docs",

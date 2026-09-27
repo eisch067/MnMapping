@@ -7,6 +7,7 @@ export const categoryLabels: Record<LayerCategory, string> = {
   imagery: "Imagery",
   elevation: "Elevation",
   "public-land": "Public lands",
+  "dnr-recreation": "DNR Recreation",
   parcels: "Parcels",
   reference: "Reference",
 };

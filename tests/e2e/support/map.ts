@@ -23,8 +23,11 @@ async function isolateFromRemoteServices(page: Page) {
   );
 }
 
-async function searchForParkRapids(page: Page) {
+async function searchForParkRapids(page: Page, beforeLoad?: (page: Page) => Promise<void>) {
   await isolateFromRemoteServices(page);
+  // Routes added later win, so a test's service mocks go in after the isolation and before the app
+  // starts asking for layer data as it loads.
+  await beforeLoad?.(page);
   await page.goto("/");
   const input = page.getByLabel("Enter a Minnesota location");
   const search = page.getByRole("button", { name: "Search", exact: true });
@@ -45,8 +48,11 @@ export function mapCanvas(page: Page): Locator {
   return page.getByLabel(/^Interactive map centered on/);
 }
 
-export async function openMap(page: Page): Promise<Locator> {
-  await searchForParkRapids(page);
+export async function openMap(
+  page: Page,
+  beforeLoad?: (page: Page) => Promise<void>,
+): Promise<Locator> {
+  await searchForParkRapids(page, beforeLoad);
   const canvas = mapCanvas(page);
   await expect(canvas).toBeVisible();
   return canvas;

@@ -54,6 +54,18 @@ findings. Not legal advice — treat responses as informing a legal review, not 
    boundaries?
 8. Is the `access_wo_trespass` field on the State Forest layer maintained/updated reliably enough for MnMapping
    to use it for user-facing "can I go here" messaging?
+9. The DNR Recreation collection (deer, bear, and turkey permit areas, CWD zones, Walk-In Access sites, Hunter
+   Walking Trails, public-water access sites, and fishing piers and shore-fishing sites) is queried live from
+   DNR's MnGeo-hosted and `gis.dnr.state.mn.us` services, with the General Data and Software License
+   Agreement's acknowledgment and reference-only wording shown in the app. May those layers appear in a public
+   release of MnMapping (open to anyone, no login, no fee, no ads), or is written DNR permission required
+   first? Until DNR answers, the layers are built into the personal deployment only and the public build
+   contains none of them.
+10. Does DNR plan to publish a season-neutral CWD sampling service? The current sampling and regulation
+    layer is a hosted view named for the 2020 deer seasons whose records carry an `effperiod` for the present
+    season, so MnMapping treats CWD zones as unavailable whenever that period is not current and re-checks the
+    service's location each season. A service that does not change name or address between seasons would let
+    it stay available without an annual check.
 
 ## Esri
 

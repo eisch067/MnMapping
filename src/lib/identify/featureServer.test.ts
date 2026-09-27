@@ -73,6 +73,27 @@ describe("identifyFeatureServer", () => {
     expect(results[1].id).toBe("wma:1");
   });
 
+  it("asks for features within the click distance for a layer of lines or points", async () => {
+    const calls: URL[] = [];
+    const trails = { ...layer, options: { ...layer.options, identifyNearby: true } };
+
+    await identifyFeatureServer(trails, contextFor(() => Response.json({ features: [] }), calls));
+
+    expect(calls[0].searchParams.get("distance")).toBe("10");
+    expect(calls[0].searchParams.get("units")).toBe("esriSRUnit_Meter");
+    expect(calls[0].searchParams.get("resultRecordCount")).toBe("10");
+  });
+
+  it("asks for the exact point when a nearby layer is clicked with no distance to spare", async () => {
+    const calls: URL[] = [];
+    const trails = { ...layer, options: { ...layer.options, identifyNearby: true } };
+    const context = contextFor(() => Response.json({ features: [] }), calls);
+
+    await identifyFeatureServer(trails, { ...context, point: { ...context.point, toleranceMeters: 0 } });
+
+    expect(calls[0].searchParams.has("distance")).toBe(false);
+  });
+
   it("returns nothing when no feature is under the point", async () => {
     const context = contextFor(() => Response.json({ features: [] }));
 

@@ -7,11 +7,13 @@ import {
   type LayerCategory,
   type LayerDefinition,
 } from "@/config/layers/types";
+import { dnrHeadings } from "@/config/layers/dnrHeadings";
 import type { RestrictedImagerySource } from "@/config/restrictedImagery";
 import { ActiveLayers } from "./layers/ActiveLayers";
 import { CategorySection } from "./layers/CategorySection";
 import type { SectionState } from "./layers/ImagerySection";
 import type { LayerControls } from "./layers/LayerRow";
+import { dnrHeadingGroupId } from "./layers/DnrRecreationSection";
 import { TerrainSection } from "./layers/TerrainSection";
 import { categoryLabels, groupLayers, isLayerVisible } from "./layers/layerGrouping";
 import { useLayerTransfer, usageFor } from "./layers/useLayerTransfer";
@@ -31,6 +33,7 @@ const initiallyCollapsed = [
   "imagery-statewide",
   "imagery-statewide-naip",
   "imagery-statewide-cir",
+  ...dnrHeadings.map(({ id }) => dnrHeadingGroupId(id)),
   ...Object.keys(categoryLabels),
 ];
 

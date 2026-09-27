@@ -1,0 +1,23 @@
+{
+  "recorded": "2026-09-26",
+  "attributes": {
+    "objectid": 1,
+    "facility_name": "Norway Lake Fishing Pier",
+    "facility_descrip": null,
+    "directions": "In Pine River’s Pine River Park, on the W bank, 1/2 block N of Hwy 84.",
+    "fishing_site_type": "Fishing Pier",
+    "ada_accessible_flag": null,
+    "lake_name": "Norway",
+    "containing_mgmt_unit_name": null,
+    "containing_mgmt_unit_type_name": null,
+    "county_name": "Cass",
+    "mn_tourism_region_name": "Central",
+    "managing_party": "City of Pine River",
+    "managing_mgmt_unit": null,
+    "pat_area_name": "1A",
+    "pat_district_name": "2",
+    "dnr_region_name": "Northwest Region",
+    "fc_prod_facility_pt_id": "{D3CB7B54-3198-4C79-ADA5-40072D805B82}",
+    "dow_lake_number": "11030700"
+  }
+}

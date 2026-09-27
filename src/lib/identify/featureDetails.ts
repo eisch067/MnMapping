@@ -1,4 +1,5 @@
 import type { LayerDefinition, LayerPopupField, ParcelFieldMap } from "@/config/layers/types";
+import { describeDnrFeature } from "@/lib/dnr/describe";
 import { normalizeParcel } from "@/lib/parcels";
 import type { IdentifyLink, IdentifyRow } from "./types";
 
@@ -7,6 +8,9 @@ export interface FeatureDetails {
   rows: IdentifyRow[];
   notes: string[];
   links: IdentifyLink[];
+  moreRows?: IdentifyRow[];
+  banner?: string;
+  attribution?: string;
 }
 
 const accessMeaningNotes: Record<NonNullable<LayerDefinition["accessMeaning"]>, string> = {
@@ -22,6 +26,7 @@ export function describeFeature(
   layer: LayerDefinition,
   attributes: Record<string, unknown>,
 ): FeatureDetails {
+  if (layer.dnr) return describeDnrFeature(layer, layer.dnr, attributes);
   const fields = layer.parcelFields
     ? parcelPopupFields(layer.parcelFields)
     : (layer.popupFields ?? []);

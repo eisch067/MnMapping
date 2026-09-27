@@ -163,6 +163,10 @@ export async function applyGeoJsonOpacity(dataSource: GeoJsonDataSource, layer: 
       entity.polyline.material = new ColorMaterialProperty(stroke);
       entity.polyline.width = new ConstantProperty(Number(layer.options?.strokeWidth ?? 2));
     }
+    // A point is a pin drawn in the layer's own color, so opacity only needs to fade it.
+    if (entity.billboard) {
+      entity.billboard.color = new ConstantProperty(Color.WHITE.withAlpha(opacity));
+    }
   }
 }
 
@@ -180,6 +184,7 @@ function geoJsonStyle(layer: LayerDefinition, Color: typeof import("cesium").Col
     stroke,
     fill,
     strokeWidth: Number(layer.options?.strokeWidth ?? 2),
+    markerColor: Color.fromCssColorString(stringOption(layer, "fillColor") ?? "#68a677"),
   };
 }
 

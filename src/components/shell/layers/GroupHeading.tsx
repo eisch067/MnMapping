@@ -11,6 +11,8 @@ interface GroupHeadingProps {
   state: LayerStateById;
   // Omitted for a section that holds a single layer, which has no subset to suspend.
   groupControls?: Pick<LayerControls, "suspended" | "onToggleGroup">;
+  // Keeps the control on a group that holds no layer yet, where it stays disabled.
+  showWhenEmpty?: boolean;
   expanded: boolean;
   onToggleExpand: () => void;
 }
@@ -27,6 +29,7 @@ function controlTitle({ mode, on, suspended }: GroupStatus): string {
 
 export function GroupHeading(props: GroupHeadingProps) {
   const { groupId, label, layers, state, groupControls, expanded, onToggleExpand } = props;
+  const hasControl = groupControls && (layers.length > 0 || props.showWhenEmpty);
   const layerIds = layers.map((layer) => layer.id);
   const status = groupStatus(
     { layers: state, suspended: groupControls?.suspended ?? {} },
@@ -35,7 +38,7 @@ export function GroupHeading(props: GroupHeadingProps) {
   );
   return (
     <>
-      {groupControls && layers.length > 0 && (
+      {hasControl && (
         <input
           type="checkbox"
           className="layer-heading-toggle"
