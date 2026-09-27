@@ -1,5 +1,5 @@
 import type { AreaUnit, DistanceUnit, PrimaryDimension } from "./myData";
-import { geodesicLengthMeters, geodesicPolygonMeasurements, type Position } from "./geodesy";
+import { geodesicDistanceMeters, geodesicLengthMeters, geodesicPolygonMeasurements, type Position } from "./geodesy";
 
 const distanceFactors: Record<DistanceUnit, number> = {
   meters: 1,
@@ -37,15 +37,47 @@ export function formatArea(squareMeters: number, unit: AreaUnit): string {
   return `${formatValue(squareMeters * areaFactors[unit])} ${areaLabels[unit]}`;
 }
 
+export interface ElevationSample {
+  position: Position;
+  elevationMeters: number;
+}
+
+export function sampledLineDistanceMeters(
+  coordinates: readonly Position[],
+  kind: "direct" | "ground",
+  samples: readonly ElevationSample[],
+): number | null {
+  if (kind === "direct") {
+    if (samples.length !== coordinates.length) return null;
+    return coordinates.slice(1).reduce((total, point, index) => {
+      const horizontal = geodesicDistanceMeters(coordinates[index], point);
+      const vertical = samples[index + 1].elevationMeters - samples[index].elevationMeters;
+      return total + Math.hypot(horizontal, vertical);
+    }, 0);
+  }
+  if (samples.length < 2) return null;
+  return samples.slice(1).reduce((total, sample, index) => {
+    const previous = samples[index];
+    return total + Math.hypot(
+      geodesicDistanceMeters(previous.position, sample.position),
+      sample.elevationMeters - previous.elevationMeters,
+    );
+  }, 0);
+}
+
 export function primaryDimensionLabel(
   coordinates: readonly Position[],
   dimension: PrimaryDimension,
+  samples: readonly ElevationSample[] = [],
 ): string | null {
   if (!dimension || !coordinates.length) return null;
   if (dimension.kind === "horizontal") {
     return formatDistance(geodesicLengthMeters(coordinates), dimension.unit);
   }
-  if (dimension.kind === "direct" || dimension.kind === "ground") return null;
+  if (dimension.kind === "direct" || dimension.kind === "ground") {
+    const distance = sampledLineDistanceMeters(coordinates, dimension.kind, samples);
+    return distance === null ? null : formatDistance(distance, dimension.unit);
+  }
   if (!("areaUnit" in dimension)) return null;
   const measurements = geodesicPolygonMeasurements(coordinates);
   const area = formatArea(measurements.areaSquareMeters, dimension.areaUnit);

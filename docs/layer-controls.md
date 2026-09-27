@@ -22,7 +22,7 @@ Each layer group heading has a checkbox that suspends and restores the group's *
 - **A layer that comes into view** by panning or zooming is never added to the active subset.
 - **A new location search** resets county layers to their defaults and forgets any suspended county layers, so a restore never brings back a layer from the previous search.
 
-3D terrain holds a single layer and has no group control. Public lands, DNR Recreation, and Parcels also have an All opacities slider that sets every layer in the group at once.
+3D terrain holds a single layer and has no group control. When expanded, its Draped layers status lists the currently visible map overlays and My Data; GeoJSON vectors, drawing polygons, and My Data points, lines, and polygons clamp to the active terrain surface, while imagery is draped by Cesium. Public lands, DNR Recreation, and Parcels also have an All opacities slider that sets every layer in the group at once.
 
 ## Layers that are unavailable
 
@@ -40,4 +40,6 @@ Unknown or retired layer identifiers are ignored, including in suspended subsets
 
 ## Active layers
 
-The bottom of the Layers sheet lists every active layer in descending session-transfer order, shows browser-reported transferred bytes and request counts, and provides a direct checkbox for disabling each layer. Transfer totals reset on page reload; cached responses and third-party services without Resource Timing size access can report an unavailable size.
+The bottom of the Layers sheet lists every active layer in descending session-transfer order, shows browser-reported transferred bytes and request counts, and provides a direct checkbox for disabling each layer.
+
+In the personal build, line tools and My Data settings include horizontal distance, direct distance, and ground distance. Direct distance uses sampled NAVD88 endpoint elevations; ground distance sums a sampled terrain profile. Those DEM-derived values are estimates, not survey measurements, and the UI discloses that limitation. Saved line dimensions are stored with the item and are recalculated from the DEM when displayed after reload. The first-use terrain guide can be dismissed and will not return on that browser. Transfer totals reset on page reload; cached responses and third-party services without Resource Timing size access can report an unavailable size.

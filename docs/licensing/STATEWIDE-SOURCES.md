@@ -105,7 +105,7 @@ The research below is retained as the record of why this source was removed.
 
 ## Statewide second-generation lidar DEM (MnTOPO / MnGeo ImageServer)
 
-- 0.5 m bare-earth DEM, 2021–2024 acquisition, `enterprise.gisdata.mn.gov/agsimg/.../2nd_Generation_Seamless_Lidar_DEM/ImageServer`.
+- 0.5 m bare-earth DEM, 2021–2023 acquisition, `enterprise.gisdata.mn.gov/agsimg/.../2nd_Generation_Seamless_Lidar_DEM/ImageServer`.
   Used for a live server-rendered hillshade and dynamically-generated 10 ft/2 ft contours — no download, no
   persistent cache.
 - **Evidence:** Minnesota Geospatial Commons metadata: Access Constraints **"All data is in the public domain

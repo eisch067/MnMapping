@@ -17,13 +17,14 @@ Once the main map opens, you can:
 - Compare statewide NAIP, color-infrared, regional, county, and historical imagery.
 - Automatically open the newest verified imagery MnMapping can display for the selected county.
 - Follow clearly labeled external links when newer imagery is publicly viewable but cannot be embedded because of licensing or delivery restrictions.
-- View compatible imagery over interactive 3D terrain and adjust terrain exaggeration.
+- In the personal build, view compatible imagery over interactive 3D terrain and adjust terrain exaggeration; the public build omits that layer.
+- In the personal build, choose horizontal, direct, or DEM-sampled ground distance for lines, with an accuracy disclosure and a live north compass.
 - Display statewide lidar hillshade and 10-foot or property-scale 2-foot contours.
 - Inspect parcel boundaries and available assessment attributes at parcel scale.
 - View Minnesota DNR management areas, state parks, forests, county-fee land, tax-forfeit land, and verified county supplements.
 - In the personal build, view the curated DNR Recreation collection for hunting zones and access, fishing and water access, state trails, forest travel, snowmobile, and OHV routes, plus the Boundary Waters wilderness boundary under Public lands. Hunting-season layers fail closed when stale; snowmobile and OHV warn while remaining available.
 - Reorder layers, adjust opacity, disable active layers, and monitor browser-reported request and transfer activity.
-- Add pins and WGS84-measured lines or areas, edit shapes with midpoint insertion and Undo, organize items in folders, recover them from 30-day Trash, import or export GPX, KML, and GeoJSON files, and back up or restore everything as a My Data archive.
+- Add pins and lines or areas, edit shapes with midpoint insertion and Undo, organize items in folders, recover them from 30-day Trash, import or export GPX, KML, and GeoJSON files, and back up or restore everything as a My Data archive. Line dimensions persist with each saved item.
 - Use the same map on a phone or a desktop: a bottom dock and swipeable sheets on a phone, and a left rail with a dockable panel on a desktop.
 
 ## Coverage and source approach

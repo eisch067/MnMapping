@@ -7,6 +7,8 @@ const exaggerationPresets = [1, 1.5, 2, 3, 5] as const;
 interface TerrainSectionProps {
   layers: readonly LayerDefinition[];
   state: LayerStateById;
+  drapedLayerNames: readonly string[];
+  myDataVisible: boolean;
   exaggeration: number;
   onVisibilityChange: (id: string, visible: boolean) => void;
   onExaggerationChange: (exaggeration: number) => void;
@@ -17,6 +19,8 @@ interface TerrainSectionProps {
 export function TerrainSection({
   layers,
   state,
+  drapedLayerNames,
+  myDataVisible,
   exaggeration,
   onVisibilityChange,
   onExaggerationChange,
@@ -47,6 +51,15 @@ export function TerrainSection({
               onExaggerationChange={onExaggerationChange}
             />
           ))}
+          <div className="draped-layer-status" role="status" aria-label="Draped layers">
+            <strong>Draped layers</strong>
+            {drapedLayerNames.length === 0 && !myDataVisible
+              ? <small>No visible map overlays or My Data.</small>
+              : <ul>
+                {drapedLayerNames.map((name) => <li key={name}>{name} <span>clamped to surface</span></li>)}
+                {myDataVisible && <li>My Data <span>clamped to surface</span></li>}
+              </ul>}
+          </div>
         </div>
       )}
     </section>

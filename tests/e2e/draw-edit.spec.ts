@@ -2,7 +2,6 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 import { openMap } from "./support/map";
 
 test.describe.configure({ mode: "serial" });
-test.setTimeout(60_000);
 
 async function openAdd(page: Page) {
   await page.getByRole("navigation", { name: "Map tools" })
