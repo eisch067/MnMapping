@@ -200,6 +200,57 @@ describe("links DNR publishes in the data", () => {
   });
 });
 
+describe("S9 trail and RGMA links", () => {
+  it("links an exactly reconciled State Trail name and does not guess an unreconciled one", () => {
+    const layer = layerNamed("mndnr-state-trails");
+    const matched = describeFeature(layer, { trail_name: "Root River State Trail" });
+    const unmatched = describeFeature(layer, {
+      trail_name: "Alborn-Pengilly Railroad State Trail MS84.029",
+    });
+
+    expect(matched.links).toContainEqual({
+      label: "DNR state-trail page",
+      href: "https://www.dnr.state.mn.us/state_trails/root_river/index.html",
+    });
+    expect(unmatched.links.map(({ label }) => label)).not.toContain("DNR state-trail page");
+  });
+
+  it("does not render a known-broken RGMA PDF but keeps a working unit map", () => {
+    const layer = layerNamed("mndnr-ruffed-grouse-management-areas");
+    const broken = describeFeature(layer, {
+      unit_name: "7-Mile RGMA",
+      pdf_file: "7mile_rgma.pdf",
+    });
+    const working = describeFeature(layer, {
+      unit_name: "Black River RGMA",
+      pdf_file: "black_river_rgma.pdf",
+    });
+
+    expect(broken.links.map(({ label }) => label)).not.toContain("Unit map PDF");
+    expect(working.links).toContainEqual({
+      label: "Unit map PDF",
+      href: "https://files.dnr.state.mn.us/hunting/rgma/black_river_rgma.pdf",
+    });
+  });
+
+  it("omits snowmobile volunteer contacts and links DNR's contact page instead", () => {
+    const layer = layerNamed("mndnr-snowmobile-trails");
+    const shownFields = String(layer.options?.outFields).split(",");
+    const details = describeFeature(layer, {
+      trail_name: "Example",
+      public_poc: "Volunteer",
+      public_pho: "555-0100",
+      pocemail: "volunteer@example.com",
+    });
+
+    expect(shownFields).not.toEqual(expect.arrayContaining(["public_poc", "public_pho", "pocemail"]));
+    expect(details.links).toContainEqual({
+      label: "Trail contacts",
+      href: "https://www.dnr.state.mn.us/snowmobiling/trailcontacts.html",
+    });
+  });
+});
+
 describe("a lake result (Public Waters basin)", () => {
   const layer = layerNamed("mndnr-lakes-lakefinder");
   const details = describeFeature(layer, basin.attributes);

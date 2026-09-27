@@ -14,7 +14,7 @@ One `main` branch produces two different deployments, distinguished only by a bu
 | Vendor county imagery (EagleView/Pictometry/etc., docs/licensing RISK-REGISTER.md item B1) | Embedded live | Linked out via "External imagery" only |
 | Parcel owner/mailing-address/tax fields for the 10 counties in item H2 | Shown | Redacted, with a link to the county's own site |
 | Esri 3D terrain (item H1) | Included | Not included |
-| DNR Recreation layers, the `dnr-gis` and `dnr-lakefinder` proxy providers, and the `/api/lake-map/` route ([DNR Recreation](dnr-recreation.md)) | Included | Not included; DNR must confirm a public release first |
+| DNR Recreation layers, the Boundary Waters boundary, and the `dnr-gis` proxy provider ([DNR Recreation](dnr-recreation.md)) | Included | Not included; DNR must confirm a public release first |
 | Worker name / `wrangler.jsonc` environment | `mn-mapping` (default env) | `public-mn-mapping` (`env.public`) |
 | Access | Password-protected (Cloudflare Access) — operator only | Open to anyone |
 

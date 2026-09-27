@@ -110,6 +110,8 @@ test.describe("the public build", () => {
 
     await expect(page.getByRole("button", { name: /^Public lands\b/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /^DNR Recreation\b/ })).toHaveCount(0);
+    await page.getByRole("button", { name: /^Public lands\b/ }).click();
+    await expect(page.getByRole("checkbox", { name: /^Boundary Waters Canoe Area/ })).toHaveCount(0);
     const response = await request.get("/api/gis-proxy/dnr-gis/Hosted/Anything/FeatureServer/0");
     expect(response.status()).toBe(400);
     const lakeFinder = await request.get("/api/gis-proxy/dnr-lakefinder/by_id/v1?id=04013500");
@@ -142,6 +144,22 @@ test.describe("the personal build", () => {
     for (const layer of ["Deer permit areas", "Walk-In Access sites", "Public-water access"]) {
       await expect(layerCheckbox(page, new RegExp(`^${layer}`))).not.toBeChecked();
     }
+    await headingButton(page, "Recreation trails").click();
+    for (const layer of ["State forest roads", "State Trails", "Snowmobile trails", "OHV trails"]) {
+      await expect(layerCheckbox(page, new RegExp(`^${layer}`))).not.toBeChecked();
+    }
+    await page.getByRole("button", { name: /^Public lands\b/ }).click();
+    await expect(page.getByRole("checkbox", { name: /^Boundary Waters Canoe Area/ })).toBeVisible();
+  });
+
+  test("stale trail freshness warns without disabling OHV or snowmobile", async ({ page }) => {
+    await openDnrRecreation(page, {}, new Date("2028-01-01T12:00:00Z"));
+    await headingButton(page, "Recreation trails").click();
+
+    await expect(layerCheckbox(page, /^OHV trails/)).toBeEnabled();
+    await expect(layerCheckbox(page, /^Snowmobile trails/)).toBeEnabled();
+    await expect(page.getByText("Source freshness warning")).toHaveCount(2);
+    await expect(page.getByText("The layer remains available.")).toHaveCount(2);
   });
 
   test("a heading control suspends and restores only its own active subset", async ({ page }) => {

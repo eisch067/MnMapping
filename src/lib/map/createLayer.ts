@@ -131,6 +131,10 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
       queryUrl.searchParams.set("outSR", "4326");
       queryUrl.searchParams.set("geometryPrecision", "6");
       queryUrl.searchParams.set("f", "geojson");
+      const maxAllowableOffset = Number(layer.options?.maxAllowableOffset);
+      if (Number.isFinite(maxAllowableOffset) && maxAllowableOffset > 0) {
+        queryUrl.searchParams.set("maxAllowableOffset", String(maxAllowableOffset));
+      }
       if (context.bounds) {
         queryUrl.searchParams.set("geometry", `${context.bounds.west},${context.bounds.south},${context.bounds.east},${context.bounds.north}`);
         queryUrl.searchParams.set("geometryType", "esriGeometryEnvelope");
