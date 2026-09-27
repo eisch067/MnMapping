@@ -13,6 +13,8 @@ import type { LayerRuntimeState } from "@/lib/map/layerRuntime";
 import type { Bounds } from "@/lib/exchange/bounds";
 import { createDrawingOverlay, type DrawingOverlayState } from "@/lib/map/drawingOverlay";
 import { applyMyDataAppearance } from "@/lib/map/myDataAppearance";
+import { addMyDataMeasurementLabels } from "@/lib/map/myDataMeasurementLabels";
+import { isPersonalMode } from "@/config/appMode";
 import type { MyMapItem } from "@/lib/myData";
 import { toGeoJson } from "@/lib/myData";
 import { useCrosshair } from "./useCrosshair";
@@ -31,6 +33,7 @@ interface CesiumMapProps {
   onViewControlsReady: (controls: MapViewControls) => void;
   onViewportChange: (bounds: ViewportBounds) => void;
   onCameraHeightChange: (height: number) => void;
+  onHeadingChange: (heading: number) => void;
   interactionMode: InteractionMode;
   myData: readonly MyMapItem[];
   myDataVisible: boolean;
@@ -46,6 +49,7 @@ interface CesiumMapProps {
 export interface MapViewControls {
   showMapView: () => void;
   showTerrainView: () => void;
+  resetNorth: () => void;
   showBounds: (bounds: Bounds) => void;
 }
 
@@ -58,6 +62,7 @@ export function CesiumMap({
   onViewControlsReady,
   onViewportChange,
   onCameraHeightChange,
+  onHeadingChange,
   interactionMode,
   myData,
   myDataVisible,
@@ -89,9 +94,11 @@ export function CesiumMap({
   const mapClickRef = useRef(onMapClick);
   const cursorChangeRef = useRef(onCursorChange);
   const layerStatusChangeRef = useRef(onLayerStatusChange);
+  const headingChangeRef = useRef(onHeadingChange);
   const retryVersionRef = useRef<Record<string, number>>({});
   const activeLayerIdsRef = useRef(new Set(layers.map((layer) => layer.id)));
   const personalDataRef = useRef<GeoJsonDataSource | null>(null);
+  const measurementLabelCacheRef = useRef(new Map<string, string | null>());
   const drawingDataRef = useRef<CustomDataSource | null>(null);
   const drawingOverlayRef = useRef(drawingOverlay);
   const midpointInsertRef = useRef(onMidpointInsert);
@@ -167,11 +174,17 @@ export function CesiumMap({
           viewer.scene.morphTo3D(0);
           viewer.camera.flyTo({ ...terrainView, duration: 1.4 });
         },
+        resetNorth: () => viewer.camera.setView({ orientation: { heading: 0, pitch: viewer.camera.pitch, roll: viewer.camera.roll } }),
         showBounds: ({ west, south, east, north }) => {
           const destination = Rectangle.fromDegrees(west, south, east, north);
           viewer.camera.flyTo({ destination, duration: 1.1 });
         },
       });
+      const reportHeading = () => {
+        const rounded = Math.round(CesiumMath.toDegrees(viewer.camera.heading));
+        headingChangeRef.current((rounded + 360) % 360);
+      };
+      viewer.camera.changed.addEventListener(reportHeading);
       const reportViewport = () => {
         const rectangle = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
         if (!rectangle) return;
@@ -188,9 +201,12 @@ export function CesiumMap({
         onViewportChange(bounds);
       };
       viewer.camera.moveEnd.addEventListener(reportViewport);
+      viewer.camera.moveEnd.addEventListener(reportHeading);
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
       const positionAt = (screen: import("cesium").Cartesian2) => {
-        const cartesian = viewer.camera.pickEllipsoid(screen, viewer.scene.globe.ellipsoid);
+        const ray = viewer.camera.getPickRay(screen);
+        const terrainPosition = ray ? viewer.scene.globe.pick(ray, viewer.scene) : undefined;
+        const cartesian = terrainPosition ?? viewer.camera.pickEllipsoid(screen, viewer.scene.globe.ellipsoid);
         if (!cartesian) return null;
         const point = viewer.scene.globe.ellipsoid.cartesianToCartographic(cartesian);
         return [CesiumMath.toDegrees(point.longitude), CesiumMath.toDegrees(point.latitude)] as const;
@@ -202,9 +218,13 @@ export function CesiumMap({
       handler.setInputAction((event: { position: import("cesium").Cartesian2 }) => {
         const picked = viewer.scene.pick(event.position) as { id?: { id?: string } } | undefined;
         const pickedId = picked?.id?.id;
-        if (drawingOverlayRef.current?.editing && pickedId?.startsWith("drawing-segment-")) {
-          midpointInsertRef.current(Number(pickedId.slice("drawing-segment-".length)));
-          return;
+        if (drawingOverlayRef.current?.editing) {
+          const segmentId = [pickedId, ...(viewer.scene.drillPick(event.position, 8) as { id?: { id?: string } }[]).map((value) => value.id?.id)]
+            .find((id) => id?.startsWith("drawing-segment-"));
+          if (segmentId) {
+            midpointInsertRef.current(Number(segmentId.slice("drawing-segment-".length)));
+            return;
+          }
         }
         const point = positionAt(event.position);
         if (!point) return;
@@ -246,6 +266,7 @@ export function CesiumMap({
   useEffect(() => { mapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { cursorChangeRef.current = onCursorChange; }, [onCursorChange]);
   useEffect(() => { layerStatusChangeRef.current = onLayerStatusChange; }, [onLayerStatusChange]);
+  useEffect(() => { headingChangeRef.current = onHeadingChange; }, [onHeadingChange]);
   useEffect(() => { drawingOverlayRef.current = drawingOverlay; }, [drawingOverlay]);
   useEffect(() => { midpointInsertRef.current = onMidpointInsert; }, [onMidpointInsert]);
 
@@ -253,15 +274,17 @@ export function CesiumMap({
     const viewer = viewerRef.current;
     if (!mapReady || !viewer) return;
     let cancelled = false;
-    void import("cesium").then(async ({ Color, ConstantProperty, GeoJsonDataSource }) => {
-      const dataSource = await GeoJsonDataSource.load(toGeoJson(myData), { clampToGround: false, markerColor: Color.fromCssColorString("#de6b48"), stroke: Color.fromCssColorString("#de6b48"), fill: Color.fromCssColorString("#de6b48").withAlpha(0.2), strokeWidth: 3 });
+    void import("cesium").then(async ({ Color, ConstantProperty, GeoJsonDataSource, HeightReference }) => {
+      const dataSource = await GeoJsonDataSource.load(toGeoJson(myData), { clampToGround: true, markerColor: Color.fromCssColorString("#de6b48"), stroke: Color.fromCssColorString("#de6b48"), fill: Color.fromCssColorString("#de6b48").withAlpha(0.2), strokeWidth: 3 });
       await applyMyDataAppearance(dataSource, myData);
       for (const entity of dataSource.entities.values) {
         if (entity.polygon) {
-          entity.polygon.height = new ConstantProperty(0);
+          entity.polygon.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
           entity.polygon.outline = new ConstantProperty(true);
         }
         if (entity.polyline) entity.polyline.clampToGround = new ConstantProperty(true);
+        if (entity.billboard) entity.billboard.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
+        if (entity.point) entity.point.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
       }
       dataSource.name = "My Data";
       dataSource.show = myDataVisible;
@@ -270,6 +293,15 @@ export function CesiumMap({
       await viewer.dataSources.add(dataSource);
       personalDataRef.current = dataSource;
       if (previous) viewer.dataSources.remove(previous, true);
+      if (myDataVisible) {
+        void addMyDataMeasurementLabels(
+          dataSource,
+          myData,
+          isPersonalMode,
+          measurementLabelCacheRef.current,
+          () => personalDataRef.current === dataSource,
+        ).catch((error: unknown) => console.error("Unable to label My Data measurements", error));
+      }
     });
     return () => { cancelled = true; };
   }, [mapReady, myData, myDataVisible]);

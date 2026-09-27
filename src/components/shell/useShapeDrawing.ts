@@ -10,7 +10,8 @@ import {
   type ShapeEditState,
 } from "@/lib/drawingState";
 import type { DrawingOverlayState } from "@/lib/map/drawingOverlay";
-import { primaryDimensionLabel } from "@/lib/measurements";
+import { isPersonalMode } from "@/config/appMode";
+import { useTerrainLineMeasurement } from "./useTerrainLineMeasurement";
 import type {
   MyDataSettings,
   MyGeometry,
@@ -39,6 +40,7 @@ export function useShapeDrawing(
   ) => Promise<unknown>,
 ) {
   const [active, setActive] = useState<ActiveShape | null>(null);
+  const terrainMeasurement = useTerrainLineMeasurement(active);
 
   const startDrawing = (kind: ShapeKind, settings: MyDataSettings | null) => {
     if (!settings) return;
@@ -81,9 +83,13 @@ export function useShapeDrawing(
   return {
     active,
     overlay: active ? { ...active.overlay, vertices: active.state.vertices } : null,
-    measurement: active
-      ? primaryDimensionLabel(active.state.vertices, active.primaryDimension)
-      : null,
+    measurement: terrainMeasurement.measurement,
+    elevationMeasurement: terrainMeasurement.elevationMeasurement,
+    setLineDimension: (kind: "horizontal" | "direct" | "ground") => setActive((current) => {
+      if (!current || current.kind !== "line" || !current.primaryDimension || !("unit" in current.primaryDimension)
+        || (!isPersonalMode && kind !== "horizontal")) return current;
+      return { ...current, primaryDimension: { ...current.primaryDimension, kind } };
+    }),
     minimumVertices: active?.kind === "polygon" ? 3 : 2,
     startDrawing,
     startEditing,
@@ -97,6 +103,7 @@ export function useShapeDrawing(
   };
 }
 
+
 function drawingActive(kind: ShapeKind, settings: MyDataSettings): ActiveShape {
   if (kind === "line") {
     return {
@@ -109,7 +116,10 @@ function drawingActive(kind: ShapeKind, settings: MyDataSettings): ActiveShape {
         appearance: { kind: "line", color: settings.line.color, width: settings.line.width },
         segmentUnit: settings.line.unit,
       },
-      primaryDimension: { kind: "horizontal", unit: settings.line.unit },
+      primaryDimension: {
+        kind: isPersonalMode ? settings.line.dimensionKind : "horizontal",
+        unit: settings.line.unit,
+      },
     };
   }
   return {

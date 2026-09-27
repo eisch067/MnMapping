@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { isPersonalMode } from "@/config/appMode";
 import { resolveUpstream } from "@/lib/gisProxy";
 
 export async function GET(
@@ -6,6 +7,9 @@ export async function GET(
   { params }: { params: Promise<{ provider: string; path: string[] }> },
 ) {
   const { provider, path } = await params;
+  if (!isPersonalMode && path.at(-1)?.toLowerCase() === "getsamples") {
+    return Response.json({ error: "DEM measurements are available in the personal build only." }, { status: 404 });
+  }
   const upstreamUrl = resolveUpstream(provider, path);
   if (!upstreamUrl) {
     return Response.json({ error: "Unsupported GIS proxy target." }, { status: 400 });

@@ -18,7 +18,21 @@ describe("measurement formatting", () => {
     expect(label).toMatch(/mi$/);
   });
 
-  it("defers direct and ground distance until S12", () => {
-    expect(primaryDimensionLabel([[0, 0], [1, 0]], { kind: "direct", unit: "miles" })).toBeNull();
+  it("measures horizontal, direct, and ground distances from supplied DEM samples", () => {
+    const line = [[0, 0], [0.01, 0]] as const;
+    const horizontal = primaryDimensionLabel(line, { kind: "horizontal", unit: "meters" });
+    const direct = primaryDimensionLabel(line, { kind: "direct", unit: "meters" }, [
+      { position: line[0], elevationMeters: 0 },
+      { position: line[1], elevationMeters: 100 },
+    ]);
+    const ground = primaryDimensionLabel(line, { kind: "ground", unit: "meters" }, [
+      { position: line[0], elevationMeters: 0 },
+      { position: [0.005, 0], elevationMeters: 0 },
+      { position: line[1], elevationMeters: 100 },
+    ]);
+
+    expect(horizontal).toBe("1,113 m");
+    expect(direct).toBe("1,118 m");
+    expect(ground).toBe("1,122 m");
   });
 });

@@ -41,6 +41,13 @@ svg { flex: 0 0 auto; }
 .map-controls button { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: rgba(7,4,31,.9); color: var(--text); box-shadow: 0 4px 14px rgba(0,0,0,.26); cursor: pointer; }
 .map-controls button:hover { background: rgba(153,116,255,.18); }
 .map-controls svg { width: 18px; height: 18px; }
+.terrain-coach-mark { position: absolute; z-index: 5; right: 62px; bottom: calc(var(--tool-row-clearance) + 12px); width: min(290px, calc(100vw - 84px)); border: 1px solid var(--accent); border-radius: 9px; padding: 13px; background: var(--panel); color: var(--text); box-shadow: 0 8px 30px rgba(0,0,0,.42); }
+.terrain-coach-mark > strong { display: block; padding-right: 20px; font-size: 12px; }
+.terrain-coach-mark p { margin: 7px 0 10px; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.terrain-coach-mark > div { display: flex; gap: 7px; }
+.terrain-coach-mark button { min-height: 30px; border: 1px solid var(--panel-border); border-radius: 5px; padding: 0 9px; background: rgba(255,255,255,.07); color: var(--text); cursor: pointer; font-size: 10px; }
+.terrain-coach-mark > div button:first-child { border-color: var(--accent); background: var(--primary); }
+.terrain-coach-close { position: absolute; top: 6px; right: 6px; width: 25px; min-height: 25px !important; border: 0 !important; padding: 0 !important; background: transparent !important; font-size: 18px !important; }
 .tool-row { position: absolute; z-index: 6; right: 8px; bottom: 8px; left: 8px; display: grid; height: 58px; grid-template-columns: repeat(5, 1fr); align-items: center; border: 1px solid rgba(255,255,255,.16); border-radius: 15px; padding: 4px; background: rgba(7,4,31,.95); box-shadow: 0 8px 30px rgba(0,0,0,.38); }
 .tool-row-action { display: grid; height: 48px; place-items: center; gap: 1px; border: 0; border-radius: 10px; padding: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 10px; font-weight: 700; line-height: 1.2; text-align: center; }
 .tool-row-action:hover { background: rgba(255,255,255,.06); }
@@ -112,6 +119,11 @@ svg { flex: 0 0 auto; }
 .terrain-controls { display: grid; gap: 9px; padding: 12px; border: 1px solid rgba(153, 116, 255, .22); border-radius: 8px; background: rgba(153, 116, 255, .06); }
 .terrain-toggle { display: grid; grid-template-columns: 18px 1fr; gap: 8px; align-items: start; cursor: pointer; font-size: 12px; }
 .terrain-toggle input { margin-top: 3px; accent-color: var(--accent); }
+.draped-layer-status { display: grid; gap: 6px; border-top: 1px solid var(--panel-border); padding-top: 9px; }
+.draped-layer-status > strong { font-size: 10px; }
+.draped-layer-status small, .draped-layer-status li { color: var(--muted); font-size: 9px; line-height: 1.4; }
+.draped-layer-status ul { display: grid; gap: 4px; margin: 0; padding-left: 16px; }
+.draped-layer-status li span { color: var(--accent); }
 .terrain-toggle strong, .terrain-toggle small { display: block; }
 .terrain-toggle small { margin-top: 2px; color: var(--muted); font-size: 10px; font-weight: 400; }
 .control-label { color: var(--muted); font-size: 10px; }
@@ -207,6 +219,7 @@ svg { flex: 0 0 auto; }
 .shape-action-panel { display: grid; gap: 7px; padding-top: 12px; }
 .shape-action-panel > strong { font-size: 14px; }
 .shape-action-panel > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.shape-action-panel > .measurement-disclosure { border-left: 2px solid var(--accent); padding-left: 8px; }
 .shape-kicker { color: var(--accent); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .shape-dimension-picker { display: flex; flex-wrap: wrap; gap: 5px; margin: 3px 0 0; border: 0; padding: 0; }
 .shape-dimension-picker legend { width: 100%; margin-bottom: 2px; color: var(--muted); font-size: 9px; }
