@@ -92,6 +92,14 @@ function lakeFor(dnr: DnrLayerInfo, attributes: Attributes): IdentifyLake | unde
   return { dow, name };
 }
 
+function resultRows(layer: LayerDefinition, attributes: Attributes, dateFields: readonly string[]): IdentifyRow[] {
+  const rows = rowsFor(layer.popupFields ?? [], attributes, dateFields);
+  if (layer.id !== "mndnr-cwd-sampling-sites") return rows;
+  return rows.filter(({ label, value }) =>
+    label !== "Service" || !value.toLowerCase().includes("no longer available"),
+  );
+}
+
 export function describeDnrFeature(
   layer: LayerDefinition,
   dnr: DnrLayerInfo,
@@ -104,7 +112,7 @@ export function describeDnrFeature(
     title: titleFor(layer, dnr, attributes),
     rows: [
       ...(season === undefined ? [] : [{ label: "Season", value: season }]),
-      ...rowsFor(layer.popupFields ?? [], attributes, dateFields),
+      ...resultRows(layer, attributes, dateFields),
     ],
     moreRows: rowsFor(dnr.moreFields ?? [], attributes, dateFields),
     notes: [

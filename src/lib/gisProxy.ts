@@ -7,6 +7,9 @@ export const dnrGisRoot =
 
 // LakeFinder's by-ID API sits beside, not under, the GIS server, so it has its own pinned root.
 export const dnrLakeFinderRoot = "https://services.dnr.state.mn.us/api/lakefinder/";
+const dnrCwdItemRoot =
+  "https://gis.dnr.state.mn.us/arcgis/sharing/rest/content/items/";
+const cwdItemId = "8462b6a81c46461484c68d4bd638134c";
 
 const providerRoots = {
   hubbard: "https://gis.co.hubbard.mn.us/arcgis/rest/services/",
@@ -59,7 +62,11 @@ const providerRoots = {
   "wilkin-imagery": "https://gisweb.co.wilkin.mn.us/arcgis/rest/services/",
   "yellow-medicine-imagery": "https://gis.co.ym.mn.gov/arcgis/rest/services/",
   // DNR data awaits DNR confirmation before any public release, so only the personal build reaches it.
-  ...(isPersonalMode ? { "dnr-gis": dnrGisRoot, "dnr-lakefinder": dnrLakeFinderRoot } : {}),
+  ...(isPersonalMode ? {
+      "dnr-gis": dnrGisRoot,
+      "dnr-gis-item": dnrCwdItemRoot,
+      "dnr-lakefinder": dnrLakeFinderRoot,
+    } : {}),
 } as const;
 
 type Provider = keyof typeof providerRoots;
@@ -78,6 +85,7 @@ function isSafePath(path: readonly string[]): boolean {
 
 export function resolveUpstream(provider: string, path: readonly string[]): URL | null {
   if (!isProvider(provider) || !isSafePath(path)) return null;
+  if (provider === "dnr-gis-item" && (path.length !== 1 || path[0] !== cwdItemId)) return null;
   const root = providerRoots[provider];
   if (!root) return null;
   const upstream = new URL(path.join("/"), root);

@@ -53,6 +53,13 @@ describe("resolveUpstream", () => {
       expect(upstream?.hostname).toBe("gis.dnr.state.mn.us");
     });
 
+    it("allows only the pinned CWD item metadata record", () => {
+      const item = resolveUpstream("dnr-gis-item", ["8462b6a81c46461484c68d4bd638134c"]);
+      expect(item?.href).toBe("https://gis.dnr.state.mn.us/arcgis/sharing/rest/content/items/8462b6a81c46461484c68d4bd638134c");
+      expect(resolveUpstream("dnr-gis-item", ["another-item"])).toBeNull();
+      expect(resolveUpstream("dnr-gis-item", ["8462b6a81c46461484c68d4bd638134c", "data"])).toBeNull();
+    });
+
     it("is pinned to one server's services and cannot reach the rest of the host", () => {
       expect(dnrGisRoot).toBe(
         "https://gis.dnr.state.mn.us/arcgis/sharing/servers/8462b6a81c46461484c68d4bd638134c/rest/services/",
@@ -79,6 +86,7 @@ describe("resolveUpstream", () => {
     const publicProxy = await import("@/lib/gisProxy");
 
     expect(publicProxy.resolveUpstream("dnr-gis", cwdPath)).toBeNull();
+    expect(publicProxy.resolveUpstream("dnr-gis-item", ["8462b6a81c46461484c68d4bd638134c"])).toBeNull();
     expect(publicProxy.resolveUpstream("dnr-lakefinder", ["by_id", "v1"])).toBeNull();
     expect(publicProxy.resolveUpstream("mngeo-features", ["us_mn_state_dnr"])).not.toBeNull();
   });

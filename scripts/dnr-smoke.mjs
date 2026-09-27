@@ -11,6 +11,7 @@ const expectedCounts = {
   "mndnr-bear-permit-areas": 17,
   "mndnr-turkey-permit-areas": 12,
   "mndnr-cwd-zones": 130,
+  "mndnr-cwd-sampling-sites": 133,
   "mndnr-walk-in-access-sites": 224,
   "mndnr-hunter-walking-trails": 304,
   "mndnr-public-water-access": 3025,
@@ -32,6 +33,7 @@ const geometryTypes = {
   "mndnr-bear-permit-areas": "esriGeometryPolygon",
   "mndnr-turkey-permit-areas": "esriGeometryPolygon",
   "mndnr-cwd-zones": "esriGeometryPolygon",
+  "mndnr-cwd-sampling-sites": "esriGeometryPoint",
   "mndnr-walk-in-access-sites": "esriGeometryPolygon",
   "mndnr-hunter-walking-trails": "esriGeometryPolyline",
   "mndnr-public-water-access": "esriGeometryPoint",
@@ -136,7 +138,7 @@ async function loadLayers() {
 }
 
 async function getJson(url) {
-  const response = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(30_000) });
+  const response = await fetch(url, { cache: "no-store", headers: { accept: "application/json" }, signal: AbortSignal.timeout(30_000) });
   if (!response.ok) throw new Error(`${response.status} ${response.statusText} from ${url.pathname}`);
   const body = await response.json();
   if (body.error) throw new Error(`${body.error.message ?? "ArcGIS error"} from ${url.pathname}`);
@@ -161,7 +163,7 @@ async function checkLayer(layer) {
   try {
     const metadata = await getJson(new URL(`${layer.sourceUrl}?f=json`));
     problems.push(...checkMetadata(layer, metadata));
-    count = (await getJson(queryUrl(layer, { where: "1=1", returnCountOnly: "true" }))).count;
+    count = (await getJson(queryUrl(layer, { where: layer.options?.where ?? "1=1", returnCountOnly: "true" }))).count;
     problems.push(...checkCount(layer, count));
     problems.push(...(await checkSample(layer)));
     problems.push(...(await checkSeason(layer)));
@@ -261,11 +263,12 @@ function checkCount(layer, count) {
 }
 
 async function checkSample(layer) {
-  const sample = await getJson(queryUrl(layer, { where: "1=1", outFields: requestedFields(layer).join(","), returnGeometry: "false", resultRecordCount: "1" }));
+  const sample = await getJson(queryUrl(layer, { where: layer.options?.where ?? "1=1", outFields: requestedFields(layer).join(","), returnGeometry: "false", resultRecordCount: "1" }));
   return sample.features?.length > 0 ? [] : ["a sample query returned no feature"];
 }
 
 async function checkSeason(layer) {
+  if (layer.id === "mndnr-cwd-sampling-sites") return checkCwdSamplingSeason(layer);
   const season = layer.dnr.season;
   if (!season) return [];
   if (season.source === "service") {
@@ -277,6 +280,42 @@ async function checkSeason(layer) {
   if (remaining <= 0) return [`the configured season "${season.label}" is no longer verified; re-verify it against ${layer.dnr.verifyUrl}`];
   if (remaining <= configuredSeasonWarningDays) return [`the configured season "${season.label}" stays verified for ${remaining} more days; re-verify it against ${layer.dnr.verifyUrl}`];
   return [];
+}
+
+async function checkCwdSamplingSeason(layer) {
+  const problems = [];
+  const root = layer.sourceUrl.replace(/\/FeatureServer\/1$/, "/FeatureServer");
+  const service = await getJson(new URL(`${root}?f=json`));
+  if (!service.layers?.some(({ id, name }) => id === 1 && name === "wld_cwd_hunter_resource_sites_web")) {
+    problems.push("layer 1 name or index changed");
+  }
+  if (!service.layers?.some(({ id, name }) => id === 3 && name === "wld_cwd_dpa_sampling_area_web")) {
+    problems.push("layer 3 name or index changed");
+  }
+  const periodsUrl = new URL(`${root}/3/query`);
+  for (const [key, value] of Object.entries({ f: "json", where: "1=1", outFields: "effperiod", returnDistinctValues: "true", returnGeometry: "false" })) periodsUrl.searchParams.set(key, value);
+  const periods = (await getJson(periodsUrl)).features?.map(({ attributes }) => String(attributes?.effperiod ?? "").trim()) ?? [];
+  if (periods.length === 0 || periods.some((period) => period !== "July 2026 - June 2027")) problems.push("layer 3 effective period differs from the verified 2026–27 period");
+  const itemId = "8462b6a81c46461484c68d4bd638134c";
+  const item = await getJson(new URL(`https://gis.dnr.state.mn.us/arcgis/sharing/rest/content/items/${itemId}?f=json`));
+  if (!/(^|\D)2026(\D|$)/.test(String(item.title ?? ""))) problems.push("the portal item title does not identify the 2026 season");
+  const siteUrl = new URL(`${root}/1/query`);
+  for (const [key, value] of Object.entries({ f: "json", where: layer.options?.where ?? "show = 'Yes'", returnGeometry: "false", resultRecordCount: "1" })) siteUrl.searchParams.set(key, value);
+  const sites = (await getJson(siteUrl)).features ?? [];
+  const editsUrl = new URL(`${root}/1/query`);
+  for (const [key, value] of Object.entries({ f: "json", where: "1=1", outFields: "last_edited_date", returnGeometry: "false", orderByFields: "last_edited_date DESC", resultRecordCount: "1" })) editsUrl.searchParams.set(key, value);
+  const editedSites = (await getJson(editsUrl)).features ?? [];
+  const newest = Math.max(...editedSites.map(({ attributes }) => Number(attributes?.last_edited_date)));
+  if (sites.length === 0) problems.push("layer 1 has no active sites matching the configured layer filter");
+  if (!Number.isFinite(newest) || newest < Date.UTC(2026, 6, 1)) problems.push("the newest layer-1 record predates 1 July 2026 or has no valid edit date");
+  const metadata = await getJson(new URL(`${root}/1?f=json`));
+  const required = [...requestedFields(layer), "show"];
+  const present = new Set((metadata.fields ?? []).map(({ name }) => name));
+  const missing = required.filter((field) => !present.has(field));
+  if (metadata.name !== "wld_cwd_hunter_resource_sites_web" || missing.length > 0) {
+    problems.push(`layer 1 schema changed${missing.length ? `; missing ${missing.join(", ")}` : ""}`);
+  }
+  return problems;
 }
 
 function checkPeriods(layer, periods) {

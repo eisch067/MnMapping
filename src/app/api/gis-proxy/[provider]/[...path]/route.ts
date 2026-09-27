@@ -22,6 +22,9 @@ export async function GET(
       const value = upstream.headers.get(name);
       if (value) headers.set(name, value);
     }
+    if (provider === "dnr-gis" || provider === "dnr-gis-item") {
+      headers.set("cache-control", "no-store");
+    }
     return new Response(upstream.body, { status: upstream.status, headers });
   } catch {
     return Response.json({ error: "The county GIS service did not respond." }, { status: 502 });
