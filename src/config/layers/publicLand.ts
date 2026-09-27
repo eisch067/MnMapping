@@ -121,3 +121,34 @@ export const publicLandLayers: LayerDefinition[] = [
     options: { layerId: 3, outFields: "unit_name,administrator,gis_acres,access_wo_trespass,point_of_contact", fillColor: "#2d7d4d", strokeColor: "#9fe0ae", fillAlpha: 0.2, strokeWidth: 2 },
   },
 ];
+
+// The MnGeo service is published by Minnesota DNR from the Public Law 95-495 legal
+// description; the wilderness itself is federally administered by the U.S. Forest Service.
+export const personalPublicLandLayers: readonly LayerDefinition[] = [
+  {
+    id: "mndnr-boundary-waters-canoe-area",
+    name: "Boundary Waters Canoe Area Wilderness",
+    category: "public-land",
+    sourceType: "arcgis-featureserver",
+    url: `${serviceRoot}/bdry_boundary_waters_canoe_area/FeatureServer`,
+    sourceUrl: `${sourceRoot}/bdry_boundary_waters_canoe_area/FeatureServer/2`,
+    defaultVisible: false,
+    defaultOpacity: 0.82,
+    attribution:
+      "Minnesota DNR boundary data · Boundary Waters Canoe Area Wilderness administered by U.S. Forest Service",
+    agency: "Minnesota DNR and U.S. Forest Service",
+    description:
+      "Federal wilderness boundary based on the legal description in Public Law 95-495. Entry permits and special wilderness rules apply; this generalized boundary is not a legal survey.",
+    accessMeaning: "managed-land",
+    nameField: "bwca_unit",
+    popupFields: [{ field: "bwca_unit", label: "Wilderness unit" }],
+    options: {
+      layerId: 2,
+      outFields: "bwca_unit",
+      fillColor: "#355f4a",
+      strokeColor: "#9ec8ae",
+      fillAlpha: 0.18,
+      strokeWidth: 2,
+    },
+  },
+];

@@ -12,16 +12,28 @@ Every layer is queried live, and nothing is stored for offline use. Every layer 
 | Bear permit areas | Hunting zones & health | `bdry_bear_permit_areas` layer 0 | regulation-zone | Configured |
 | Turkey permit areas | Hunting zones & health | `bdry_turkey_permit_areas` layer 0 | regulation-zone | Configured |
 | CWD zones | Hunting zones & health | DNR's hosted CWD service, layer 3 | regulation-zone | Service `effperiod` |
+| Migratory waterfowl feeding & resting areas | Hunting zones & health | `env_migratory_waterfowl_areas` layer 1 | regulation-zone | none |
 | Walk-In Access sites | Hunting access & habitat | `bdry_dnr_walk_in_access_sites` layer 0 | enrolled-private-land | none |
+| Walk-In Access trails | Hunting access & habitat | `struc_dnr_walk_in_access_trails` layer 0 | enrolled-private-land | none |
 | Hunter Walking Trails | Hunting access & habitat | `trans_hunter_walking_trails` layer 0 | access-varies | none |
+| Ruffed Grouse Management Areas | Hunting access & habitat | `bdry_ruffed_grouse_mgmt_areas` layer 1 | managed-land | none |
 | Public-water access | Fishing & water access | `struc_water_access_sites` layer 0 | facility | none |
-| Lakes & LakeFinder | Fishing & water access | `water_mn_public_waters` layer 1 | reference | none |
-| Lake depth map | Fishing & water access | `water_lake_bathymetry` map service, layers 0, 1, and 3 | reference | none |
 | Fishing piers & shore-fishing sites | Fishing & water access | `struc_fishing_sites_in_minnesota` layer 0 | facility | none |
+| Listed infested waters | Fishing & water access | `env_listed_infested_waters` layer 0 | regulation-zone | none |
+| State Water Trails | Fishing & water access | `trans_water_trails_minnesota` layer 0 | facility | none |
+| State forest roads | Recreation trails | `trans_state_forest_roads` layer 0 | access-varies | none |
+| State forest campgrounds & day-use areas | Recreation trails | `struc_state_forest_campgrounds` layer 1 | facility | none |
+| State Trails | Recreation trails | `trans_state_trails_minnesota` layer 0 | access-varies | none |
+| Snowmobile trails | Recreation trails | `trans_snowmobile_trails_mn` layer 0 | access-varies | freshness warning |
+| OHV trails | Recreation trails | `trans_ohv_trails_mn` layer 0 | access-varies | freshness warning |
 
 All but CWD zones are on MnGeo's `enterprise.gisdata.mn.gov` under `us_mn_state_dnr`, reached through the existing `mngeo-features` proxy provider. CWD zones come from the season-specific DNR service, because that is where DNR publishes the current effective period. The layers are defined in `src/config/layers/dnrRecreation.ts`; each names its source, attribution, meaning class, verify link, heading, and the date it was last checked against DNR.
 
-The Recreation trails and Water & regulatory reference headings hold no layer yet. They are listed with a disabled control so the five headings are always there.
+Water & regulatory reference holds no layer yet. It remains listed with a disabled control so the five headings are always there.
+
+State forest campgrounds use layer 1, the current output derived from the Parks and Trails Enterprise Information System. Layer 0 is explicitly named `Orig`, uses the legacy GDRS field set, and is not used. The migratory-waterfowl `electric_m` field remains omitted: although the program page describes where small electric motors are permitted, the service does not document the flag's contract.
+
+The Boundary Waters Canoe Area Wilderness is a personal-only Public lands layer, not a DNR Recreation layer. Its wording credits Minnesota DNR for the boundary data (derived from the Public Law 95-495 legal description) and the U.S. Forest Service as the federal wilderness administrator.
 
 ## The drawer
 
@@ -31,7 +43,13 @@ A layer's row shows its Season label when it has one, its meaning statement, and
 
 ### Zoom in to load
 
-Public-water access holds about 3,000 sites and one query returns at most 2,000, so the layer does not draw a partial set. While it is on and the camera is above 150 km, its row reads "Zoom in to load Public-water access." and nothing is drawn; closer in, the sites in view load. The layer's `maxCameraHeight` option sets the height. The live smoke fails a layer that grows past 2,000 records without one.
+Public-water access, snowmobile trails, and OHV trails wait for a view below 150 km. Their rows show "Zoom in to load" rather than drawing an oversized statewide payload. Every request is limited to the current viewport; snowmobile and OHV geometry also sends `maxAllowableOffset=0.0005` (about 50 metres) to the FeatureServer. The live smoke fails a layer that grows past 2,000 records without a zoom gate.
+
+### Trail freshness
+
+Snowmobile and OHV rows show the release-verified season label and metadata content date. Snowmobile is currently labelled `2026–27 season · source content 2026-09-23`, verified through 2027-08-31; OHV is `2026 season · source content 2026-09-23`, verified through 2026-12-31. After those dates the row warns that the source is stale, but its checkbox remains enabled and the layer never fails closed. Conditions, grooming, and closures remain links to DNR pages rather than claims derived from geometry.
+
+Snowmobile results deliberately omit `public_poc`, `public_pho`, `pocemail`, and `pocwebsite`; the layer links DNR's trail-contacts page instead.
 
 ## The season gate
 
@@ -64,13 +82,17 @@ Selecting a point asks each visible DNR layer what is there, through the identif
 
 Empty and blank fields are hidden, and DNR's wording is shown as published. Season and license-type codes are not shown; the result links to DNR instead. Web addresses in the data are linked only when they are `https` pages on DNR's own domain.
 
+State Trail and State Water Trail pages come from exact-name lookup tables in `src/config/layers/dnrTrailLinks.ts`; names absent from the official A-Z list are omitted rather than guessed. The seven unreconciled State Trail names are Alborn-Pengilly, Blue Ox, Blufflands Preston to Forestville, Cloquet-Saginaw, Dakota Rail, Gandy Dancer, and the OHV access connector to Taconite. All 35 water-trail names are reconciled.
+
+The same file records five RGMA unit-map filenames that returned 404 on 2026-09-26: `7mile_rgma.pdf`, `hwy115_rgma.pdf`, `moose_line_rgma.pdf`, `morehouse_road.pdf`, and `st_louis_river_rgma.pdf`. Those links are checked by the live smoke but not rendered until DNR restores them.
+
 | Class | Meaning statement |
 | --- | --- |
 | regulation-zone | Regulation boundary — does not show ownership or permission to enter. |
 | enrolled-private-land | Participating private land — WIA validation required, Sept 1–May 31, landowners may opt out. |
 | facility | Marks a facility or route, not access to adjoining land or permission to take any species. |
 | access-varies | Rules vary by landowner along the trail. |
-| reference | DNR reference data — not for navigation; coverage varies. |
+| managed-land | DNR habitat designation — does not show ownership or permission to enter; verify boundary signs. |
 
 The wording, the fields each layer shows, and its links are in `src/lib/dnr/meaning.ts`, `src/config/layers/dnrRecreation.ts`, and `src/lib/dnr/describe.ts`. The deer permit area report PDF is not linked, because the base address that its file names resolve against has not been verified.
 
@@ -123,11 +145,11 @@ Selecting a point asks the outline layer for the lake under it and the contour l
 
 ## The proxy provider
 
-`dnr-gis` in `src/lib/gisProxy.ts` reaches `https://gis.dnr.state.mn.us/arcgis/sharing/servers/8462b6a81c46461484c68d4bd638134c/rest/services/` and nothing else on that host. Requests with a `.` or `..` path segment are refused, and a resolved address that does not start with the provider's root is refused. The provider exists only in the personal build, and so does `dnr-lakefinder`, which reaches only `https://services.dnr.state.mn.us/api/lakefinder/`.
+`dnr-gis` in `src/lib/gisProxy.ts` reaches `https://gis.dnr.state.mn.us/arcgis/sharing/servers/8462b6a81c46461484c68d4bd638134c/rest/services/` and nothing else on that host. Requests with a `.` or `..` path segment are refused, and a resolved address that does not start with the provider's root is refused. The provider exists only in the personal build.
 
 ## Checks
 
-- `npm run audit:registry` audits both builds. Every DNR layer must default off and name its source (on an official DNR or MnGeo host), attribution, meaning class, verify link (a DNR page over `https`), heading, and verification date, with a complete season rule where it has one. The public registry must contain no DNR layer, and the personal registry must contain them all. A live map service must carry a coverage warning, and a layer that opens a lake summary must name its DOW attribute.
-- `src/lib/dnr/*.test.ts` cover the season rules, the gate with stubbed services, the wording of each class from recorded service responses (`src/lib/dnr/fixtures/`, recorded 2026-09-26), the audit, and the zoom hint. `lakefinder.test.ts`, `lakeSummary.test.ts`, `lakeDepth.test.ts`, and `lakeMap.test.ts` cover the LakeFinder adapter and its fixtures (a matching record, no record, a service that is down, and a changed schema), the summary layout, the verbatim regulations and the empty-list wording, the absence of "fishable" and "bowfishable" text, the depth-map identify, and the PDF that is never cached. `src/lib/gisProxy.test.ts` covers the pinned prefixes.
-- `tests/e2e/dnr.spec.ts` covers the drawer, the group controls, the gate, a result, the LakeFinder summary from a fishing site and from the Lake depth map (found, no record, service down, no special regulations), the depth-map warning, and the routes the public build lacks. The Lakes & LakeFinder outline is not clicked there, because the map in that test environment does not report its camera height, which the outline layer's zoom gate needs; its result is covered by `describe.test.ts`. It reads `NEXT_PUBLIC_APP_MODE` and runs the personal or public half accordingly; CI runs both builds.
-- `npm run smoke:dnr` queries every layer anonymously and checks its geometry, requested fields, feature count against the 2026-09-23 snapshot, a sample record, and its season. It also checks the bathymetry service's layers and record counts, and reads a live LakeFinder record through the app's own adapter and confirms the lake map PDF's file name. `.github/workflows/dnr-smoke.yml` runs it weekly and on demand. It is not part of the pull-request checks, so a change in DNR's services cannot block unrelated work.
+- `npm run audit:registry` audits both builds. Every DNR layer must default off and name its source (on an official DNR or MnGeo host), attribution, meaning class, verify link (a DNR page over `https`), heading, and verification date, with a complete season rule where it has one. The public registry must contain no DNR layer, and the personal registry must contain them all. A live map service must carry a coverage warning, a layer that opens a lake summary must name its DOW attribute, and a trail freshness label must carry a verified date and a stale warning.
+- `src/lib/dnr/*.test.ts` cover the season rules, the gate with stubbed services, the wording of each class from recorded service responses (`src/lib/dnr/fixtures/`, recorded 2026-09-26), the audit, the zoom hint, the trail freshness rule, and the trail-name link tables. `lakefinder.test.ts`, `lakeSummary.test.ts`, `lakeDepth.test.ts`, and `lakeMap.test.ts` cover the LakeFinder adapter and its fixtures (a matching record, no record, a service that is down, and a changed schema), the summary layout, the verbatim regulations and the empty-list wording, the absence of "fishable" and "bowfishable" text, the depth-map identify, and the PDF that is never cached. `src/lib/gisProxy.test.ts` covers the pinned prefixes.
+- `tests/e2e/dnr.spec.ts` covers the drawer, the group controls, the gate, a result, the LakeFinder summary from a fishing site and from the Lake depth map (found, no record, service down, no special regulations), the depth-map warning, the stale-freshness warning that leaves OHV and snowmobile toggleable, the Boundary Waters layer, and the routes the public build lacks. The Lakes & LakeFinder outline is not clicked there, because the map in that test environment does not report its camera height, which the outline layer's zoom gate needs; its result is covered by `describe.test.ts`. It reads `NEXT_PUBLIC_APP_MODE` and runs the personal or public half accordingly; CI runs both builds.
+- `npm run smoke:dnr` queries every layer anonymously and checks its geometry, requested fields, feature count against the 2026-09-23 snapshot, a sample record, and its season. It also checks the bathymetry service's layers and record counts, and reads a live LakeFinder record through the app's own adapter and confirms the lake map PDF's file name. It also checks every configured verify/program URL and every dynamic DNR link, including all 48 RGMA PDF filenames; the five known 404s must remain unavailable or be removed from the exclusion list when DNR restores them. `.github/workflows/dnr-smoke.yml` runs it weekly and on demand. It is not part of the pull-request checks, so a change in DNR's services cannot block unrelated work.

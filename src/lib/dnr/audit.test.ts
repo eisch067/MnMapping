@@ -10,6 +10,10 @@ function withDnr(layer: LayerDefinition, changes: Partial<NonNullable<LayerDefin
 
 const deer = dnrRecreationLayers.find((layer) => layer.id === "mndnr-deer-permit-areas")!;
 const bear = dnrRecreationLayers.find((layer) => layer.id === "mndnr-bear-permit-areas")!;
+const ohv = dnrRecreationLayers.find((layer) => layer.id === "mndnr-ohv-trails")!;
+const migratory = dnrRecreationLayers.find(
+  (layer) => layer.id === "mndnr-migratory-waterfowl-areas",
+)!;
 
 const audit = (layers: readonly LayerDefinition[], registry = layers, personal = true) =>
   auditDnrLayers(layers, registry, { personal });
@@ -116,5 +120,31 @@ describe("auditDnrLayers", () => {
     const issues = audit([{ ...deer, category: "public-land" }]);
 
     expect(issues).toEqual([expect.stringMatching(/category/)]);
+  });
+
+  it("requires large trail layers to use a zoom gate and generalized viewport queries", () => {
+    const issues = audit([{ ...ohv, options: { ...ohv.options, maxAllowableOffset: 0 } }]);
+
+    expect(issues).toEqual([expect.stringMatching(/generalized viewport queries/)]);
+  });
+
+  it("requires complete dated freshness metadata", () => {
+    const stale = withDnr(ohv, {
+      freshness: {
+        label: "",
+        contentDate: "recently",
+        freshThrough: "this year",
+        staleWarning: "",
+      },
+    });
+
+    expect(audit([stale])).toEqual([
+      expect.stringMatching(/freshness metadata/),
+      expect.stringMatching(/freshness dates/),
+    ]);
+  });
+
+  it("keeps the undocumented migratory-waterfowl electric_m field omitted", () => {
+    expect(String(migratory.options?.outFields).split(",")).not.toContain("electric_m");
   });
 });

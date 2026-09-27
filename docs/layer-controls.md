@@ -28,7 +28,7 @@ Each layer group heading has a checkbox that suspends and restores the group's *
 
 A DNR Recreation layer can carry a coverage warning, such as the Lake depth map's, which its row shows without needing to be opened.
 
-A DNR Recreation layer whose season is not verified as current stays in its group but cannot be switched on. Its row reads "Season data not verified", and a stored "on" is ignored rather than removed. Group controls skip such a layer, and the heading counts show only layers that are drawn. A DNR layer that loads only from a close view shows "Zoom in to load" while it is on and the camera is too high. Both are described in [DNR Recreation](dnr-recreation.md).
+A DNR Recreation layer whose season is not verified as current stays in its group but cannot be switched on. Its row reads "Season data not verified", and a stored "on" is ignored rather than removed. Group controls skip such a layer, and the heading counts show only layers that are drawn. OHV and snowmobile use a different freshness rule: their rows warn after the release-verified date but remain toggleable. A DNR layer that loads only from a close view shows "Zoom in to load" while it is on and the camera is too high. These states are described in [DNR Recreation](dnr-recreation.md).
 
 The transitions live in `src/lib/map/layerGroups.ts` as pure functions over the layer state and the suspended subsets, and are covered by `src/lib/map/layerGroups.test.ts`.
 

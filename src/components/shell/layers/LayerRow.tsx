@@ -1,6 +1,7 @@
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/ui/MapIcons";
 import { isLayerAvailableAtCameraHeight, type LayerDefinition } from "@/config/layers/types";
 import { dnrLicenseParagraphs, dnrLicenseUrl } from "@/lib/dnr/license";
+import { evaluateFreshness } from "@/lib/dnr/freshness";
 import { meaningStatements } from "@/lib/dnr/meaning";
 import type { SeasonGate } from "@/lib/dnr/season";
 import type { SeasonGates } from "@/lib/dnr/seasonGate";
@@ -89,6 +90,7 @@ function LayerRow({ layer, controls }: { layer: LayerDefinition; controls: Layer
       <LayerInfo layer={layer} />
       {layer.dnr?.caution && <p className="layer-caution">{layer.dnr.caution}</p>}
       <SeasonNotice gate={gate} />
+      <FreshnessNotice layer={layer} />
       <ZoomHint layer={layer} visible={layerState.visible} cameraHeight={controls.cameraHeight} />
       {layerState.visible && (
         <LayerLoadStatus
@@ -135,6 +137,11 @@ function LayerToggle({ layer, season, checked, disabled, onChange }: LayerToggle
         <span className="layer-meta">{metadataLine(layer)}</span>
         {season?.status === "current" && (
           <span className="layer-season">Season: {season.label}</span>
+        )}
+        {layer.dnr?.freshness && (
+          <span className="layer-season">
+            Freshness: {layer.dnr.freshness.label} · source content {layer.dnr.freshness.contentDate}
+          </span>
         )}
         {layer.accessMeaning && (
           <span className="land-meaning">{accessMeaningLabel(layer.accessMeaning)}</span>
@@ -196,6 +203,19 @@ function SeasonNotice({ gate }: { gate: SeasonGate | undefined }) {
       <a href={gate.officialUrl} target="_blank" rel="noreferrer">
         Check the official DNR source ↗
       </a>
+    </div>
+  );
+}
+
+function FreshnessNotice({ layer }: { layer: LayerDefinition }) {
+  if (!layer.dnr?.freshness) return null;
+  const status = evaluateFreshness(layer.dnr.freshness);
+  if (!status.stale) return null;
+  return (
+    <div className="layer-season-notice" role="status">
+      <strong>Source freshness warning</strong>
+      <span>{status.warning}</span>
+      <span>The layer remains available.</span>
     </div>
   );
 }

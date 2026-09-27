@@ -21,7 +21,7 @@ Once the main map opens, you can:
 - Display statewide lidar hillshade and 10-foot or property-scale 2-foot contours.
 - Inspect parcel boundaries and available assessment attributes at parcel scale.
 - View Minnesota DNR management areas, state parks, forests, county-fee land, tax-forfeit land, and verified county supplements.
-- In the personal build, view DNR Recreation layers: deer, bear, and turkey permit areas, CWD zones, Walk-In Access sites, Hunter Walking Trails, public-water access, fishing sites, Public Waters lake outlines with a LakeFinder summary, and a live Lake depth map. A seasonal layer is unavailable unless its season is verified as current.
+- In the personal build, view the curated DNR Recreation collection for hunting zones and access, fishing and water access, state trails, forest travel, snowmobile, and OHV routes, plus the Boundary Waters wilderness boundary under Public lands. Hunting-season layers fail closed when stale; snowmobile and OHV warn while remaining available.
 - Reorder layers, adjust opacity, disable active layers, and monitor browser-reported request and transfer activity.
 - Add pins and WGS84-measured lines or areas, edit shapes with midpoint insertion and Undo, organize items in folders, recover them from 30-day Trash, import or export GPX, KML, and GeoJSON files, and back up or restore everything as a My Data archive.
 - Use the same map on a phone or a desktop: a bottom dock and swipeable sheets on a phone, and a left rail with a dockable panel on a desktop.
