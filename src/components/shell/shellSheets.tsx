@@ -1,5 +1,7 @@
-import { CompassIcon, FolderIcon, LayersIcon, MapIcon, PlusIcon } from "@/components/ui/MapIcons";
+import { CompassIcon, FolderIcon, LayersIcon, MapIcon, PlusIcon, TerrainIcon } from "@/components/ui/MapIcons";
+import { isPersonalMode } from "@/config/appMode";
 import { AddSheet, type AddSheetProps } from "./AddSheet";
+import { TerrainAnalysisSheet, type TerrainAnalysisSheetProps } from "./TerrainAnalysisSheet";
 import { BackupSheet, type BackupSheetProps } from "./BackupSheet";
 import { ExportSheet, type ExportSheetProps } from "./ExportSheet";
 import { IdentifySheet, type IdentifySheetProps } from "./IdentifySheet";
@@ -11,6 +13,7 @@ import type { SheetDefinition } from "./sheets";
 
 export const sheetIds = {
   explore: "explore",
+  terrain: "terrain",
   layers: "layers",
   add: "add",
   data: "data",
@@ -24,6 +27,7 @@ interface ShellSheetProps {
   layers: LayerDrawerProps;
   myData: MyDataSlotProps;
   explore: IdentifySheetProps;
+  terrain: TerrainAnalysisSheetProps;
   add: AddSheetProps;
   mapView: MapViewSheetProps;
   exchange: {
@@ -36,7 +40,7 @@ interface ShellSheetProps {
 // Every sheet the shell offers, in tool-row order. A later slice adds its sheet here and gets a
 // tool-row action and a place in the sheet host without touching either.
 export function shellSheets(props: ShellSheetProps): SheetDefinition[] {
-  const { layers, myData, explore, add, mapView, exchange } = props;
+  const { layers, myData, explore, terrain, add, mapView, exchange } = props;
   return [
     {
       id: sheetIds.explore,
@@ -45,6 +49,13 @@ export function shellSheets(props: ShellSheetProps): SheetDefinition[] {
       size: "compact",
       content: <IdentifySheet {...explore} />,
     },
+    ...(isPersonalMode ? [{
+      id: sheetIds.terrain,
+      title: "Terrain",
+      icon: <TerrainIcon />,
+      size: "compact" as const,
+      content: <TerrainAnalysisSheet {...terrain} />,
+    }] : []),
     {
       id: sheetIds.layers,
       title: "Layers",

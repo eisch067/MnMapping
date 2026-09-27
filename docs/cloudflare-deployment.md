@@ -15,6 +15,7 @@ One `main` branch produces two different deployments, distinguished only by a bu
 | Parcel owner/mailing-address/tax fields for the 10 counties in item H2 | Shown | Redacted, with a link to the county's own site |
 | Esri 3D terrain (item H1) | Included | Not included |
 | DNR Recreation layers, the Boundary Waters boundary, and the `dnr-gis` proxy provider ([DNR Recreation](dnr-recreation.md)) | Included | Not included; DNR must confirm a public release first |
+| Terrain threshold and viewshed analysis ([Elevation and terrain sources](elevation-sources.md)) | Included; results remain on this device | Not included |
 | Worker name / `wrangler.jsonc` environment | `mn-mapping` (default env) | `public-mn-mapping` (`env.public`) |
 | Access | Password-protected (Cloudflare Access) — operator only | Open to anyone |
 

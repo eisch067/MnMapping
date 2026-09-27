@@ -43,6 +43,7 @@ function limitWaypoints(coordinates: readonly Position[]): Position[] {
 export async function sampleElevations(
   positions: readonly Position[],
   fetcher: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<ElevationSample[]> {
   if (positions.length === 0) return [];
   const chunks = positions.reduce<Position[][]>((result, position, index) => {
@@ -58,7 +59,7 @@ export async function sampleElevations(
     async () => {
       while (nextChunk < chunks.length) {
         const chunkIndex = nextChunk++;
-        const values = await fetchChunk(chunks[chunkIndex], fetcher);
+        const values = await fetchChunk(chunks[chunkIndex], fetcher, signal);
         values.forEach((elevation, index) => {
           elevations[chunkIndex * maximumSamplesPerRequest + index] = elevation;
         });
@@ -69,7 +70,7 @@ export async function sampleElevations(
   return positions.map((position, index) => ({ position, elevationMeters: elevations[index] }));
 }
 
-async function fetchChunk(positions: readonly Position[], fetcher: typeof fetch): Promise<number[]> {
+async function fetchChunk(positions: readonly Position[], fetcher: typeof fetch, signal?: AbortSignal): Promise<number[]> {
   const geometry = JSON.stringify({
     spatialReference: { wkid: 4326 },
     points: positions.map(([longitude, latitude]) => [longitude, latitude]),
@@ -82,7 +83,7 @@ async function fetchChunk(positions: readonly Position[], fetcher: typeof fetch)
   url.searchParams.set("interpolation", "RSP_BilinearInterpolation");
   url.searchParams.set("outSR", "4326");
   url.searchParams.set("f", "json");
-  const response = await fetcher(url);
+  const response = await fetcher(url, signal ? { signal } : undefined);
   if (!response.ok) throw new Error("Minnesota DEM sampling is unavailable.");
   const payload = await response.json() as SampleResponse;
   if (payload.error) throw new Error(payload.error.message ?? "Minnesota DEM sampling failed.");

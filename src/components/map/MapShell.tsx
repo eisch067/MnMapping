@@ -18,6 +18,7 @@ import type { Bounds } from "@/lib/exchange/bounds";
 import type { IdentifyPoint } from "@/lib/identify/types";
 import { isPersonalMode } from "@/config/appMode";
 import type { MapLocation, ViewportBounds } from "@/lib/location";
+import type { Position } from "@/lib/geodesy";
 import { recordRecentLocation } from "@/lib/locationHistory";
 import { CesiumMap, type MapViewControls } from "./CesiumMap";
 import { LocationGate } from "./LocationGate";
@@ -35,6 +36,8 @@ export function MapShell() {
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const [cameraHeight, setCameraHeight] = useState(Number.POSITIVE_INFINITY);
   const [heading, setHeading] = useState(0);
+  const [observer, setObserver] = useState<Position | null>(null);
+  const [pickingObserver, setPickingObserver] = useState(false);
   const [cursor, setCursor] = useState<[number, number] | null>(null);
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
   const [viewControls, setViewControls] = useState<MapViewControls | null>(null);
@@ -62,6 +65,7 @@ export function MapShell() {
         tools.reset();
         shapes.cancel();
       }
+      if (openId !== sheetIds.terrain) setPickingObserver(false);
     },
   });
 
@@ -84,10 +88,17 @@ export function MapShell() {
     recordRecentLocation(next);
   };
   const changeArea = () => {
+    setObserver(null);
+    setPickingObserver(false);
     setViewportBounds(null);
     setLocation(null);
   };
   const handleMapClick = (point: IdentifyPoint) => {
+    if (pickingObserver) {
+      setObserver([point.longitude, point.latitude]);
+      setPickingObserver(false);
+      return;
+    }
     if (shapes.active) {
       if (!shapes.active.item) shapes.addPoint(point.longitude, point.latitude);
       return;
@@ -112,6 +123,11 @@ export function MapShell() {
       },
     },
     explore: { state: identify, onSelect: identify.select, onClear: identify.clear },
+    terrain: {
+      observer,
+      pickingObserver,
+      onPickObserver: () => setPickingObserver(true),
+    },
     add: {
       mode: tools.mode,
       settingsReady: Boolean(myData.settings),
@@ -161,7 +177,7 @@ export function MapShell() {
   });
 
   return (
-    <div className={`app-shell ${sheet.docked ? "is-docked" : ""}`}>
+    <div className={`app-shell ${sheet.docked ? "is-docked" : ""} ${pickingObserver ? "is-picking-observer" : ""}`}>
       <main className="map-region">
         <CesiumMap
           {...layerControls.map}
