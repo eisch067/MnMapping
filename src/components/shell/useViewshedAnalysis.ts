@@ -55,7 +55,7 @@ export function useViewshedAnalysis({
       const request: ViewshedRequest = {
         width: dimension,
         height: dimension,
-        elevations: samples.map(({ elevationMeters }) => elevationMeters),
+        elevations: Float32Array.from(samples, ({ elevationMeters }) => elevationMeters),
         cellSizeMeters: 10,
         observerX: Math.floor(dimension / 2),
         observerY: Math.floor(dimension / 2),

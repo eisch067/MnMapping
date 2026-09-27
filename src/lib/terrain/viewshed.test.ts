@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { calculateViewshed, validateViewshedRequest, VIEWSHED_CELL_BUDGET, type ViewshedRequest } from "./viewshed";
 
-function terrain(elevations: number[], overrides: Partial<ViewshedRequest> = {}): ViewshedRequest {
-  return { width: 5, height: 5, elevations, cellSizeMeters: 10, observerX: 2, observerY: 2, observerHeightMeters: 0, targetHeightMeters: 0, rangeMeters: 100, ...overrides };
+function terrain(values: number[], overrides: Partial<ViewshedRequest> = {}): ViewshedRequest {
+  return { width: 5, height: 5, elevations: Float32Array.from(values), cellSizeMeters: 10, observerX: 2, observerY: 2, observerHeightMeters: 0, targetHeightMeters: 0, rangeMeters: 100, ...overrides };
 }
 
 describe("calculateViewshed", () => {

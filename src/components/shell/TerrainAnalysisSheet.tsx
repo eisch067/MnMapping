@@ -2,19 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Position } from "@/lib/geodesy";
+import { minnesotaBounds, type ViewportBounds } from "@/lib/location";
 import { VIEWSHED_CELL_BUDGET } from "@/lib/terrain/viewshed";
 import { useViewshedAnalysis } from "./useViewshedAnalysis";
 
 export interface TerrainAnalysisSheetProps {
   observer: Position | null;
   pickingObserver: boolean;
+  thresholdBounds: ViewportBounds | null;
   onPickObserver: () => void;
 }
 
 const accuracyDisclosure = "Viewsheds are estimates from sampled Minnesota lidar elevations, not survey-grade measurements. Buildings, vegetation, and features smaller than the sampling interval may be missing.";
 const temporaryLabel = "temporary on this device only · not synced, exported, or a My Data item.";
 
-export function TerrainAnalysisSheet({ observer, pickingObserver, onPickObserver }: TerrainAnalysisSheetProps) {
+export function TerrainAnalysisSheet({ observer, pickingObserver, thresholdBounds, onPickObserver }: TerrainAnalysisSheetProps) {
   const [tool, setTool] = useState<"threshold" | "viewshed">("threshold");
   const [thresholdFeet, setThresholdFeet] = useState(1450);
   const [observerHeightFeet, setObserverHeightFeet] = useState(6);
@@ -31,7 +33,7 @@ export function TerrainAnalysisSheet({ observer, pickingObserver, onPickObserver
         <button type="button" aria-pressed={tool === "viewshed"} onClick={() => { setTool("viewshed"); setSaved(false); setSaveError(null); }}>Viewshed</button>
       </div>
       {tool === "threshold" ? (
-        <ThresholdControls thresholdFeet={thresholdFeet} onThresholdChange={(feet) => { setThresholdFeet(feet); setSaved(false); setSaveError(null); }} />
+        <ThresholdControls thresholdFeet={thresholdFeet} bounds={thresholdBounds ?? minnesotaBounds} onThresholdChange={(feet) => { setThresholdFeet(feet); setSaved(false); setSaveError(null); }} />
       ) : (
         <ViewshedControls
           pickingObserver={pickingObserver}
@@ -49,23 +51,26 @@ export function TerrainAnalysisSheet({ observer, pickingObserver, onPickObserver
       {saveError && <p role="alert">{saveError}</p>}
       <p className="terrain-accuracy-note">{accuracyDisclosure}</p>
       <p className="terrain-performance-note">Large windows take longer; changing parameters cancels the active computation.</p>
-      {tool === "threshold" && <SaveAnalysis label={`Threshold result · ${temporaryLabel}`} saved={saved} onSave={() => saveAnalysis({ kind: "threshold", thresholdFeet }, setSaved, setSaveError)} />}
+      {tool === "threshold" && <SaveAnalysis label={`Threshold result · ${temporaryLabel}`} saved={saved} onSave={() => saveAnalysis({ kind: "threshold", thresholdFeet, bounds: thresholdBounds ?? minnesotaBounds }, setSaved, setSaveError)} />}
       {tool === "viewshed" && observer && result && !analysis.error && !analysis.budgetMessage && <SaveAnalysis label={`Viewshed result · ${temporaryLabel}`} saved={saved} onSave={() => saveAnalysis({ kind: "viewshed", observer, rangeMeters, observerHeightFeet, visible: Array.from(result.visible), size: result.size }, setSaved, setSaveError)} />}
     </section>
   );
 }
 
-function ThresholdControls({ thresholdFeet, onThresholdChange }: {
+function ThresholdControls({ thresholdFeet, bounds, onThresholdChange }: {
   thresholdFeet: number;
+  bounds: ViewportBounds;
   onThresholdChange: (feet: number) => void;
 }) {
+  const query = new URLSearchParams({ west: String(bounds.west), south: String(bounds.south), east: String(bounds.east), north: String(bounds.north), minimum: String(thresholdFeet) });
+  const aspectRatio = (bounds.east - bounds.west) / (bounds.north - bounds.south);
   return (
     <>
       <label>Minimum elevation: {thresholdFeet.toLocaleString()} ft
         <input type="range" min="600" max="2300" step="10" value={thresholdFeet} onChange={(event) => onThresholdChange(Number(event.target.value))} />
         <small>Threshold mask uses server-side Remap and Colormap on the MnGeo lidar DEM.</small>
       </label>
-      <div className="terrain-threshold-result" role="img" aria-label={`Elevation threshold mask above ${thresholdFeet.toLocaleString()} feet`} style={{ backgroundImage: `url("/api/terrain/threshold?minimum=${thresholdFeet}")` }} />
+      <div className="terrain-threshold-result" role="img" aria-label={`Elevation threshold mask above ${thresholdFeet.toLocaleString()} feet`} style={{ aspectRatio, backgroundImage: `url("/api/terrain/threshold?${query}")` }} />
 
     </>
   );

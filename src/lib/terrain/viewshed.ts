@@ -1,7 +1,7 @@
 export interface ViewshedRequest {
   width: number;
   height: number;
-  elevations: readonly number[];
+  elevations: Float32Array;
   cellSizeMeters: number;
   observerX: number;
   observerY: number;

@@ -126,6 +126,7 @@ export function MapShell() {
     terrain: {
       observer,
       pickingObserver,
+      thresholdBounds: viewportBounds,
       onPickObserver: () => setPickingObserver(true),
     },
     add: {
