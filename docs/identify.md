@@ -36,7 +36,9 @@ The map shows no Cesium infobox and no selection frame; the sheet is the only pl
 
 The feature-service adapter asks for the exact point, which suits polygon layers. A layer of lines or points sets its `identifyNearby` option, and the adapter then asks for features within `IdentifyPoint.toleranceMeters` of the click and keeps at most ten. The DNR Recreation trails, fishing sites, and water access sites use it.
 
-A layer with a `dnr` definition is described by `src/lib/dnr/describe.ts` instead of the generic field list. Its result adds an alerts banner, a **More details** group of secondary fields, and an attribution line to the title, rows, notes, and links every result has. See [DNR Recreation](dnr-recreation.md#results).
+The map-service adapter answers only for a DNR Recreation layer, whose definition supplies the rules. For the Lake depth map it asks the service's outline layer which lake lies under the point and its contour layer for lines within the click distance, and returns one result per lake. Any other map service, such as imagery, still reports nothing.
+
+A layer with a `dnr` definition is described by `src/lib/dnr/describe.ts` instead of the generic field list. Its result adds an alerts banner, a **More details** group of secondary fields, and an attribution line to the title, rows, notes, and links every result has. A result that names a lake carries a `lake` value, and the sheet then offers **Open lake summary**, which replaces the result with the LakeFinder summary until the person goes back. See [DNR Recreation](dnr-recreation.md#results).
 
 An adapter should send only the fields the layer's own configuration allows, so the identify never shows an attribute the layer is set up to hide. In the public build that includes the owner and mailing fields removed from county parcel layers.
 

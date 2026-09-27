@@ -69,7 +69,12 @@ export type DnrHeading =
   | "water-regulatory-reference";
 
 // What a DNR Recreation result claims, and refuses to claim, about the place it describes.
-export type DnrMeaningClass = "regulation-zone" | "enrolled-private-land" | "facility" | "access-varies";
+export type DnrMeaningClass =
+  | "regulation-zone"
+  | "enrolled-private-land"
+  | "facility"
+  | "access-varies"
+  | "reference";
 
 // A layer whose meaning depends on a season is unavailable unless its effective period is
 // current: read from the service when it publishes one, otherwise configured and verified by hand.
@@ -87,6 +92,14 @@ export interface DnrLinkField {
   label: string;
   // Joined to the attribute when DNR publishes only a file name.
   baseUrl?: string;
+}
+
+// Where a result names its lake, so the LakeFinder summary can be opened from it.
+export interface DnrLakeLink {
+  // The attribute holding the eight-character DOW lake number.
+  dowField: string;
+  // The attribute holding the lake's name, used until the summary loads.
+  nameField?: string;
 }
 
 export interface DnrLayerInfo {
@@ -109,6 +122,10 @@ export interface DnrLayerInfo {
   titlePrefix?: string;
   // An attribute DNR uses for a closure or condition notice, shown as a banner above the summary.
   alertField?: string;
+  // Lets a result open the LakeFinder summary for the lake it names.
+  lake?: DnrLakeLink;
+  // A limit on what the layer covers, shown on its drawer row and in every result.
+  caution?: string;
 }
 
 export interface LayerDefinition {

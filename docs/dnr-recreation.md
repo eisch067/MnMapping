@@ -15,6 +15,8 @@ Every layer is queried live, and nothing is stored for offline use. Every layer 
 | Walk-In Access sites | Hunting access & habitat | `bdry_dnr_walk_in_access_sites` layer 0 | enrolled-private-land | none |
 | Hunter Walking Trails | Hunting access & habitat | `trans_hunter_walking_trails` layer 0 | access-varies | none |
 | Public-water access | Fishing & water access | `struc_water_access_sites` layer 0 | facility | none |
+| Lakes & LakeFinder | Fishing & water access | `water_mn_public_waters` layer 1 | reference | none |
+| Lake depth map | Fishing & water access | `water_lake_bathymetry` map service, layers 0, 1, and 3 | reference | none |
 | Fishing piers & shore-fishing sites | Fishing & water access | `struc_fishing_sites_in_minnesota` layer 0 | facility | none |
 
 All but CWD zones are on MnGeo's `enterprise.gisdata.mn.gov` under `us_mn_state_dnr`, reached through the existing `mngeo-features` proxy provider. CWD zones come from the season-specific DNR service, because that is where DNR publishes the current effective period. The layers are defined in `src/config/layers/dnrRecreation.ts`; each names its source, attribution, meaning class, verify link, heading, and the date it was last checked against DNR.
@@ -68,16 +70,64 @@ Empty and blank fields are hidden, and DNR's wording is shown as published. Seas
 | enrolled-private-land | Participating private land — WIA validation required, Sept 1–May 31, landowners may opt out. |
 | facility | Marks a facility or route, not access to adjoining land or permission to take any species. |
 | access-varies | Rules vary by landowner along the trail. |
+| reference | DNR reference data — not for navigation; coverage varies. |
 
 The wording, the fields each layer shows, and its links are in `src/lib/dnr/meaning.ts`, `src/config/layers/dnrRecreation.ts`, and `src/lib/dnr/describe.ts`. The deer permit area report PDF is not linked, because the base address that its file names resolve against has not been verified.
 
+## LakeFinder and the Lake depth map
+
+### Lakes & LakeFinder
+
+**Lakes & LakeFinder** draws DNR's Public Waters basin outlines, keyed by the eight-character DOW lake number, as faint outlines. The service holds about 22,000 basins, so like Public-water access it loads only from a closer view (a camera height of 40 km). A click inside a lake gives a **Lake** result with the basin name, DOW number, and acres, and an **Open lake summary** action.
+
+The same action is on public-water access and fishing-site results, which carry the lake's DOW number (`dow_lake_id`, `dow_lake_number`). It works whether or not the outline layer is on, and nothing looks up a lake on an ordinary click.
+
+### The LakeFinder summary
+
+**Open lake summary** asks DNR's [LakeFinder by-ID API](https://services.dnr.state.mn.us/api/lakefinder/by_id/v1/usage.html) for the lake and shows, in order:
+
+1. the lake's name, DOW number, county, nearest town, area, and maximum and mean depth (a depth DNR reports as zero is shown as "Unavailable");
+2. **DNR special fishing regulations**, verbatim, with the species and location DNR gives and a **Verify current regulations ↗** link. An empty list reads "No lake-specific special regulations listed by DNR. Statewide, border-water, method, and seasonal rules may still apply.";
+3. invasive species and DNR's notes, hidden when there are none;
+4. **Species encountered in DNR fisheries surveys**, collapsed, with DNR's caveat. A surveyed species never implies that it may be taken, and the summary never calls a lake or species "fishable" or "bowfishable";
+5. official links: the full LakeFinder page, and the water-level report, lake survey, fish stocking, and lake depth pages only where DNR flags that they exist, plus **Lake map (PDF)**.
+
+Lake elevation is not shown: the API returns depth but no water-surface elevation or datum, so the summary links the water-level report instead.
+
+The API's own notes are unfinished, so `src/lib/dnr/lakefinder.ts` checks every field and is the only code that reads the raw response. It returns one of four outcomes:
+
+| Outcome | When | The summary shows |
+| --- | --- | --- |
+| found | A record for the requested DOW number with a name and a well-formed regulations list | The summary above |
+| none | DNR reports no results | The lake's identity, "DNR has no LakeFinder record for this lake.", and **Search LakeFinder ↗** |
+| unavailable | The request fails, returns an error status, or does not return JSON | The same view with "DNR lake data isn't responding — official links below", and links to the lake's LakeFinder page and the fishing regulations |
+| changed | The response is JSON the adapter cannot read safely, such as a missing regulations list, a record for another lake, or a regulation with no text | The same as unavailable, with "DNR lake data came back in a form this app cannot read — official links below" |
+
+None of these is an error message or toast. A missing or malformed optional field (county, depth, survey list, flags) is left out rather than failing the summary, but a regulations list that is missing or malformed is a changed schema, because leaving it out would read as "no special regulations".
+
+The browser asks through the `dnr-lakefinder` proxy provider, which reaches only `https://services.dnr.state.mn.us/api/lakefinder/`. DNR's server redirects the address without a trailing slash, and the Worker follows it.
+
+### Lake map PDF
+
+When LakeFinder reports an official lake map and gives its map ID, the summary links **Lake map (PDF)** to `/api/lake-map/<sheet>.pdf`. That route streams the DNR-hosted PDF from `files.dnr.state.mn.us` and does not cache it: it asks upstream with `cache: "no-store"`, answers `Cache-Control: no-store`, and passes on neither validators nor the upstream cache headers. It accepts only a sheet name of one letter and seven digits (`src/lib/dnr/lakeMap.ts`) and exists only in the personal build.
+
+DNR names a sheet from the map ID and a three-digit issue (`B0025` becomes `b0025010.pdf`). The API does not list issues and DNR's own page that does would have to be scraped, so the link assumes the first issue, `010`, which every lake checked has. A lake whose first issue differs gets a not-found response from the route; the summary also links DNR's own lake depth page, which lists the sheets, so no lake is left without a path to its map. `npm run smoke:dnr` checks the naming against a known lake.
+
+### Lake depth map
+
+**Lake depth map** is a live display of DNR's bathymetry map service: the lake outlines, depth contours, and elevation model (layers 1, 0, and 3). It is off by default and has the usual opacity control. The service's tiles cannot be exported, so nothing is stored, and the token-gated shaded-relief image service is not used.
+
+Coverage is incomplete and historical, and the layer says so twice: on its drawer row, and in the notes of every result, as "Official coverage is incomplete and historical: not every lake is mapped, and depths may have changed since a survey. Not for navigation." The layer never claims statewide coverage.
+
+Selecting a point asks the outline layer for the lake under it and the contour layer for lines within the click distance, and shows the lake name, DOW number, county, acres, and the contour depth in feet where a contour is near. An island polygon is not treated as a lake. The result also offers **Open lake summary**.
+
 ## The proxy provider
 
-`dnr-gis` in `src/lib/gisProxy.ts` reaches `https://gis.dnr.state.mn.us/arcgis/sharing/servers/8462b6a81c46461484c68d4bd638134c/rest/services/` and nothing else on that host. Requests with a `.` or `..` path segment are refused, and a resolved address that does not start with the provider's root is refused. The provider exists only in the personal build.
+`dnr-gis` in `src/lib/gisProxy.ts` reaches `https://gis.dnr.state.mn.us/arcgis/sharing/servers/8462b6a81c46461484c68d4bd638134c/rest/services/` and nothing else on that host. Requests with a `.` or `..` path segment are refused, and a resolved address that does not start with the provider's root is refused. The provider exists only in the personal build, and so does `dnr-lakefinder`, which reaches only `https://services.dnr.state.mn.us/api/lakefinder/`.
 
 ## Checks
 
-- `npm run audit:registry` audits both builds. Every DNR layer must default off and name its source (on an official DNR or MnGeo host), attribution, meaning class, verify link (a DNR page over `https`), heading, and verification date, with a complete season rule where it has one. The public registry must contain no DNR layer, and the personal registry must contain them all.
-- `src/lib/dnr/*.test.ts` cover the season rules, the gate with stubbed services, the wording of each class from recorded service responses (`src/lib/dnr/fixtures/`, recorded 2026-09-26), the audit, and the zoom hint. `src/lib/gisProxy.test.ts` covers the pinned prefix.
-- `tests/e2e/dnr.spec.ts` covers the drawer, the group controls, the gate, and a result. It reads `NEXT_PUBLIC_APP_MODE` and runs the personal or public half accordingly; CI runs both builds.
-- `npm run smoke:dnr` queries every layer anonymously and checks its geometry, requested fields, feature count against the 2026-09-23 snapshot, a sample record, and its season. `.github/workflows/dnr-smoke.yml` runs it weekly and on demand. It is not part of the pull-request checks, so a change in DNR's services cannot block unrelated work.
+- `npm run audit:registry` audits both builds. Every DNR layer must default off and name its source (on an official DNR or MnGeo host), attribution, meaning class, verify link (a DNR page over `https`), heading, and verification date, with a complete season rule where it has one. The public registry must contain no DNR layer, and the personal registry must contain them all. A live map service must carry a coverage warning, and a layer that opens a lake summary must name its DOW attribute.
+- `src/lib/dnr/*.test.ts` cover the season rules, the gate with stubbed services, the wording of each class from recorded service responses (`src/lib/dnr/fixtures/`, recorded 2026-09-26), the audit, and the zoom hint. `lakefinder.test.ts`, `lakeSummary.test.ts`, `lakeDepth.test.ts`, and `lakeMap.test.ts` cover the LakeFinder adapter and its fixtures (a matching record, no record, a service that is down, and a changed schema), the summary layout, the verbatim regulations and the empty-list wording, the absence of "fishable" and "bowfishable" text, the depth-map identify, and the PDF that is never cached. `src/lib/gisProxy.test.ts` covers the pinned prefixes.
+- `tests/e2e/dnr.spec.ts` covers the drawer, the group controls, the gate, a result, the LakeFinder summary from a fishing site and from the Lake depth map (found, no record, service down, no special regulations), the depth-map warning, and the routes the public build lacks. The Lakes & LakeFinder outline is not clicked there, because the map in that test environment does not report its camera height, which the outline layer's zoom gate needs; its result is covered by `describe.test.ts`. It reads `NEXT_PUBLIC_APP_MODE` and runs the personal or public half accordingly; CI runs both builds.
+- `npm run smoke:dnr` queries every layer anonymously and checks its geometry, requested fields, feature count against the 2026-09-23 snapshot, a sample record, and its season. It also checks the bathymetry service's layers and record counts, and reads a live LakeFinder record through the app's own adapter and confirms the lake map PDF's file name. `.github/workflows/dnr-smoke.yml` runs it weekly and on demand. It is not part of the pull-request checks, so a change in DNR's services cannot block unrelated work.

@@ -1,4 +1,7 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import beltrami from "@/lib/dnr/fixtures/lakefinder-beltrami.json" with { type: "json" };
+import basin from "@/lib/dnr/fixtures/public-waters-basin.json" with { type: "json" };
+import fishingSite from "@/lib/dnr/fixtures/fishing-site.json" with { type: "json" };
 import { openMap } from "./support/map";
 
 // The two builds differ in what they list, and CI runs this file against each.
@@ -25,14 +28,44 @@ const walkInSite = {
 interface ServiceOptions {
   period?: string;
   pointQueries?: URL[];
+  // How the LakeFinder API answers; unset leaves it unreachable.
+  lakeFinder?: { json: unknown; status?: number };
+}
+
+const noRecordAnswer = { status: "ERROR", message: "Search returned no results.", results: null };
+
+function featuresAtPoint(url: URL): { attributes: unknown }[] {
+  if (url.pathname.includes("bdry_dnr_walk_in_access_sites")) return [walkInSite];
+  if (url.pathname.includes("water_mn_public_waters")) return [basin];
+  if (url.pathname.includes("struc_fishing_sites_in_minnesota")) return [fishingSite];
+  return [];
+}
+
+// The bathymetry service holds the lake outline under a point and the contours near it.
+function bathymetryAt(url: URL): { attributes: unknown }[] {
+  if (!url.pathname.endsWith("/query")) return [];
+  const lake = { dowlknum: "04013500", lake_name: "Beltrami" };
+  return url.pathname.endsWith("/1/query")
+    ? [{ attributes: { ...lake, cty_name: "Beltrami", acres: 733.4, island: "N" } }]
+    : [{ attributes: { ...lake, abs_depth: 10 } }];
 }
 
 // Answers the services the DNR layers ask: the period each seasonal service publishes, the
-// feature under a clicked point, and an empty viewport.
-function mockDnrServices({ period = currentPeriod, pointQueries = [] }: ServiceOptions = {}) {
+// feature under a clicked point, an empty viewport, and LakeFinder.
+function mockDnrServices({
+  period = currentPeriod,
+  pointQueries = [],
+  lakeFinder,
+}: ServiceOptions = {}) {
   return async (page: Page) => {
     await page.route("**/api/gis-proxy/**", (route) => {
       const url = new URL(route.request().url());
+      if (url.pathname.includes("/dnr-lakefinder/")) {
+        return lakeFinder ? route.fulfill(lakeFinder) : route.abort();
+      }
+      if (url.pathname.includes("/water_lake_bathymetry/MapServer/")) {
+        return route.fulfill({ json: { features: bathymetryAt(url) } });
+      }
       if (!url.pathname.includes("/FeatureServer")) return route.abort();
       if (!url.pathname.endsWith("/query")) {
         return route.fulfill({ json: { objectIdField: "objectid", maxRecordCount: 1000 } });
@@ -42,8 +75,7 @@ function mockDnrServices({ period = currentPeriod, pointQueries = [] }: ServiceO
       }
       if (url.searchParams.get("geometryType") === "esriGeometryPoint") {
         pointQueries.push(url);
-        const isWalkIn = url.pathname.includes("bdry_dnr_walk_in_access_sites");
-        return route.fulfill({ json: { features: isWalkIn ? [walkInSite] : [] } });
+        return route.fulfill({ json: { features: featuresAtPoint(url) } });
       }
       return route.fulfill({ json: { type: "FeatureCollection", features: [] } });
     });
@@ -80,6 +112,9 @@ test.describe("the public build", () => {
     await expect(page.getByRole("button", { name: /^DNR Recreation\b/ })).toHaveCount(0);
     const response = await request.get("/api/gis-proxy/dnr-gis/Hosted/Anything/FeatureServer/0");
     expect(response.status()).toBe(400);
+    const lakeFinder = await request.get("/api/gis-proxy/dnr-lakefinder/by_id/v1?id=04013500");
+    expect(lakeFinder.status()).toBe(400);
+    expect((await request.get("/api/lake-map/b0025010.pdf")).status()).toBe(404);
   });
 });
 
@@ -228,5 +263,127 @@ test.describe("the personal build", () => {
     await detail.getByText("More details").click();
     await expect(detail.getByText("wia0701001")).toBeVisible();
     expect(pointQueries.some((query) => query.pathname.includes("walk_in_access"))).toBe(true);
+  });
+
+  test("the Lake depth map row warns that coverage is incomplete and historical", async ({
+    page,
+  }) => {
+    await openDnrRecreation(page);
+    await headingButton(page, "Fishing & water access").click();
+
+    const row = page.locator(".layer-row", { hasText: "Lake depth map" });
+    await expect(row.getByText(/incomplete and historical/)).toBeVisible();
+    await expect(layerCheckbox(page, /^Lake depth map/)).not.toBeChecked();
+  });
+
+  test("refuses a lake map name that is not a sheet, and never lets one be cached", async ({
+    request,
+  }) => {
+    const response = await request.get("/api/lake-map/secret.pdf");
+
+    expect(response.status()).toBe(400);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+  });
+
+  test.describe("the LakeFinder summary", () => {
+    async function openSummary(
+      page: Page,
+      layer: RegExp,
+      options: ServiceOptions,
+      inspectResult?: (result: Locator) => Promise<void>,
+    ) {
+      const canvas = await openDnrRecreation(page, options);
+      await headingButton(page, "Fishing & water access").click();
+      await layerCheckbox(page, layer).check();
+      await toolRow(page).getByRole("button", { name: "Layers", exact: true }).click();
+      await expect(sheetHost(page)).toBeHidden();
+      const results = sheetHost(page).locator(".identify-result strong");
+      await expect(async () => {
+        await canvas.click();
+        await expect(results.first()).toBeVisible({ timeout: 1000 });
+      }).toPass();
+      await results.first().click();
+      const detail = sheetHost(page).getByRole("region", { name: "Explore" });
+      await inspectResult?.(detail);
+      await detail.getByRole("button", { name: "Open lake summary" }).click();
+      return detail;
+    }
+
+    test("opens from the Lake depth map and shows special regulations verbatim", async ({ page }) => {
+      const detail = await openSummary(
+        page,
+        /^Lake depth map/,
+        { lakeFinder: { json: beltrami.body } },
+        async (result) => {
+          await expect(result.getByText("10 ft")).toBeVisible();
+          await expect(result.getByText(/incomplete and historical/)).toBeVisible();
+        },
+      );
+
+      await expect(detail.getByRole("heading", { name: "Beltrami" })).toBeVisible();
+      await expect(detail.getByText("Maximum depth")).toBeVisible();
+      await expect(detail.getByText("Daily limit five.")).toBeVisible();
+      await expect(detail.getByText("must be immediately released.", { exact: false })).toBeVisible();
+      await expect(detail.getByRole("link", { name: /Verify current regulations/ })).toHaveAttribute(
+        "href",
+        "https://www.dnr.state.mn.us/regulations/fishing/index.html",
+      );
+      await expect(detail.getByRole("link", { name: /Lake map \(PDF\)/ })).toHaveAttribute(
+        "href",
+        "/api/lake-map/b0025010.pdf",
+      );
+      await expect(detail.getByText("Species encountered in DNR fisheries surveys")).toBeVisible();
+      await expect(detail.getByText(/fishable|bowfish/i)).toHaveCount(0);
+    });
+
+    test("opens from a fishing site while the outline layer is off", async ({ page }) => {
+      const pointQueries: URL[] = [];
+      const norway = {
+        ...beltrami.body,
+        results: [{ ...beltrami.body.results[0], id: fishingSite.attributes.dow_lake_number, name: "Norway" }],
+      };
+      const detail = await openSummary(page, /^Fishing piers/, {
+        lakeFinder: { json: norway },
+        pointQueries,
+      });
+
+      await expect(detail.getByRole("heading", { name: "Norway" })).toBeVisible();
+      expect(pointQueries.some((query) => query.pathname.includes("water_mn_public_waters"))).toBe(false);
+    });
+
+    test("falls back to links, not an error, when DNR has no record", async ({ page }) => {
+      const detail = await openSummary(page, /^Lake depth map/, {
+        lakeFinder: { json: noRecordAnswer },
+      });
+
+      await expect(detail.getByText("DNR has no LakeFinder record for this lake.")).toBeVisible();
+      await expect(detail.getByRole("link", { name: /Search LakeFinder/ })).toBeVisible();
+      await expect(detail.getByRole("alert")).toHaveCount(0);
+    });
+
+    test("falls back to links when the API is down", async ({ page }) => {
+      const detail = await openSummary(page, /^Lake depth map/, {
+        lakeFinder: { status: 502, json: { error: "down" } },
+      });
+
+      await expect(
+        detail.getByText("DNR lake data isn't responding — official links below"),
+      ).toBeVisible();
+      await expect(detail.getByRole("link", { name: /Full LakeFinder page/ })).toBeVisible();
+    });
+
+    test("shows the exact wording when DNR lists no special regulations", async ({ page }) => {
+      const empty = {
+        ...beltrami.body,
+        results: [{ ...beltrami.body.results[0], specialFishingRegs: [] }],
+      };
+      const detail = await openSummary(page, /^Lake depth map/, { lakeFinder: { json: empty } });
+
+      await expect(
+        detail.getByText(
+          "No lake-specific special regulations listed by DNR. Statewide, border-water, method, and seasonal rules may still apply.",
+        ),
+      ).toBeVisible();
+    });
   });
 });

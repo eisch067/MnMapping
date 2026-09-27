@@ -1,4 +1,4 @@
-import type { DnrLayerInfo, LayerDefinition, LayerPopupField } from "./types";
+import type { DnrLayerInfo, LayerDefinition, LayerPopupField, LayerSourceType } from "./types";
 
 const mngeoRoot = "/api/gis-proxy/mngeo-features/us_mn_state_dnr";
 const mngeoSource = "https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_dnr";
@@ -9,6 +9,8 @@ const verifiedOn = "2026-09-26";
 const attribution = "Minnesota Department of Natural Resources";
 
 type DnrLayerSpec = Omit<LayerDefinition, "category" | "sourceType" | "defaultVisible" | "attribution"> & {
+  // Every layer is a feature service unless it says otherwise.
+  sourceType?: LayerSourceType;
   dnr: DnrLayerInfo;
   nameField: string;
   popupFields: readonly LayerPopupField[];
@@ -27,19 +29,25 @@ function requestedFields(spec: DnrLayerSpec): string {
     ...(dnr.moreFields ?? []).map(({ field }) => field),
     ...(dnr.linkFields ?? []).map(({ field }) => field),
     dnr.alertField,
+    dnr.lake?.dowField,
+    dnr.lake?.nameField,
     dnr.season?.source === "service" ? dnr.season.field : undefined,
   ]);
 }
 
 function defineDnrLayer(spec: DnrLayerSpec): LayerDefinition {
+  const sourceType = spec.sourceType ?? "arcgis-featureserver";
   return {
     ...spec,
     category: "dnr-recreation",
-    sourceType: "arcgis-featureserver",
+    sourceType,
     defaultVisible: false,
     attribution,
     agency: attribution,
-    options: { ...spec.options, outFields: requestedFields(spec) },
+    options:
+      sourceType === "arcgis-featureserver"
+        ? { ...spec.options, outFields: requestedFields(spec) }
+        : spec.options,
   };
 }
 
@@ -241,6 +249,7 @@ const fishingSites: DnrLayerSpec = {
     meaningClass: "facility",
     verifyUrl: "https://www.dnr.state.mn.us/regulations/fishing/index.html",
     verifiedOn,
+    lake: { dowField: "dow_lake_number", nameField: "lake_name" },
     moreFields: [
       { field: "facility_descrip", label: "Description" },
       { field: "directions", label: "Directions" },
@@ -273,6 +282,7 @@ const waterAccessSites: DnrLayerSpec = {
     meaningClass: "facility",
     verifyUrl: "https://www.dnr.state.mn.us/water_access/index.html",
     verifiedOn,
+    lake: { dowField: "dow_lake_id", nameField: "lake_name" },
     alertField: "alerts",
     moreFields: [
       { field: "directions", label: "Directions" },
@@ -296,6 +306,68 @@ const waterAccessSites: DnrLayerSpec = {
   },
 };
 
+const lakeFinderSearch = "https://www.dnr.state.mn.us/lakefind/index.html";
+
+const lakes: DnrLayerSpec = {
+  id: "mndnr-lakes-lakefinder",
+  name: "Lakes & LakeFinder",
+  url: `${mngeoRoot}/water_mn_public_waters/FeatureServer`,
+  sourceUrl: `${mngeoSource}/water_mn_public_waters/FeatureServer/1`,
+  defaultOpacity: 0.7,
+  description:
+    "Public Waters basin outlines, keyed by DNR's DOW lake number. Select a lake to open its LakeFinder summary: official identity, special regulations, and depth. An outline is a basin boundary, not a survey of the shore or of where the public may go.",
+  nameField: "pw_basin_name",
+  popupFields: [
+    { field: "dowlknum", label: "DOW number" },
+    { field: "acres", label: "Acres" },
+  ],
+  dnr: {
+    heading: "fishing-water-access",
+    meaningClass: "reference",
+    verifyUrl: "https://www.dnr.state.mn.us/regulations/fishing/index.html",
+    verifiedOn,
+    lake: { dowField: "dowlknum", nameField: "pw_basin_name" },
+    links: [{ label: "Search LakeFinder", href: lakeFinderSearch }],
+  },
+  // The service holds about 22,000 basins, so the layer waits for a view of a few hundred.
+  options: {
+    layerId: 1,
+    fillColor: "#5aa9d6",
+    strokeColor: "#9fd3ee",
+    fillAlpha: 0.04,
+    strokeWidth: 1,
+    maxCameraHeight: 40_000,
+  },
+};
+
+// A live display: the service's tiles cannot be exported, so nothing here is stored. The metadata
+// footprints (layer 2) are left out, and the shaded-relief image service is token-gated.
+const lakeDepthMap: DnrLayerSpec = {
+  id: "mndnr-lake-depth-map",
+  name: "Lake depth map",
+  sourceType: "arcgis-mapserver",
+  url: `${mngeoRoot}/water_lake_bathymetry/MapServer`,
+  sourceUrl: `${mngeoSource}/water_lake_bathymetry/MapServer`,
+  defaultOpacity: 0.8,
+  description:
+    "DNR's bathymetry service, drawn live: mapped lake outlines, depth contours, and an elevation model. Select a lake to see its name, DOW number, and the contour depth under the point. Only some lakes are mapped.",
+  nameField: "lake_name",
+  popupFields: [],
+  dnr: {
+    heading: "fishing-water-access",
+    meaningClass: "reference",
+    verifyUrl: "https://www.dnr.state.mn.us/lakemapping/description.html",
+    verifiedOn,
+    caution:
+      "Official coverage is incomplete and historical: not every lake is mapped, and depths may have changed since a survey. Not for navigation.",
+  },
+  options: {
+    layers: "0,1,3",
+    enablePickFeatures: false,
+    usePreCachedTilesIfAvailable: false,
+  },
+};
+
 // Drawn bottom to top, so the drawer, which lists the topmost first, reads in the order below it.
 // The annotation lets a public build drop the whole collection: without it the bundler must keep
 // the call, and with it the specs and every service address in them.
@@ -306,6 +378,8 @@ export const dnrRecreationLayers: readonly LayerDefinition[] = /* @__PURE__ */ [
   deerPermitAreas,
   walkInAccessSites,
   hunterWalkingTrails,
+  lakeDepthMap,
+  lakes,
   fishingSites,
   waterAccessSites,
 ].map(defineDnrLayer);

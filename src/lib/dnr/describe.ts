@@ -4,7 +4,8 @@ import type {
   LayerDefinition,
   LayerPopupField,
 } from "@/config/layers/types";
-import type { IdentifyLink, IdentifyRow } from "@/lib/identify/types";
+import type { IdentifyLake, IdentifyLink, IdentifyRow } from "@/lib/identify/types";
+import { isDow } from "./lakefinder";
 import { isDnrPage } from "./links";
 import { dnrAttribution, meaningStatements, verifyLinkLabel } from "./meaning";
 
@@ -16,6 +17,7 @@ export interface DnrFeatureDetails {
   links: IdentifyLink[];
   banner?: string;
   attribution: string;
+  lake?: IdentifyLake;
 }
 
 type Attributes = Record<string, unknown>;
@@ -26,7 +28,8 @@ function textOf(value: unknown, isDate: boolean): string | undefined {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10);
   }
-  if (typeof value === "number") return String(value);
+  // DNR stores areas and lengths to many decimal places, which read as noise on a phone.
+  if (typeof value === "number") return String(Number(value.toFixed(2)));
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed === "" ? undefined : trimmed;
@@ -72,6 +75,14 @@ function titleFor(layer: LayerDefinition, dnr: DnrLayerInfo, attributes: Attribu
   return name === undefined ? layer.name : `${dnr.titlePrefix ?? ""}${name}`;
 }
 
+function lakeFor(dnr: DnrLayerInfo, attributes: Attributes): IdentifyLake | undefined {
+  if (!dnr.lake) return undefined;
+  const dow = textOf(attributes[dnr.lake.dowField], false);
+  if (dow === undefined || !isDow(dow)) return undefined;
+  const name = dnr.lake.nameField ? textOf(attributes[dnr.lake.nameField], false) : undefined;
+  return { dow, name };
+}
+
 export function describeDnrFeature(
   layer: LayerDefinition,
   dnr: DnrLayerInfo,
@@ -87,9 +98,10 @@ export function describeDnrFeature(
       ...rowsFor(layer.popupFields ?? [], attributes, dateFields),
     ],
     moreRows: rowsFor(dnr.moreFields ?? [], attributes, dateFields),
-    notes: [meaningStatements[dnr.meaningClass]],
+    notes: [meaningStatements[dnr.meaningClass], ...(dnr.caution ? [dnr.caution] : [])],
     links: linksFor(dnr, attributes),
     banner,
     attribution: dnrAttribution,
+    lake: lakeFor(dnr, attributes),
   };
 }

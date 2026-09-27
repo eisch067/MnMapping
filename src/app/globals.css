@@ -88,6 +88,15 @@ svg { flex: 0 0 auto; }
 .identify-more summary { cursor: pointer; color: var(--muted); font-size: 11px; }
 .identify-more dl { margin-top: 8px; }
 .identify-attribution { color: var(--muted); font-size: 10px; line-height: 1.4; }
+.identify-action { justify-self: start; display: inline-flex; align-items: center; min-height: 38px; border: 1px solid var(--accent); border-radius: 5px; padding: 0 14px; background: rgba(255,255,255,.07); color: var(--text); cursor: pointer; font-size: 12px; }
+.lake-notice { margin: 0; padding: 8px 10px; border: 1px solid rgba(228,201,143,.4); border-radius: 6px; background: rgba(228,201,143,.08); color: #e4c98f; line-height: 1.4; overflow-wrap: anywhere; }
+.lake-regulations { display: grid; gap: 6px; }
+.lake-regulations h4 { margin: 0; font-size: 12px; }
+.lake-regulations p { margin: 0; line-height: 1.45; }
+.lake-regulations ul { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.lake-regulations li { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--panel-border); border-radius: 6px; background: rgba(255,255,255,.05); overflow-wrap: anywhere; }
+.lake-regulations em { color: var(--muted); font-size: 11px; font-style: normal; }
+.lake-species p { margin: 8px 0 0; line-height: 1.45; overflow-wrap: anywhere; }
 .tool-buttons button svg { width: 16px; height: 16px; }
 .tool-buttons button[aria-pressed="true"] { border-color: var(--accent); background: rgba(153,116,255,.18); color: var(--accent); }
 .tool-finish { justify-self: start; }
@@ -165,6 +174,7 @@ svg { flex: 0 0 auto; }
 .dnr-license { margin-top: 8px; }
 .dnr-license summary { cursor: pointer; }
 .land-meaning { display: block; margin-top: 5px; color: #e4c98f; font-size: 9px; line-height: 1.35; }
+.layer-caution { margin: 9px 0 0 27px; padding: 8px 10px; border: 1px solid rgba(228,201,143,.4); border-radius: 6px; background: rgba(228,201,143,.08); color: #e4c98f; font-size: 11px; line-height: 1.4; }
 .layer-order-controls { display: flex; gap: 3px; }
 .layer-order-controls button { display: grid; width: 24px; height: 24px; place-items: center; border: 1px solid var(--panel-border); border-radius: 4px; background: rgba(255,255,255,.04); color: var(--muted); cursor: pointer; }
 .layer-order-controls button:hover { background: rgba(153,116,255,.12); color: var(--accent); }
