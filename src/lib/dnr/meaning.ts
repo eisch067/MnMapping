@@ -8,6 +8,8 @@ export const meaningStatements: Record<DnrMeaningClass, string> = {
   facility:
     "Marks a facility or route, not access to adjoining land or permission to take any species.",
   "access-varies": "Rules vary by landowner along the trail.",
+  "managed-land":
+    "DNR habitat designation — does not show ownership or permission to enter; verify boundary signs.",
   reference: "DNR reference data — not for navigation; coverage varies.",
 };
 

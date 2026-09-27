@@ -5,6 +5,7 @@ import { meaningStatements } from "./meaning";
 
 const officialSourceHosts = ["enterprise.gisdata.mn.gov", "gis.dnr.state.mn.us"];
 const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+const generalizedTrailIds = new Set(["mndnr-ohv-trails", "mndnr-snowmobile-trails"]);
 
 function isOfficialSource(href: string | undefined): boolean {
   try {
@@ -49,6 +50,28 @@ function metadataIssues(layer: LayerDefinition): string[] {
   }
   const season = seasonIssue(layer);
   if (season) issues.push(season);
+  if (dnr.freshness) {
+    if (!dnr.freshness.label || !dnr.freshness.staleWarning) {
+      issues.push("freshness metadata needs a label and stale warning");
+    }
+    if (!isoDate.test(dnr.freshness.contentDate) || !isoDate.test(dnr.freshness.freshThrough)) {
+      issues.push("freshness dates must use YYYY-MM-DD");
+    }
+  }
+  const programLinks = [
+    ...(dnr.links ?? []).map(({ href }) => href),
+    ...(dnr.nameLinks ?? []).flatMap(({ pages }) => Object.values(pages)),
+  ];
+  if (programLinks.some((href) => !isDnrPage(href))) {
+    issues.push("program links must use an official DNR page over https");
+  }
+  if (generalizedTrailIds.has(layer.id)) {
+    const height = Number(layer.options?.maxCameraHeight);
+    const offset = Number(layer.options?.maxAllowableOffset);
+    if (!(Number.isFinite(height) && height > 0 && Number.isFinite(offset) && offset > 0)) {
+      issues.push("large trail layers need a zoom gate and generalized viewport queries");
+    }
+  }
   return issues;
 }
 

@@ -15,6 +15,16 @@ const expectedCounts = {
   "mndnr-hunter-walking-trails": 304,
   "mndnr-public-water-access": 3025,
   "mndnr-fishing-sites": 463,
+  "mndnr-migratory-waterfowl-areas": 46,
+  "mndnr-walk-in-access-trails": 23,
+  "mndnr-state-forest-roads": 1634,
+  "mndnr-state-forest-campgrounds": 61,
+  "mndnr-listed-infested-waters": 1688,
+  "mndnr-ruffed-grouse-management-areas": 48,
+  "mndnr-state-water-trails": 155,
+  "mndnr-state-trails": 978,
+  "mndnr-snowmobile-trails": 275,
+  "mndnr-ohv-trails": 8044,
   "mndnr-lakes-lakefinder": 21989,
 };
 const geometryTypes = {
@@ -26,6 +36,16 @@ const geometryTypes = {
   "mndnr-hunter-walking-trails": "esriGeometryPolyline",
   "mndnr-public-water-access": "esriGeometryPoint",
   "mndnr-fishing-sites": "esriGeometryPoint",
+  "mndnr-migratory-waterfowl-areas": "esriGeometryPolygon",
+  "mndnr-walk-in-access-trails": "esriGeometryPolyline",
+  "mndnr-state-forest-roads": "esriGeometryPolyline",
+  "mndnr-state-forest-campgrounds": "esriGeometryPoint",
+  "mndnr-listed-infested-waters": "esriGeometryPolygon",
+  "mndnr-ruffed-grouse-management-areas": "esriGeometryPolygon",
+  "mndnr-state-water-trails": "esriGeometryPolyline",
+  "mndnr-state-trails": "esriGeometryPolyline",
+  "mndnr-snowmobile-trails": "esriGeometryPolyline",
+  "mndnr-ohv-trails": "esriGeometryPolyline",
   "mndnr-lakes-lakefinder": "esriGeometryPolygon",
 };
 // Bathymetry outline and contour records DNR reported on 2026-09-23, and the layers the map draws.
@@ -60,13 +80,18 @@ const lakeModules = await loadBundle(`
 `);
 const results = await Promise.all([...layers.map(checkLayer), checkLakeFinder()]);
 const failed = results.filter((result) => result.problems.length > 0);
+const linkResults = await checkLinks(layers);
+const failedLinks = linkResults.filter((result) => !result.ok && !result.expectedUnavailable);
+const expectedUnavailableLinks = linkResults.filter((result) => result.expectedUnavailable);
 
 console.log(`DNR live smoke: ${results.length - failed.length}/${results.length} layers passed (${new Date().toISOString().slice(0, 10)}).`);
 for (const result of results) {
   console.log(`${result.problems.length === 0 ? "PASS" : "FAIL"} ${result.name}${result.count === undefined ? "" : ` (${result.count} features)`}`);
   for (const problem of result.problems) console.log(`  - ${problem}`);
 }
-if (failed.length > 0) process.exitCode = 1;
+console.log(`DNR link check: ${linkResults.length - failedLinks.length}/${linkResults.length} configured links passed; ${expectedUnavailableLinks.length} known RGMA PDFs remain unavailable.`);
+for (const result of failedLinks) console.log(`FAIL ${result.url} (${result.status ?? result.error})`);
+if (failed.length > 0 || failedLinks.length > 0) process.exitCode = 1;
 
 async function loadBundle(contents) {
   const built = await build({
@@ -144,6 +169,71 @@ async function checkLayer(layer) {
     problems.push(error instanceof Error ? error.message : String(error));
   }
   return { name: layer.name, count, problems };
+}
+
+async function checkLinks(layers) {
+  const configured = layers.flatMap(staticLinksFor);
+  const dynamic = (await Promise.all(layers.map(dynamicLinksFor))).flat();
+  const unique = new Map();
+  for (const link of [...configured, ...dynamic]) {
+    const previous = unique.get(link.url);
+    unique.set(link.url, {
+      url: link.url,
+      expectedUnavailable: Boolean(previous?.expectedUnavailable || link.expectedUnavailable),
+    });
+  }
+  return Promise.all([...unique.values()].map(checkHttpLink));
+}
+
+function staticLinksFor(layer) {
+  const dnr = layer.dnr;
+  return [
+    { url: dnr.verifyUrl },
+    ...(dnr.links ?? []).map(({ href }) => ({ url: href })),
+    ...(dnr.nameLinks ?? []).flatMap(({ pages }) =>
+      Object.values(pages).map((url) => ({ url }))),
+  ];
+}
+
+async function dynamicLinksFor(layer) {
+  if (layer.sourceType !== "arcgis-featureserver") return [];
+  const fields = layer.dnr.linkFields ?? [];
+  const groups = await Promise.all(fields.map(async (field) => {
+    const response = await getJson(queryUrl(layer, {
+      where: "1=1",
+      outFields: field.field,
+      returnDistinctValues: "true",
+      returnGeometry: "false",
+    }));
+    return (response.features ?? []).flatMap(({ attributes }) => {
+      const value = String(attributes?.[field.field] ?? "").trim();
+      if (!value) return [];
+      const url = field.baseUrl ? `${field.baseUrl}${encodeURIComponent(value)}` : value;
+      return [{ url, expectedUnavailable: field.excludedValues?.includes(value) ?? false }];
+    });
+  }));
+  return groups.flat();
+}
+
+async function checkHttpLink(link) {
+  try {
+    const response = await fetch(link.url, {
+      method: "HEAD",
+      redirect: "follow",
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (link.expectedUnavailable) {
+      return {
+        ...link,
+        ok: response.status === 404,
+        expectedUnavailable: response.status === 404,
+        status: response.status,
+      };
+    }
+    return { ...link, ok: response.ok, status: response.status };
+  } catch (error) {
+    return { ...link, ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 function checkMetadata(layer, metadata) {

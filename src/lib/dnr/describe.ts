@@ -1,6 +1,7 @@
 import type {
   DnrLayerInfo,
   DnrLinkField,
+  DnrNameLinkTable,
   LayerDefinition,
   LayerPopupField,
 } from "@/config/layers/types";
@@ -55,9 +56,16 @@ function seasonLabel(dnr: DnrLayerInfo, attributes: Attributes): string | undefi
 
 function linkFor(field: DnrLinkField, attributes: Attributes): IdentifyLink[] {
   const value = textOf(attributes[field.field], false);
-  if (value === undefined) return [];
+  if (value === undefined || field.excludedValues?.includes(value)) return [];
   const href = field.baseUrl ? `${field.baseUrl}${encodeURIComponent(value)}` : value;
   return isDnrPage(href) ? [{ label: field.label, href }] : [];
+}
+
+function nameLinkFor(table: DnrNameLinkTable, attributes: Attributes): IdentifyLink[] {
+  const value = textOf(attributes[table.field], false);
+  const href = value === undefined ? undefined : table.pages[value];
+  if (href === undefined || !isDnrPage(href)) return [];
+  return [{ label: table.label, href }];
 }
 
 function linksFor(dnr: DnrLayerInfo, attributes: Attributes): IdentifyLink[] {
@@ -65,6 +73,7 @@ function linksFor(dnr: DnrLayerInfo, attributes: Attributes): IdentifyLink[] {
     { label: verifyLinkLabel, href: dnr.verifyUrl },
     ...(dnr.links ?? []),
     ...(dnr.linkFields ?? []).flatMap((field) => linkFor(field, attributes)),
+    ...(dnr.nameLinks ?? []).flatMap((table) => nameLinkFor(table, attributes)),
   ];
   const seen = new Set<string>();
   return all.filter((link) => !seen.has(link.href) && seen.add(link.href));
@@ -98,7 +107,11 @@ export function describeDnrFeature(
       ...rowsFor(layer.popupFields ?? [], attributes, dateFields),
     ],
     moreRows: rowsFor(dnr.moreFields ?? [], attributes, dateFields),
-    notes: [meaningStatements[dnr.meaningClass], ...(dnr.caution ? [dnr.caution] : [])],
+    notes: [
+      meaningStatements[dnr.meaningClass],
+      ...(dnr.notes ?? []),
+      ...(dnr.caution ? [dnr.caution] : []),
+    ],
     links: linksFor(dnr, attributes),
     banner,
     attribution: dnrAttribution,

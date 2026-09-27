@@ -116,6 +116,9 @@ _Avoid_: Disclaimer, legal notice
 The effective period shown with a season-specific hunting layer, taken from the DNR service when it publishes one and from a MnMapping-verified label otherwise; a layer whose season label is not current is unavailable rather than drawn.
 _Avoid_: Layer year, version
 
+**Freshness label**:
+The release-verified season and source-content date shown for snowmobile and OHV trails. A stale freshness label warns the user but never makes the reference layer unavailable.
+
 **LakeFinder summary**:
 An embedded summary of official DNR lake identity, surveyed species, special fishing regulations, invasive species, and morphology joined through a Public Waters Basin's DOW lake number.
 _Avoid_: Fishing forecast, bowfishing eligibility

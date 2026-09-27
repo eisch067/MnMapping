@@ -74,6 +74,7 @@ export type DnrMeaningClass =
   | "enrolled-private-land"
   | "facility"
   | "access-varies"
+  | "managed-land"
   | "reference";
 
 // A layer whose meaning depends on a season is unavailable unless its effective period is
@@ -92,6 +93,21 @@ export interface DnrLinkField {
   label: string;
   // Joined to the attribute when DNR publishes only a file name.
   baseUrl?: string;
+  // Known broken links remain part of the release link check but are not offered to users.
+  excludedValues?: readonly string[];
+}
+
+export interface DnrNameLinkTable {
+  field: string;
+  label: string;
+  pages: Readonly<Record<string, string>>;
+}
+
+export interface DnrFreshness {
+  label: string;
+  contentDate: string;
+  freshThrough: string;
+  staleWarning: string;
 }
 
 // Where a result names its lake, so the LakeFinder summary can be opened from it.
@@ -116,6 +132,12 @@ export interface DnrLayerInfo {
   linkFields?: readonly DnrLinkField[];
   // Official pages that apply to every result of the layer.
   links?: readonly DnrLink[];
+  // Official pages selected by an exact source name. Unreconciled names deliberately have no link.
+  nameLinks?: readonly DnrNameLinkTable[];
+  // Release-verified currency label; stale layers warn but remain available.
+  freshness?: DnrFreshness;
+  // Source-specific cautions shown after the shared meaning statement.
+  notes?: readonly string[];
   // Attributes DNR stores as epoch milliseconds, shown as dates.
   dateFields?: readonly string[];
   // Prepended to the name field, for a source whose name is only a number.
