@@ -97,6 +97,40 @@ describe("a CWD zone result", () => {
   });
 });
 
+describe("a CWD sampling and self-service site", () => {
+  const layer = layerNamed("mndnr-cwd-sampling-sites");
+  const details = describeFeature(layer, {
+    sitename: "Test site",
+    cwdareas: "DNR source requirement text",
+    dpa: "DNR source permit-area text",
+    servicetype: "Self-service sampling",
+    selfsrtime: "All day",
+    contact: "Private contact name",
+    confirm: "Internal verification note",
+    dumptime: "Legacy dump schedule",
+    spechntsam: "Legacy sampling detail",
+  });
+
+  it("shows the season, source wording, and only approved facility fields", () => {
+    expect(details.title).toBe("CWD sampling site: Test site");
+    expect(rowValue(details.rows, "Season")).toBe("July 2026 - June 2027");
+    expect(rowValue(details.rows, "Requirement")).toBe("DNR source requirement text");
+    expect(rowValue(details.rows, "Listed by DNR for hunters")).toBe("DNR source permit-area text");
+    expect(details.rows.map(({ value }) => value).join(" ")).not.toMatch(/mandatory|private contact|Internal verification|Legacy/i);
+    expect(details.moreRows?.map(({ label }) => label)).not.toContain("Contact");
+    expect(details.moreRows?.map(({ label }) => label)).not.toContain("Confirm");
+  });
+
+  it("omits retired service types and never infers a requirement from geometry", () => {
+    const noLongerAvailable = describeFeature(layer, {
+      sitename: "Retired site",
+      servicetype: "CWD services no longer available",
+    });
+    expect(noLongerAvailable.rows.map(({ label }) => label)).not.toContain("Service");
+    expect(details.notes.join(" ")).not.toMatch(/mandatory/i);
+  });
+});
+
 describe("an enrolled-private-land result (Walk-In Access)", () => {
   const details = describeFeature(layerNamed("mndnr-walk-in-access-sites"), walkIn.attributes);
 

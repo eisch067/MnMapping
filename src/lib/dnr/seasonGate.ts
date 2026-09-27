@@ -3,6 +3,7 @@ import { fetchJson, throwForArcGisError, type ArcGisError } from "@/lib/map/arcg
 import { absoluteBrowserUrl } from "@/lib/map/layerOptions";
 import type { LayerStateById } from "@/lib/map/layerState";
 import { configuredSeasonGate, serviceSeasonGate, type SeasonGate } from "./season";
+import { loadCwdSamplingGate } from "./cwdSamplingGate";
 
 // Only layers with a season rule appear. A layer with no entry has no season to verify.
 export type SeasonGates = Record<string, SeasonGate>;
@@ -30,9 +31,11 @@ export function initialSeasonGates(layers: readonly LayerDefinition[], now: Date
   return Object.fromEntries(
     seasonLayers(layers).map(({ layer, dnr, rule }): [string, SeasonGate] => [
       layer.id,
-      rule.source === "configured"
-        ? configuredSeasonGate(rule, { officialUrl: dnr.verifyUrl }, now)
-        : { status: "checking" },
+      layer.id === "mndnr-cwd-sampling-sites"
+        ? { status: "checking" }
+        : rule.source === "configured"
+          ? configuredSeasonGate(rule, { officialUrl: dnr.verifyUrl }, now)
+          : { status: "checking" },
     ]),
   );
 }
@@ -67,6 +70,16 @@ export async function loadSeasonGates(
   const initial = initialSeasonGates(layers, request.now);
   const resolved = await Promise.all(
     seasonLayers(layers).flatMap(({ layer, dnr, rule }) => {
+      if (layer.id === "mndnr-cwd-sampling-sites") {
+        return [loadCwdSamplingGate(layer, request).then(
+          (gate): [string, SeasonGate] => [layer.id, gate],
+          (): [string, SeasonGate] => [layer.id, {
+            status: "unverified",
+            lastVerified: rule.source === "service" ? rule.lastVerifiedPeriod : "July 2026 - June 2027",
+            officialUrl: dnr.verifyUrl,
+          }],
+        )];
+      }
       if (rule.source !== "service") return [];
       return [
         publishedPeriods(layer, rule.field, request).then(
