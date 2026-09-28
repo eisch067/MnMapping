@@ -25,7 +25,7 @@ beforeAll(async () => {
     db.prepare("CREATE INDEX IF NOT EXISTS sync_records_purge ON sync_records(deleted_at) WHERE deleted_at IS NOT NULL AND tombstone = 0"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS sync_folders_owner_name ON sync_records(owner, name_key) WHERE kind='folder' AND deleted_at IS NULL AND name_key IS NOT NULL"),
     db.prepare(`CREATE TABLE IF NOT EXISTS sync_mutations (
-      owner TEXT NOT NULL, mutation_id TEXT NOT NULL, applied_at TEXT NOT NULL,
+      owner TEXT NOT NULL, mutation_id TEXT NOT NULL, applied_at TEXT NOT NULL, revision INTEGER NOT NULL,
       PRIMARY KEY(owner, mutation_id)) WITHOUT ROWID`),
     db.prepare(`CREATE TABLE IF NOT EXISTS sync_account_state (
       owner TEXT PRIMARY KEY, reset_at TEXT NOT NULL) WITHOUT ROWID`),

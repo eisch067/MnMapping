@@ -88,13 +88,13 @@ async function pushMutationInternal(db: SyncDatabase, owner: string, mutation: M
   if (mutation.accountResetAt !== accountResetAt) {
     return json({ error: "Account reset state changed; pull before pushing.", accountResetAt }, 409);
   }
-  const prior = await db.prepare("SELECT applied_at FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
-    .bind(owner, mutation.mutationId).first<{ applied_at: string }>();
+  const prior = await db.prepare("SELECT applied_at, revision FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
+    .bind(owner, mutation.mutationId).first<{ applied_at: string; revision: number }>();
   if (prior) {
     return json({
       ok: true,
       replayed: true,
-      revision: (mutation.expectedRevision ?? 0) + 1,
+      revision: prior.revision,
       acceptedAt: prior.applied_at,
     });
   }
@@ -128,12 +128,12 @@ async function persistMutation(
   const record = buildServerRecord(mutation, current, revision, acceptedAt);
   const deletedAt = mutation.operation === "delete" ? acceptedAt : null;
   const nameKey = folderNameKey(mutation, current);
-  const insertedMutation = db.prepare(`INSERT INTO sync_mutations (owner, mutation_id, applied_at)
-    SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM sync_mutations WHERE owner = ? AND mutation_id = ?)
+  const insertedMutation = db.prepare(`INSERT INTO sync_mutations (owner, mutation_id, applied_at, revision)
+    SELECT ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM sync_mutations WHERE owner = ? AND mutation_id = ?)
     AND ((? IS NULL AND NOT EXISTS (SELECT 1 FROM sync_records WHERE owner = ? AND kind = ? AND id = ?))
       OR EXISTS (SELECT 1 FROM sync_records WHERE owner = ? AND kind = ? AND id = ? AND revision = ?))
     AND COALESCE((SELECT reset_at FROM sync_account_state WHERE owner = ?), '') = COALESCE(?, '')`)
-    .bind(owner, mutation.mutationId, acceptedAt, owner, mutation.mutationId,
+    .bind(owner, mutation.mutationId, acceptedAt, revision, owner, mutation.mutationId,
       mutation.expectedRevision, owner, mutation.kind, mutation.id, owner, mutation.kind, mutation.id,
       mutation.expectedRevision, owner, mutation.accountResetAt);
   const upsertRecord = db.prepare(`INSERT INTO sync_records
@@ -166,10 +166,10 @@ async function persistBatch(db: SyncDatabase, ...statements: D1Statement[]): Pro
 }
 
 async function resolveUnappliedMutation(db: SyncDatabase, owner: string, mutation: Mutation): Promise<Response> {
-  const replay = await db.prepare("SELECT applied_at FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
-    .bind(owner, mutation.mutationId).first<{ applied_at: string }>();
+  const replay = await db.prepare("SELECT applied_at, revision FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
+    .bind(owner, mutation.mutationId).first<{ applied_at: string; revision: number }>();
   if (replay) {
-    return json({ ok: true, replayed: true, revision: (mutation.expectedRevision ?? 0) + 1, acceptedAt: replay.applied_at });
+    return json({ ok: true, replayed: true, revision: replay.revision, acceptedAt: replay.applied_at });
   }
   const latest = await db.prepare("SELECT revision FROM sync_records WHERE owner = ? AND kind = ? AND id = ?")
     .bind(owner, mutation.kind, mutation.id).first<{ revision: number }>();
