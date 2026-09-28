@@ -127,7 +127,13 @@ The `CI` workflow (`.github/workflows/ci.yml`) runs on every pull request. It ne
 
 The `DNR live smoke` workflow (`.github/workflows/dnr-smoke.yml`) is separate: it runs `npm run smoke:dnr` against DNR's live services weekly and on demand, and is not a pull-request check.
 
-Branch protection on `main` requires all three checks to pass and blocks direct pushes, so every change reaches `main` through a pull request. Actions in the workflow are pinned to commit SHAs with a version comment; update the SHA and the comment together. When a Playwright run fails, the workflow uploads its report and traces as an artifact for seven days.
+The `Cloudflare Worker name check` workflow (`.github/workflows/cloudflare-name-smoke.yml`) is also separate: it runs `npm run smoke:cloudflare-name` weekly and on demand, confirming `wrangler.jsonc`'s Worker names still match what's actually deployed (the two drifted silently for a long stretch — see `mnmapping` vs. `mn-mapping` in this file's own history). It needs two repository secrets, added once under **Settings > Secrets and variables > Actions** on the GitHub repo:
+- `CLOUDFLARE_ACCOUNT_ID` — the account ID shown on the Cloudflare dashboard's overview page.
+- `CLOUDFLARE_API_TOKEN` — a token scoped to **Workers Scripts:Read** only (**My Profile > API Tokens > Create Token**), not the full edit permission the deploy path doesn't need for this check.
+
+Until both secrets are added, this workflow's runs fail with a clear message asking for them, rather than silently skipping.
+
+Branch protection on `main` requires all three pull-request checks to pass and blocks direct pushes, so every change reaches `main` through a pull request. Actions in the workflow are pinned to commit SHAs with a version comment; update the SHA and the comment together. When a Playwright run fails, the workflow uploads its report and traces as an artifact for seven days.
 
 ## Password-protect the personal deployment with Cloudflare Access
 
