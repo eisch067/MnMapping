@@ -66,9 +66,10 @@ describe("mergeRemoteChange", () => {
       polygon: { outlineColor: "#9974ff", fillColor: "#9974ff", opacity: 0.25,
         dimensionKind: "area", areaUnit: "acres", perimeterUnit: "miles" },
     };
-    const local = record({ ...defaults, id: "settings", point: { symbolId: "star", color: "#123456" },
+    const local = record({ ...defaults, id: "settings", point: { symbolId: "star", color: defaults.point.color },
           outbox: { mutationId: "local-settings", operation: "upsert", queuedAt: "2026-01-02T00:00:00.000Z" } });
-    const remote = record({ ...defaults, id: "settings", revision: 2, line: { ...defaults.line, color: "#ff0000" } });
+    const remote = record({ ...defaults, id: "settings", revision: 2,
+      point: { ...defaults.point, color: "#123456" }, line: { ...defaults.line, color: "#ff0000" } });
     const result = mergeRemoteChange(null, local, change({ kind: "settings", id: "settings", record: remote }), id);
     expect(result.kind).toBe("merged");
     expect((result as Extract<MergeResult, { kind: "merged" }>).record).toMatchObject({

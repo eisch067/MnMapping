@@ -79,15 +79,21 @@ function mergeSettings(
     },
   } as unknown as SyncRecord);
   const merged = { ...remote };
-  for (const field of ["point", "line", "polygon"]) {
-    const baseline = defaults[field];
-    const localValue = local[field];
-    const remoteValue = remote[field];
-    if (!same(localValue, baseline) && !same(localValue, remoteValue)) merged[field] = localValue;
+  let hasLocalChangesToMerge = false;
+  for (const category of ["point", "line", "polygon"]) {
+    const baseValues = asObject(defaults[category]);
+    const localValues = asObject(local[category]);
+    const remoteValues = asObject(remote[category]);
+    const values = { ...remoteValues };
+    for (const key of new Set([...Object.keys(baseValues), ...Object.keys(localValues)])) {
+      if (!same(baseValues[key], localValues[key])) {
+        values[key] = localValues[key];
+        hasLocalChangesToMerge ||= !same(localValues[key], remoteValues[key]);
+      }
+    }
+    merged[category] = values;
   }
-  if (same(merged.point, remote.point) && same(merged.line, remote.line) && same(merged.polygon, remote.polygon)) {
-    return { kind: "remote", record: remote };
-  }
+  if (!hasLocalChangesToMerge) return { kind: "remote", record: remote };
   return {
     kind: "merged",
     record: {
@@ -127,6 +133,12 @@ function hasLocalChanges(base: SyncRecord, local: SyncRecord): boolean {
     if (!same(base[field], local[field])) return true;
   }
   return false;
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
 }
 
 function same(first: unknown, second: unknown): boolean {
