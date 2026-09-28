@@ -11,6 +11,9 @@ export default defineConfig({
     alias: isPersonalBuild
       ? []
       : [{
+          find: resolve("src/worker.ts"),
+          replacement: resolve("src/publicWorker.ts"),
+        }, {
           find: "@/components/shell/TerrainAnalysisSheet",
           replacement: resolve("src/components/shell/PublicTerrainAnalysisSheet.tsx"),
         }, {
