@@ -12,6 +12,7 @@ import {
 import { resolveScope, type ExportScope, type ResolvedScope } from "@/lib/exchange/scope";
 import { countsByType, describeRestore } from "@/lib/exchange/summaries";
 import { getMyDataStore } from "@/lib/myData";
+import { isPersonalMode } from "@/config/appMode";
 import { downloadFile } from "./downloadFile";
 import { sheetIds } from "./shellSheets";
 import type { useMyData } from "./useMyData";
@@ -143,7 +144,12 @@ function useBackupFlow({ refresh, mutate }: Pick<MyDataState, "refresh" | "mutat
   );
 
   const deleteAll = useCallback(async () => {
-    await mutate(async () => (await getMyDataStore()).deleteAll());
+    await mutate(async () => {
+      const store = await getMyDataStore();
+      if (!isPersonalMode) return store.deleteAll();
+      const { resetAccountData } = await import("@/lib/syncClient");
+      await resetAccountData(store);
+    });
     setRestoreResult(null);
   }, [mutate]);
 

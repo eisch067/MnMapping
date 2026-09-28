@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, importJWK, jwtVerify } from "jose";
 
 export type RecordKind = "item" | "folder" | "settings";
 interface D1Result<T = unknown> { success: boolean; meta: { changes: number }; results?: T[] }
@@ -16,6 +16,7 @@ export interface SyncEnv {
   DB: SyncDatabase;
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_AUD: string;
+  SYNC_TEST_PUBLIC_JWK?: string;
 }
 export interface Mutation {
   mutationId: string;
@@ -46,6 +47,17 @@ export async function verifyAccessToken(request: Request, env: SyncEnv): Promise
   if (!token || !env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) return null;
   try {
     const issuer = `https://${env.ACCESS_TEAM_DOMAIN.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+    const hostname = new URL(request.url).hostname;
+    // Playwright supplies an ephemeral key only to the local Wrangler process.
+    if (env.SYNC_TEST_PUBLIC_JWK && ["localhost", "127.0.0.1", "::1"].includes(hostname)) {
+      const jwk = JSON.parse(atob(env.SYNC_TEST_PUBLIC_JWK)) as JsonWebKey;
+      const { payload } = await jwtVerify(token, await importJWK(jwk, "RS256"), {
+        issuer,
+        audience: env.ACCESS_AUD,
+        algorithms: ["RS256"],
+      });
+      return typeof payload.sub === "string" && payload.sub.length > 0 ? payload.sub : null;
+    }
     let keys = keySets.get(issuer);
     if (!keys) {
       keys = createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`));
@@ -59,6 +71,16 @@ export async function verifyAccessToken(request: Request, env: SyncEnv): Promise
 }
 
 export async function pushMutation(db: SyncDatabase, owner: string, mutation: Mutation, now: Date): Promise<Response> {
+  try {
+    return await pushMutationInternal(db, owner, mutation, now);
+  } catch (error) {
+    const paused = dailyLimitResponse(error);
+    if (paused) return paused;
+    throw error;
+  }
+}
+
+async function pushMutationInternal(db: SyncDatabase, owner: string, mutation: Mutation, now: Date): Promise<Response> {
   if (!validMutation(mutation)) return json({ error: "Invalid mutation." }, 400);
   const accountState = await db.prepare("SELECT reset_at FROM sync_account_state WHERE owner = ?")
     .bind(owner).first<{ reset_at: string }>();
@@ -66,9 +88,16 @@ export async function pushMutation(db: SyncDatabase, owner: string, mutation: Mu
   if (mutation.accountResetAt !== accountResetAt) {
     return json({ error: "Account reset state changed; pull before pushing.", accountResetAt }, 409);
   }
-  const prior = await db.prepare("SELECT 1 FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
-    .bind(owner, mutation.mutationId).first();
-  if (prior) return json({ ok: true, replayed: true });
+  const prior = await db.prepare("SELECT applied_at FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
+    .bind(owner, mutation.mutationId).first<{ applied_at: string }>();
+  if (prior) {
+    return json({
+      ok: true,
+      replayed: true,
+      revision: (mutation.expectedRevision ?? 0) + 1,
+      acceptedAt: prior.applied_at,
+    });
+  }
 
   const current = await db.prepare(
     "SELECT revision, record_json, name_key FROM sync_records WHERE owner = ? AND kind = ? AND id = ?",
@@ -128,17 +157,20 @@ async function persistBatch(db: SyncDatabase, ...statements: D1Statement[]): Pro
       ? json({ error: "Mutation could not be stored." }, 500)
       : results;
   } catch (error) {
-    if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
-      return json({ error: "Folder names must be unique." }, 409);
-    }
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes("UNIQUE constraint failed")) return json({ error: "Folder names must be unique." }, 409);
+    const paused = dailyLimitResponse(error);
+    if (paused) return paused;
     throw error;
   }
 }
 
 async function resolveUnappliedMutation(db: SyncDatabase, owner: string, mutation: Mutation): Promise<Response> {
-  const replay = await db.prepare("SELECT 1 FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
-    .bind(owner, mutation.mutationId).first();
-  if (replay) return json({ ok: true, replayed: true });
+  const replay = await db.prepare("SELECT applied_at FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
+    .bind(owner, mutation.mutationId).first<{ applied_at: string }>();
+  if (replay) {
+    return json({ ok: true, replayed: true, revision: (mutation.expectedRevision ?? 0) + 1, acceptedAt: replay.applied_at });
+  }
   const latest = await db.prepare("SELECT revision FROM sync_records WHERE owner = ? AND kind = ? AND id = ?")
     .bind(owner, mutation.kind, mutation.id).first<{ revision: number }>();
   return json({ error: "Revision conflict.", expectedRevision: mutation.expectedRevision, actualRevision: latest?.revision ?? null }, 409);
@@ -172,25 +204,31 @@ function folderNameKey(mutation: Mutation, current: CurrentRecord | null): strin
 }
 
 export async function pullChanges(db: SyncDatabase, owner: string, cursor: number, requestedLimit: number) {
-  const limit = Math.min(Math.max(1, requestedLimit), maxPullLimit);
-  const rows = await db.prepare(`SELECT kind, id, revision, cursor, updated_at, deleted_at, tombstone, record_json
-    FROM sync_records WHERE owner = ? AND cursor > ? ORDER BY cursor LIMIT ?`)
-    .bind(owner, cursor, limit).all<StoredRecord>();
-  const state = await db.prepare("SELECT reset_at FROM sync_account_state WHERE owner = ?").bind(owner).first<{ reset_at: string }>();
-  return json({
-    changes: (rows.results ?? []).map((row) => ({
-      kind: row.kind,
-      id: row.id,
-      revision: row.revision,
-      cursor: row.cursor,
-      updatedAt: row.updated_at,
-      deletedAt: row.deleted_at,
-      tombstone: row.tombstone === 1,
-      record: row.record_json === null ? null : JSON.parse(row.record_json) as Record<string, unknown>,
-    })),
-    cursor: (rows.results ?? []).at(-1)?.cursor ?? cursor,
-    resetAt: state?.reset_at ?? null,
-  });
+  try {
+    const limit = Math.min(Math.max(1, requestedLimit), maxPullLimit);
+    const rows = await db.prepare(`SELECT kind, id, revision, cursor, updated_at, deleted_at, tombstone, record_json
+      FROM sync_records WHERE owner = ? AND cursor > ? ORDER BY cursor LIMIT ?`)
+      .bind(owner, cursor, limit).all<StoredRecord>();
+    const state = await db.prepare("SELECT reset_at FROM sync_account_state WHERE owner = ?").bind(owner).first<{ reset_at: string }>();
+    return json({
+      changes: (rows.results ?? []).map((row) => ({
+        kind: row.kind,
+        id: row.id,
+        revision: row.revision,
+        cursor: row.cursor,
+        updatedAt: row.updated_at,
+        deletedAt: row.deleted_at,
+        tombstone: row.tombstone === 1,
+        record: row.record_json === null ? null : JSON.parse(row.record_json) as Record<string, unknown>,
+      })),
+      cursor: (rows.results ?? []).at(-1)?.cursor ?? cursor,
+      resetAt: state?.reset_at ?? null,
+    });
+  } catch (error) {
+    const paused = dailyLimitResponse(error);
+    if (paused) return paused;
+    throw error;
+  }
 }
 
 export async function deleteAccount(db: SyncDatabase, owner: string, now: Date): Promise<Response> {
@@ -284,6 +322,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function normalizeName(name: string): string {
   return name.trim().normalize("NFKC").toLocaleLowerCase("en-US");
+}
+
+function dailyLimitResponse(error: unknown): Response | null {
+  const message = error instanceof Error ? error.message : String(error);
+  return /daily.*limit/i.test(message)
+    ? json({ error: "D1 daily limit exceeded; sync is paused until the limit resets." }, 503)
+    : null;
 }
 
 function json(body: unknown, status = 200): Response {

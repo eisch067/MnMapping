@@ -1,4 +1,7 @@
 import type { RestorePlan } from "./exchange/archive";
+import { isPersonalMode } from "../config/appMode";
+import { mergeRemoteChange } from "./syncMerge";
+import type { RecordKind, RemoteChange, SyncRecord, SyncState, SyncStorage } from "./syncClient";
 import {
   MY_DATA_SCHEMA_VERSION,
   MY_DATA_SETTINGS_ID,
@@ -9,9 +12,11 @@ import {
   defaultIdFactory,
   importFolderName,
   isTrashExpired,
+  normalizeFolderName,
   restoreFolderBundle,
   restoreItem as restoreItemRecord,
   reviseRecord,
+  requeueRecord,
   trashFolderBundle,
   type Clock,
   type IdFactory,
@@ -26,10 +31,12 @@ import {
 export * from "./myDataModel";
 
 const databaseName = "mnmapping-local-data";
-const databaseVersion = 2;
+const databaseVersion = 4;
 const itemStoreName = "items";
 const folderStoreName = "folders";
 const settingsStoreName = "settings";
+const syncStoreName = "sync";
+const syncStateKey = "state";
 
 interface LegacyMyMapItem {
   id: string;
@@ -59,6 +66,17 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
     transaction.oncomplete = () => resolve();
     transaction.onabort = () => reject(transaction.error ?? new Error("IndexedDB transaction aborted."));
     transaction.onerror = () => reject(transaction.error ?? new Error("IndexedDB transaction failed."));
+  });
+}
+
+async function incrementConflictCount(metadata: IDBObjectStore): Promise<void> {
+  const state = await requestResult(metadata.get(syncStateKey)) as (SyncState & { key: string }) | undefined;
+  metadata.put({
+    key: syncStateKey,
+    cursor: state?.cursor ?? 0,
+    resetAt: state?.resetAt ?? null,
+    migrationComplete: state?.migrationComplete ?? false,
+    conflictCount: (state?.conflictCount ?? 0) + 1,
   });
 }
 
@@ -115,18 +133,33 @@ export function openMyDataDatabase(options: OpenDatabaseOptions = {}): Promise<I
       if (!database.objectStoreNames.contains(itemStoreName)) {
         database.createObjectStore(itemStoreName, { keyPath: "id" });
       }
-      if (event.oldVersion >= databaseVersion) return;
-      if (!database.objectStoreNames.contains(folderStoreName)) {
-        database.createObjectStore(folderStoreName, { keyPath: "id" });
+      if (event.oldVersion < 2) {
+        if (!database.objectStoreNames.contains(folderStoreName)) {
+          database.createObjectStore(folderStoreName, { keyPath: "id" });
+        }
+        if (!database.objectStoreNames.contains(settingsStoreName)) {
+          database.createObjectStore(settingsStoreName, { keyPath: "id" });
+        }
+        const settings = createDefaultSettings(clock, idFactory);
+        transaction.objectStore(settingsStoreName).put(settings);
+        const migrate = options.migrateItem
+          ?? ((item: LegacyMyMapItem) => migrateLegacyItem(item, settings, clock, idFactory));
+        migrateItems(transaction, settings, migrate);
       }
-      if (!database.objectStoreNames.contains(settingsStoreName)) {
-        database.createObjectStore(settingsStoreName, { keyPath: "id" });
+      if (event.oldVersion < 3 && !database.objectStoreNames.contains(syncStoreName)) {
+        database.createObjectStore(syncStoreName, { keyPath: "key" });
       }
-      const settings = createDefaultSettings(clock, idFactory);
-      transaction.objectStore(settingsStoreName).put(settings);
-      const migrate = options.migrateItem
-        ?? ((item: LegacyMyMapItem) => migrateLegacyItem(item, settings, clock, idFactory));
-      migrateItems(transaction, settings, migrate);
+      if (event.oldVersion < 4) {
+        if (!database.objectStoreNames.contains(syncStoreName)) {
+          database.createObjectStore(syncStoreName, { keyPath: "key" });
+        }
+        transaction.objectStore(syncStoreName).put({
+          key: syncStateKey,
+          cursor: 0,
+          resetAt: null,
+          migrationComplete: false,
+        } satisfies SyncState & { key: string });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("Unable to open My Data."));
@@ -151,7 +184,7 @@ async function readSnapshot(database: IDBDatabase): Promise<MyDataSnapshot> {
   };
 }
 
-export class MyDataStore {
+export class MyDataStore implements SyncStorage {
   constructor(
     private readonly database: IDBDatabase,
     private readonly clock: Clock = defaultClock,
@@ -272,23 +305,47 @@ export class MyDataStore {
   }
 
   async applyRestore(plan: Extract<RestorePlan, { ok: true }>): Promise<void> {
+    const markers = await requestResult(
+      this.database.transaction(syncStoreName).objectStore(syncStoreName).getAll(),
+    ) as Array<{ key: string; record?: SyncRecord | null }>;
+    const permanentlyDeleted = new Set(markers.filter((entry) => entry.record === null).map((entry) => entry.key));
+    const idMap = new Map<string, string>();
+    for (const folder of plan.foldersToAdd) {
+      if (permanentlyDeleted.has(`folder:${folder.id}`)) idMap.set(folder.id, this.idFactory());
+    }
+    for (const item of plan.itemsToAdd) {
+      if (permanentlyDeleted.has(`item:${item.id}`)) idMap.set(item.id, this.idFactory());
+    }
     await this.writeAll([itemStoreName, folderStoreName, settingsStoreName], (transaction) => {
-      for (const folder of plan.foldersToAdd) transaction.objectStore(folderStoreName).put(folder);
-      for (const item of plan.itemsToAdd) transaction.objectStore(itemStoreName).put(item);
-      if (plan.settingsToApply) {
-        transaction.objectStore(settingsStoreName).put(plan.settingsToApply);
+      for (const folder of plan.foldersToAdd) {
+        const id = idMap.get(folder.id);
+        transaction.objectStore(folderStoreName).put(id
+          ? requeueRecord({ ...folder, id }, this.clock, this.idFactory)
+          : folder);
       }
+      for (const item of plan.itemsToAdd) {
+        const id = idMap.get(item.id);
+        const folderId = item.folderId ? idMap.get(item.folderId) ?? item.folderId : null;
+        transaction.objectStore(itemStoreName).put(id || folderId !== item.folderId
+          ? requeueRecord({ ...item, ...(id ? { id } : {}), folderId }, this.clock, this.idFactory)
+          : item);
+      }
+      if (plan.settingsToApply) transaction.objectStore(settingsStoreName).put(plan.settingsToApply);
     });
   }
 
   // The local half of delete-all: everything, Trash included, goes and the defaults return.
   async deleteAll(): Promise<void> {
     const settings = createDefaultSettings(this.clock, this.idFactory);
-    await this.writeAll([itemStoreName, folderStoreName, settingsStoreName], (transaction) => {
+    await this.writeAll([itemStoreName, folderStoreName, settingsStoreName, syncStoreName], (transaction) => {
       transaction.objectStore(itemStoreName).clear();
       transaction.objectStore(folderStoreName).clear();
       transaction.objectStore(settingsStoreName).clear();
       transaction.objectStore(settingsStoreName).put(settings);
+      transaction.objectStore(syncStoreName).clear();
+      transaction.objectStore(syncStoreName).put({ key: syncStateKey, cursor: 0, resetAt: null,
+        migrationComplete: false, conflictCount: 0 });
+      transaction.objectStore(syncStoreName).put({ key: "settings:settings", record: settings, serverRevision: null });
     });
   }
 
@@ -302,17 +359,163 @@ export class MyDataStore {
 
   async purgeExpired(): Promise<void> {
     const snapshot = await readSnapshot(this.database);
+    const metadata = await requestResult(this.database.transaction(syncStoreName).objectStore(syncStoreName).getAll()) as Array<{ key: string }>;
+    const synchronized = new Set(metadata.map((entry) => entry.key));
+    const canPurge = (kind: RecordKind, id: string, outbox: SyncRecord["outbox"]) => (
+      !isPersonalMode || (!synchronized.has(`${kind}:${id}`) && outbox.operation !== "delete")
+    );
     const expiredItems = snapshot.items.filter(
-      (item) => item.deletion && isTrashExpired(item.deletion.deletedAt, this.clock),
+      (item) => item.deletion && isTrashExpired(item.deletion.deletedAt, this.clock)
+        && canPurge("item", item.id, item.outbox),
     );
     const expiredFolders = snapshot.folders.filter(
-      (folder) => folder.deletion && isTrashExpired(folder.deletion.deletedAt, this.clock),
+      (folder) => folder.deletion && isTrashExpired(folder.deletion.deletedAt, this.clock)
+        && canPurge("folder", folder.id, folder.outbox),
     );
     if (!expiredItems.length && !expiredFolders.length) return;
     const transaction = this.database.transaction([itemStoreName, folderStoreName], "readwrite");
     for (const item of expiredItems) transaction.objectStore(itemStoreName).delete(item.id);
     for (const folder of expiredFolders) transaction.objectStore(folderStoreName).delete(folder.id);
     await transactionDone(transaction);
+  }
+
+  async getState(): Promise<SyncState> {
+    const transaction = this.database.transaction(syncStoreName);
+    const stored = await requestResult(transaction.objectStore(syncStoreName).get(syncStateKey));
+    return stored
+      ? {
+          cursor: stored.cursor,
+          resetAt: stored.resetAt,
+          migrationComplete: stored.migrationComplete,
+          ...(typeof stored.conflictCount === "number" ? { conflictCount: stored.conflictCount } : {}),
+        }
+      : { cursor: 0, resetAt: null, migrationComplete: false };
+  }
+
+  async setState(state: SyncState): Promise<void> {
+    await this.writeAll([syncStoreName], (transaction) => {
+      transaction.objectStore(syncStoreName).put({ key: syncStateKey, ...state });
+    });
+  }
+
+  async resolveFolderNameConflict(id: string): Promise<void> {
+    const { folders } = await readSnapshot(this.database);
+    const folder = folders.find((entry) => entry.id === id && !entry.deletion);
+    if (!folder) return;
+    const activeNames = new Set(folders.filter((entry) => !entry.deletion && entry.id !== id)
+      .map((entry) => normalizeFolderName(entry.name)));
+    const base = `${folder.name} (conflict copy)`;
+    let name = base;
+    for (let suffix = 2; activeNames.has(normalizeFolderName(name)); suffix++) name = `${base} ${suffix}`;
+    await this.put(folderStoreName, reviseRecord(folder, { name }, "upsert", this.clock, this.idFactory));
+  }
+
+  async pending(): Promise<Array<{ kind: RecordKind; record: SyncRecord; expectedRevision: number | null }>> {
+    const transaction = this.database.transaction([itemStoreName, folderStoreName, settingsStoreName, syncStoreName]);
+    const [items, folders, settings, metadata] = await Promise.all([
+      requestResult(transaction.objectStore(itemStoreName).getAll()),
+      requestResult(transaction.objectStore(folderStoreName).getAll()),
+      requestResult(transaction.objectStore(settingsStoreName).getAll()),
+      requestResult(transaction.objectStore(syncStoreName).getAll()),
+    ]);
+    const baselines = new Map((metadata as Array<{ key: string; record?: SyncRecord; serverRevision?: number | null }>).map((entry) => [entry.key, entry]));
+    return ([...items.map((record) => ["item", record] as const), ...folders.map((record) => ["folder", record] as const), ...settings.map((record) => ["settings", record] as const)])
+      .filter(([, value]) => Boolean((value as SyncRecord).outbox))
+      .filter(([kind, value]) => {
+        const record = value as SyncRecord;
+        const baseline = baselines.get(`${kind}:${record.id}`)?.record;
+        return baseline?.outbox?.mutationId !== record.outbox.mutationId;
+      })
+      .map(([kind, value]) => {
+        const record = value as SyncRecord;
+        return { kind, record, expectedRevision: baselines.get(`${kind}:${record.id}`)?.serverRevision ?? null };
+      });
+  }
+
+  async acknowledge(
+    kind: RecordKind,
+    id: string,
+    mutationId: string,
+    revision: number,
+    acceptedAt: string,
+    sentRecord?: SyncRecord,
+  ): Promise<void> {
+    const stores: Record<RecordKind, string> = { item: itemStoreName, folder: folderStoreName, settings: settingsStoreName };
+    const transaction = this.database.transaction([stores[kind], syncStoreName], "readwrite");
+    const done = transactionDone(transaction);
+    const records = transaction.objectStore(stores[kind]);
+    const current = await requestResult(records.get(id)) as SyncRecord | undefined;
+    const baseline = sentRecord ?? current;
+    if (baseline) {
+      const stamped = { ...baseline, revision, updatedAt: acceptedAt, outbox: { ...baseline.outbox, mutationId } } as SyncRecord;
+      if (kind !== "settings" && stamped.deletion) stamped.deletion = { ...stamped.deletion, deletedAt: acceptedAt };
+      if (current?.outbox?.mutationId === mutationId) records.put(stamped);
+      transaction.objectStore(syncStoreName).put({ key: `${kind}:${id}`, record: stamped, revision, serverRevision: revision });
+    }
+    await done;
+  }
+
+  async receive(changes: readonly RemoteChange[]): Promise<void> {
+    for (const change of changes) await this.receiveOne(change);
+  }
+
+  private async receiveOne(change: RemoteChange): Promise<void> {
+    const stores: Record<RecordKind, string> = { item: itemStoreName, folder: folderStoreName, settings: settingsStoreName };
+    const storeName = stores[change.kind];
+    const transaction = this.database.transaction([storeName, syncStoreName], "readwrite");
+    const done = transactionDone(transaction);
+    const records = transaction.objectStore(storeName);
+    const metadata = transaction.objectStore(syncStoreName);
+    const [local, baselineEntry] = await Promise.all([
+      requestResult(records.get(change.id)) as Promise<SyncRecord | undefined>,
+      requestResult(metadata.get(`${change.kind}:${change.id}`)) as Promise<{ record?: SyncRecord; revision?: number; serverRevision?: number | null } | undefined>,
+    ]);
+    const knownRevision = baselineEntry && "serverRevision" in baselineEntry
+      ? baselineEntry.serverRevision ?? 0
+      : baselineEntry?.revision ?? baselineEntry?.record?.revision ?? 0;
+    if (knownRevision >= change.revision) {
+      await done;
+      return;
+    }
+    const result = mergeRemoteChange(baselineEntry?.record ?? null, local ?? null, change, this.idFactory);
+    if (result.kind === "deleted") {
+      records.delete(change.id);
+      metadata.put({ key: `${change.kind}:${change.id}`, record: null, revision: change.revision, serverRevision: change.revision });
+      if (result.conflictCopy) {
+        records.put(result.conflictCopy);
+        metadata.put({ key: `${change.kind}:${result.conflictCopy.id}`, record: null, revision: 0, serverRevision: null });
+        await incrementConflictCount(metadata);
+      }
+    } else {
+      records.put(result.record);
+      if (result.kind === "conflict") records.put(result.conflictCopy);
+      metadata.put({ key: `${change.kind}:${change.id}`, record: change.record ?? null, revision: change.revision, serverRevision: change.revision });
+      if (result.kind === "conflict") {
+        metadata.put({ key: `${change.kind}:${result.conflictCopy.id}`, record: null, revision: 0, serverRevision: null });
+        await incrementConflictCount(metadata);
+      }
+    }
+    await done;
+  }
+
+  async purge(): Promise<void> {
+    const settings = createDefaultSettings(this.clock, this.idFactory);
+    await this.writeAll([itemStoreName, folderStoreName, settingsStoreName, syncStoreName], (transaction) => {
+      transaction.objectStore(itemStoreName).clear();
+      transaction.objectStore(folderStoreName).clear();
+      transaction.objectStore(settingsStoreName).clear();
+      transaction.objectStore(settingsStoreName).put(settings);
+      transaction.objectStore(syncStoreName).clear();
+      transaction.objectStore(syncStoreName).put({ key: syncStateKey, cursor: 0, resetAt: null,
+        migrationComplete: true, conflictCount: 0 });
+      transaction.objectStore(syncStoreName).put({ key: "settings:settings", record: settings, serverRevision: null });
+    });
+  }
+
+  async completeMigration(): Promise<void> {
+    if ((await this.pending()).length) throw new Error("Cannot complete sync migration while changes are pending.");
+    const state = await this.getState();
+    await this.setState({ ...state, migrationComplete: true });
   }
 
   close() {

@@ -33,9 +33,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run start:vinext -- --port ${port}`,
+    command: "node scripts/start-sync-test-worker.mjs",
     url: `http://localhost:${port}`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });
