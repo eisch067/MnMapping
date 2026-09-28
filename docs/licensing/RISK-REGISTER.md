@@ -4,6 +4,30 @@ Research and risk classification, not legal advice. Every item below cites the e
 [STATEWIDE-SOURCES.md](STATEWIDE-SOURCES.md), [COUNTIES.md](COUNTIES.md), or a file under
 [COUNTY-DETAILS/](COUNTY-DETAILS/). Access date for the underlying research: 2026-09-18/19.
 
+## Owner risk acceptance — 2026-09-27
+
+Recorded per issue #31 (Provision Cloudflare for the sync server), before the first invited user was added.
+
+The owner has reviewed this risk register and accepts the personal deployment as it currently stands,
+for a non-commercial group of 50 or fewer invited users, subject to:
+
+- No advertising, paywall, or paid access of any kind.
+- The deployment stays personal/invited-only; a public release is a separate future decision, not covered
+  by this acceptance.
+
+Status of the items named in this acceptance:
+
+- **B1** (vendor-flown county imagery): resolved 2026-09-19 — all 35 counties moved to link-out treatment;
+  no vendor imagery is embedded live in either build.
+- **H1** (Esri World Elevation 3D Terrain): resolved 2026-09-19 — the layer was removed outright; not
+  present in either build.
+- **H2** (parcel owner/mailing-address/assessed-value fields): partially resolved — redacted for Hennepin,
+  Wright, Washington, Nicollet, McLeod, Fillmore, Winona, Hubbard, Meeker, and Mahnomen. **Dodge and Goodhue
+  remain unredacted**; this acceptance covers that residual exposure until they are addressed.
+
+This acceptance does not extend to items not yet resolved as of this date, or to any new BLOCKER or HIGH
+item added after it; re-confirm here if either happens.
+
 ## BLOCKER
 
 ### B1 — Vendor-flown county imagery is live in the app despite the app's own code documenting that no reuse license was found — ✅ FIXED 2026-09-19
