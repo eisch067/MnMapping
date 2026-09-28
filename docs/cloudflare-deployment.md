@@ -14,6 +14,7 @@ One `main` branch produces two different deployments, distinguished only by a bu
 | Vendor county imagery (EagleView/Pictometry/etc., docs/licensing RISK-REGISTER.md item B1) | Embedded live | Linked out via "External imagery" only |
 | Parcel owner/mailing-address/tax fields for the 10 counties in item H2 | Shown | Redacted, with a link to the county's own site |
 | Esri 3D terrain (item H1) | Included | Not included |
+| My Data sync API and D1 storage | Included; Cloudflare Access identity required | Not deployed |
 | DNR Recreation layers, the Boundary Waters boundary, and the `dnr-gis` proxy provider ([DNR Recreation](dnr-recreation.md)) | Included | Not included; DNR must confirm a public release first |
 | Terrain threshold and viewshed analysis ([Elevation and terrain sources](elevation-sources.md)) | Included; results remain on this device | Not included |
 | Worker name / `wrangler.jsonc` environment | `mn-mapping` (default env) | `public-mn-mapping` (`env.public`) |
@@ -48,6 +49,16 @@ npm run start:vinext
 Wrangler serves the production Worker at `http://localhost:8787`. Press `x` in that terminal to stop it.
 
 Commit and push `package.json`, `package-lock.json`, `vite.config.ts`, `wrangler.jsonc`, and `.gitignore` before connecting Cloudflare. Cloudflare can only build files that exist in the GitHub repository.
+
+## My Data sync server
+
+The personal Worker exposes `GET` and `POST` under `/api/sync`. Every request must include the Cloudflare Access `cf-access-jwt-assertion` header. The Worker verifies the RS256 signature against the Access team JWKS and checks issuer, audience, expiry, and subject. The subject claim is the only owner key; request bodies cannot supply one. `POST /api/sync/reset` deletes that subject's records and replay markers and returns a server-time reset marker. The public build replaces the route with a 404 handler and has no D1 binding or cron trigger.
+
+Production D1 is `D1.sync` (`b29d3aa1-8ab4-4200-882b-abd146a49d22`); preview D1 is `D1.sync.preview` (`f03132d8-a400-4ab2-aa31-972f5f3e4e4e`). They are wired as different `database_id` and `preview_database_id` values. Apply schema changes with `npx wrangler d1 migrations apply D1.sync --remote` for production and `npx wrangler d1 migrations apply D1.sync --remote --preview` for preview. Do not point preview traffic at production.
+
+Set the non-secret Worker variables `ACCESS_TEAM_DOMAIN` (team domain without scheme) and `ACCESS_AUD` (the Access application audience tag) for both production and preview in Cloudflare. They are intentionally not checked into source control. The daily `0 3 * * *` cron uses Worker server time and replaces content of 30-day-old deleted records with minimal tombstones.
+
+The synced-item write path uses four D1 statements on success (two reads and a two-statement atomic batch), each with at most 13 bound values; pull uses two statements. The owner/cursor index serves pull and cursor allocation, the composite primary key serves item lookup, and the partial purge index serves retention. An upsert accounts for five D1 row writes including index entries: one mutation row and its primary-key index, plus one record row and its primary-key and cursor-index entries. Soft delete adds one purge-index entry. `tests/workers/syncServer.test.ts` protects those query plans.
 
 ## Connect GitHub for automatic deployment
 
