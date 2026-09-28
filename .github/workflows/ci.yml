@@ -49,7 +49,7 @@ jobs:
       - run: npm ci
       - run: npm run build:vinext
         env:
-          # Selects the public-mn-mapping Worker config; see docs/cloudflare-deployment.md.
+          # Selects the publicmnmapping Worker config; see docs/cloudflare-deployment.md.
           CLOUDFLARE_ENV: ${{ matrix.mode == 'public' && 'public' || '' }}
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
