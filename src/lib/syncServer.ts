@@ -23,6 +23,7 @@ export interface Mutation {
   id: string;
   expectedRevision: number | null;
   operation: "upsert" | "delete";
+  accountResetAt: string | null;
   record?: Record<string, unknown>;
 }
 interface StoredRecord {
@@ -59,35 +60,53 @@ export async function verifyAccessToken(request: Request, env: SyncEnv): Promise
 
 export async function pushMutation(db: SyncDatabase, owner: string, mutation: Mutation, now: Date): Promise<Response> {
   if (!validMutation(mutation)) return json({ error: "Invalid mutation." }, 400);
+  const accountState = await db.prepare("SELECT reset_at FROM sync_account_state WHERE owner = ?")
+    .bind(owner).first<{ reset_at: string }>();
+  const accountResetAt = accountState?.reset_at ?? null;
+  if (mutation.accountResetAt !== accountResetAt) {
+    return json({ error: "Account reset state changed; pull before pushing.", accountResetAt }, 409);
+  }
   const prior = await db.prepare("SELECT 1 FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
     .bind(owner, mutation.mutationId).first();
   if (prior) return json({ ok: true, replayed: true });
 
   const current = await db.prepare(
     "SELECT revision, record_json, name_key FROM sync_records WHERE owner = ? AND kind = ? AND id = ?",
-  ).bind(owner, mutation.kind, mutation.id).first<{ revision: number; record_json: string | null; name_key: string | null }>();
+  ).bind(owner, mutation.kind, mutation.id).first<CurrentRecord>();
   const actualRevision = current?.revision ?? null;
   if (actualRevision !== mutation.expectedRevision || (current && current.record_json === null)) {
     return json({ error: "Revision conflict.", expectedRevision: mutation.expectedRevision, actualRevision }, 409);
   }
+  return persistMutation(db, owner, mutation, now, current, actualRevision);
+}
 
+interface CurrentRecord {
+  revision: number;
+  record_json: string | null;
+  name_key: string | null;
+}
+
+async function persistMutation(
+  db: SyncDatabase,
+  owner: string,
+  mutation: Mutation,
+  now: Date,
+  current: CurrentRecord | null,
+  actualRevision: number | null,
+): Promise<Response> {
   const acceptedAt = now.toISOString();
   const revision = (actualRevision ?? 0) + 1;
-  const previousRecord = current?.record_json ? JSON.parse(current.record_json) as Record<string, unknown> : {};
-  const incoming = mutation.record ?? {};
-  const cleanRecord = Object.fromEntries(Object.entries(incoming).filter(([key]) => key !== "deletion"));
-  const record = mutation.operation === "delete"
-    ? { ...previousRecord, revision, updatedAt: acceptedAt, deletion: { deletedAt: acceptedAt } }
-    : { ...cleanRecord, schemaVersion: 2, ...(mutation.kind === "folder" ? { name: String(incoming.name).trim() } : {}), revision, updatedAt: acceptedAt };
+  const record = buildServerRecord(mutation, current, revision, acceptedAt);
   const deletedAt = mutation.operation === "delete" ? acceptedAt : null;
-  const nameKey = mutation.operation === "delete" ? current?.name_key ?? null
-    : mutation.kind === "folder" ? normalizeName(String(incoming.name)) : null;
+  const nameKey = folderNameKey(mutation, current);
   const insertedMutation = db.prepare(`INSERT INTO sync_mutations (owner, mutation_id, applied_at)
     SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM sync_mutations WHERE owner = ? AND mutation_id = ?)
     AND ((? IS NULL AND NOT EXISTS (SELECT 1 FROM sync_records WHERE owner = ? AND kind = ? AND id = ?))
-      OR EXISTS (SELECT 1 FROM sync_records WHERE owner = ? AND kind = ? AND id = ? AND revision = ?))`)
+      OR EXISTS (SELECT 1 FROM sync_records WHERE owner = ? AND kind = ? AND id = ? AND revision = ?))
+    AND COALESCE((SELECT reset_at FROM sync_account_state WHERE owner = ?), '') = COALESCE(?, '')`)
     .bind(owner, mutation.mutationId, acceptedAt, owner, mutation.mutationId,
-      mutation.expectedRevision, owner, mutation.kind, mutation.id, owner, mutation.kind, mutation.id, mutation.expectedRevision);
+      mutation.expectedRevision, owner, mutation.kind, mutation.id, owner, mutation.kind, mutation.id,
+      mutation.expectedRevision, owner, mutation.accountResetAt);
   const upsertRecord = db.prepare(`INSERT INTO sync_records
     (owner, kind, id, revision, cursor, updated_at, deleted_at, tombstone, record_json, name_key)
     SELECT ?, ?, ?, ?, (SELECT COALESCE(MAX(cursor), 0) + 1 FROM sync_records WHERE owner = ?), ?, ?, 0, ?, ?
@@ -96,25 +115,60 @@ export async function pushMutation(db: SyncDatabase, owner: string, mutation: Mu
     updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, tombstone=0, record_json=excluded.record_json,
     name_key=excluded.name_key`)
     .bind(owner, mutation.kind, mutation.id, revision, owner, acceptedAt, deletedAt, JSON.stringify(record), nameKey);
-  let batch: D1Result[];
+  const batch = await persistBatch(db, insertedMutation, upsertRecord);
+  if (batch instanceof Response) return batch;
+  if (batch[0]?.meta.changes === 0) return resolveUnappliedMutation(db, owner, mutation);
+  return json({ ok: true, replayed: false, revision, acceptedAt });
+}
+
+async function persistBatch(db: SyncDatabase, ...statements: D1Statement[]): Promise<D1Result[] | Response> {
   try {
-    batch = await db.batch([insertedMutation, upsertRecord]);
+    const results = await db.batch(statements);
+    return results.some((result) => !result.success)
+      ? json({ error: "Mutation could not be stored." }, 500)
+      : results;
   } catch (error) {
     if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
       return json({ error: "Folder names must be unique." }, 409);
     }
     throw error;
   }
-  if (batch.some((result) => !result.success)) return json({ error: "Mutation could not be stored." }, 500);
-  if (batch[0]?.meta.changes === 0) {
-    const replay = await db.prepare("SELECT 1 FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
-      .bind(owner, mutation.mutationId).first();
-    if (replay) return json({ ok: true, replayed: true });
-    const latest = await db.prepare("SELECT revision FROM sync_records WHERE owner = ? AND kind = ? AND id = ?")
-      .bind(owner, mutation.kind, mutation.id).first<{ revision: number }>();
-    return json({ error: "Revision conflict.", expectedRevision: mutation.expectedRevision, actualRevision: latest?.revision ?? null }, 409);
+}
+
+async function resolveUnappliedMutation(db: SyncDatabase, owner: string, mutation: Mutation): Promise<Response> {
+  const replay = await db.prepare("SELECT 1 FROM sync_mutations WHERE owner = ? AND mutation_id = ?")
+    .bind(owner, mutation.mutationId).first();
+  if (replay) return json({ ok: true, replayed: true });
+  const latest = await db.prepare("SELECT revision FROM sync_records WHERE owner = ? AND kind = ? AND id = ?")
+    .bind(owner, mutation.kind, mutation.id).first<{ revision: number }>();
+  return json({ error: "Revision conflict.", expectedRevision: mutation.expectedRevision, actualRevision: latest?.revision ?? null }, 409);
+}
+
+function buildServerRecord(
+  mutation: Mutation,
+  current: CurrentRecord | null,
+  revision: number,
+  acceptedAt: string,
+): Record<string, unknown> {
+  const previous = current?.record_json ? JSON.parse(current.record_json) as Record<string, unknown> : {};
+  const incoming = mutation.record ?? {};
+  if (mutation.operation === "delete") {
+    return { ...previous, revision, updatedAt: acceptedAt, deletion: { deletedAt: acceptedAt } };
   }
-  return json({ ok: true, replayed: false, revision, acceptedAt });
+  const active = Object.fromEntries(Object.entries(incoming).filter(([key]) => key !== "deletion"));
+  return {
+    ...active,
+    schemaVersion: 2,
+    ...(mutation.kind === "folder" ? { name: String(incoming.name).trim() } : {}),
+    revision,
+    updatedAt: acceptedAt,
+  };
+}
+
+function folderNameKey(mutation: Mutation, current: CurrentRecord | null): string | null {
+  if (mutation.operation === "delete") return current?.name_key ?? null;
+  if (mutation.kind !== "folder") return null;
+  return normalizeName(String(mutation.record?.name));
 }
 
 export async function pullChanges(db: SyncDatabase, owner: string, cursor: number, requestedLimit: number) {
@@ -169,24 +223,63 @@ export async function purgeExpired(db: SyncDatabase, now: Date): Promise<number>
 }
 
 export function validMutation(value: unknown): value is Mutation {
-  if (!value || typeof value !== "object") return false;
+  if (!isRecord(value)) return false;
   const mutation = value as Partial<Mutation>;
-  if (typeof mutation.mutationId !== "string" || !mutation.mutationId || mutation.mutationId.length > 128) return false;
-  if (!(mutation.kind === "item" || mutation.kind === "folder" || mutation.kind === "settings")) return false;
-  if (typeof mutation.id !== "string" || !mutation.id || mutation.id.length > 128) return false;
-  if (!(mutation.expectedRevision === null || (typeof mutation.expectedRevision === "number" && Number.isSafeInteger(mutation.expectedRevision) && mutation.expectedRevision >= 1))) return false;
-  if (!(mutation.operation === "upsert" || mutation.operation === "delete")) return false;
-  if (mutation.operation === "upsert" && (!mutation.record || typeof mutation.record !== "object" || Array.isArray(mutation.record))) return false;
-  if (mutation.record && ("owner" in mutation.record || "sub" in mutation.record)) return false;
-  if (mutation.operation === "upsert" && (mutation.record?.id !== mutation.id || mutation.record.schemaVersion !== 2)) return false;
-  if (mutation.kind === "folder" && mutation.operation === "upsert"
-      && (typeof mutation.record?.name !== "string" || !mutation.record.name.trim())) return false;
-  if (mutation.kind === "settings" && mutation.id !== "settings") return false;
+  if (!validMutationHeader(mutation) || !validMutationRecord(mutation)) return false;
   try {
     return new TextEncoder().encode(JSON.stringify(value)).byteLength <= maxJsonBytes;
   } catch {
     return false;
   }
+}
+
+function validMutationHeader(mutation: Partial<Mutation>): boolean {
+  return isValidId(mutation.mutationId)
+    && isRecordKind(mutation.kind)
+    && isValidId(mutation.id)
+    && validExpectedRevision(mutation.expectedRevision)
+    && isMutationOperation(mutation.operation)
+    && validResetMarker(mutation.accountResetAt);
+}
+
+function isValidId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 128;
+}
+
+function isRecordKind(value: unknown): value is RecordKind {
+  return value === "item" || value === "folder" || value === "settings";
+}
+
+function isMutationOperation(value: unknown): value is Mutation["operation"] {
+  return value === "upsert" || value === "delete";
+}
+
+function validResetMarker(value: unknown): value is string | null {
+  return value === null || (typeof value === "string" && Number.isFinite(Date.parse(value)));
+}
+
+function validExpectedRevision(revision: unknown): revision is number | null {
+  return revision === null || (typeof revision === "number" && Number.isSafeInteger(revision) && revision >= 1);
+}
+
+function validMutationRecord(mutation: Partial<Mutation>): boolean {
+  if (mutation.operation !== "upsert") return true;
+  if (!isRecord(mutation.record)) return false;
+  if ("owner" in mutation.record || "sub" in mutation.record) return false;
+  if (mutation.record.id !== mutation.id || mutation.record.schemaVersion !== 2) return false;
+  return validRecordForKind(mutation);
+}
+
+function validRecordForKind(mutation: Partial<Mutation>): boolean {
+  if (mutation.kind === "folder") {
+    return typeof mutation.record?.name === "string" && mutation.record.name.trim().length > 0;
+  }
+  if (mutation.kind === "settings") return mutation.id === "settings";
+  return mutation.kind === "item";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function normalizeName(name: string): string {

@@ -39,6 +39,7 @@ function mutation(owner: string, overrides: Partial<Mutation> = {}): Mutation {
     id: `${owner}-item`,
     expectedRevision: null,
     operation: "upsert",
+    accountResetAt: null,
     record: { id: `${owner}-item`, name: "Pin", schemaVersion: 2 },
   };
   return {
@@ -146,5 +147,9 @@ describe("sync server mutations and cursors", () => {
     expect(await response.json()).toMatchObject({ resetAt: now.toISOString() });
     const pulled = await pullChanges(db, owner, 0, 100).then((result) => result.json() as Promise<{ changes: unknown[]; resetAt: string }>);
     expect(pulled).toMatchObject({ changes: [], resetAt: now.toISOString() });
+    const staleWrite = mutation(owner, { mutationId: `${owner}-pre-reset` });
+    expect((await pushMutation(db, owner, staleWrite, now)).status).toBe(409);
+    const acknowledgedReset = mutation(owner, { accountResetAt: pulled.resetAt });
+    expect((await pushMutation(db, owner, acknowledgedReset, now)).status).toBe(200);
   });
 });
