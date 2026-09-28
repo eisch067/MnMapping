@@ -6,7 +6,7 @@ export type MergeResult =
   | { kind: "merged"; record: SyncRecord }
   | { kind: "conflict"; record: SyncRecord; conflictCopy: SyncRecord }
   | { kind: "remote"; record: SyncRecord }
-  | { kind: "deleted"; conflictCopy?: SyncRecord }; 
+  | { kind: "deleted"; conflictCopy?: SyncRecord };
 
 export function mergeRemoteChange(
   base: SyncRecord | null,
