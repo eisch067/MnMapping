@@ -75,7 +75,38 @@ test("shows and remembers the first-use guide and live compass in the personal b
   await expect(page.getByLabel("First-use terrain guide")).toHaveCount(0);
 });
 
-test("keeps DEM measurement controls and the terrain guide out of the public build", async ({ page }) => {
+test("runs a local viewshed and shows its disclosure and temporary-save label", async ({ page }, testInfo) => {
+  test.skip(!personalBuild, "Terrain analysis is personal-build only.");
+  const canvas = await openMap(page, stubDem);
+  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Terrain" }).click();
+  const sheet = page.getByRole("complementary", { name: "Map sheet" });
+  await expect(sheet.getByRole("button", { name: "Threshold" })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Viewshed" })).toBeVisible();
+  await expect(sheet.locator(".terrain-accuracy-note")).toBeVisible();
+  await expect(sheet.getByText(/temporary on this device only · not synced, exported, or a My Data item/)).toBeVisible();
+  await sheet.getByRole("button", { name: "Viewshed" }).click();
+  await sheet.getByRole("button", { name: "Place observer on map" }).click();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Map canvas is not visible.");
+  const position = { x: box.width * 0.8, y: box.height * 0.3 };
+  await expect(async () => {
+    if (testInfo.project.name === "mobile") await canvas.tap({ position });
+    else await canvas.click({ position });
+    await expect(sheet.getByRole("button", { name: "Place observer on map" })).toBeVisible();
+  }).toPass();
+  await expect(async () => {
+    const errors = await sheet.getByRole("alert").allTextContents();
+    if (errors.length) throw new Error(`Viewshed failed: ${errors.join("; ")}`);
+    await expect(sheet.getByRole("img", { name: "Computed viewshed result" })).toBeVisible();
+  }).toPass();
+  await expect(sheet.getByText(/temporary on this device only · not synced, exported, or a My Data item/)).toBeVisible();
+  await sheet.getByRole("button", { name: "Save analysis" }).click();
+  await expect(sheet.getByText("Saved temporarily on this device.")).toBeVisible();
+  await sheet.getByRole("slider", { name: /Range:/ }).fill("1000");
+  await expect(sheet.getByRole("alert")).toContainText("40,401 cells");
+});
+
+test("keeps terrain analysis and DEM measurement controls out of the public build", async ({ page }) => {
   test.skip(personalBuild, "This check is for the public build.");
   await openMap(page);
   await page.getByRole("navigation", { name: "Map tools" })
@@ -86,6 +117,9 @@ test("keeps DEM measurement controls and the terrain guide out of the public bui
   await expect(sheet.getByRole("button", { name: "Ground", exact: true })).toHaveCount(0);
   await expect(page.getByLabel("First-use terrain guide")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Reset compass to north" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Terrain" })).toHaveCount(0);
+  const thresholdResponse = await page.request.get("/api/terrain/threshold?minimum=1450");
+  expect(thresholdResponse.status()).toBe(404);
   const sampleResponse = await page.request.get(
     "/api/gis-proxy/mngeo-dem/MnTopo/2nd_Generation_Seamless_Lidar_DEM/ImageServer/getSamples?f=json",
   );

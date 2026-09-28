@@ -40,6 +40,18 @@ describe("Minnesota DEM elevation sampling", () => {
     );
   });
 
+  it("propagates an abort signal to active DEM requests", async () => {
+    const controller = new AbortController();
+    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+      }));
+    const request = sampleElevations([[0, 46]], fetcher, controller.signal);
+    controller.abort();
+    await expect(request).rejects.toThrow("Aborted");
+    expect(fetcher.mock.calls[0][1]?.signal).toBe(controller.signal);
+  });
+
   it("rejects when any location is outside DEM coverage", async () => {
     const fetcher = vi.fn(async () => Response.json({
       samples: [{ locationId: 0, value: "NoData" }, { locationId: 1, value: 20 }],

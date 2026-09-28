@@ -626,3 +626,11 @@ svg { flex: 0 0 auto; }
 .exchange-files small { margin-top: 2px; color: var(--muted); font-size: 9px; }
 .exchange-rejected li { overflow-wrap: anywhere; }
 .delete-all { display: grid; gap: 8px; padding: 9px; border: 1px solid rgba(240,162,138,.5); border-radius: 5px; }
+.terrain-analysis { display: grid; gap: 9px; padding-top: 8px; font-size: 11px; }
+.terrain-analysis > label { display: grid; gap: 5px; }
+.terrain-analysis input[type="range"] { width: 100%; accent-color: var(--accent); }
+.terrain-analysis small, .terrain-performance-note { color: var(--muted); font-size: 9px; line-height: 1.45; }
+.terrain-analysis .terrain-accuracy-note { margin: 0; padding: 8px; border: 1px solid var(--panel-border); border-radius: 5px; line-height: 1.45; }
+.terrain-threshold-result { width: min(100%, 340px); aspect-ratio: 4 / 3; border: 1px solid var(--panel-border); border-radius: 5px; background-position: center; background-size: cover; }
+.viewshed-preview { width: min(100%, 340px); height: auto; image-rendering: pixelated; border: 1px solid var(--panel-border); border-radius: 5px; background: repeating-conic-gradient(#24203e 0% 25%, #15122c 0% 50%) 50% / 12px 12px; }
+.is-picking-observer .map-canvas { cursor: crosshair; }
