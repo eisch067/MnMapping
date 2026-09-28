@@ -16,7 +16,7 @@ One `main` branch produces two different deployments, distinguished only by a bu
 | Esri 3D terrain (item H1) | Included | Not included |
 | DNR Recreation layers, the Boundary Waters boundary, and the `dnr-gis` proxy provider ([DNR Recreation](dnr-recreation.md)) | Included | Not included; DNR must confirm a public release first |
 | Terrain threshold and viewshed analysis ([Elevation and terrain sources](elevation-sources.md)) | Included; results remain on this device | Not included |
-| Worker name / `wrangler.jsonc` environment | `mn-mapping` (default env) | `public-mn-mapping` (`env.public`) |
+| Worker name / `wrangler.jsonc` environment | `mnmapping` (default env) | `publicmnmapping` (`env.public`) |
 | Access | Password-protected (Cloudflare Access) — operator only | Open to anyone |
 
 Because this is a single codebase, every county or feature added in the future automatically exists in both builds — there is nothing to keep in sync between branches. `wrangler.jsonc` defines both Worker configurations; `package.json` has a matching `deploy:vinext:public` script alongside the existing `deploy:vinext`.
@@ -33,7 +33,7 @@ NEXT_PUBLIC_APP_MODE=personal npm run build:vinext         # personal
 The repository is already configured with:
 
 - `vite.config.ts` for vinext and the Cloudflare Vite plugin
-- `wrangler.jsonc` with the Worker name `mn-mapping`
+- `wrangler.jsonc` with the Worker name `mnmapping`
 - Cloudflare build, local-preview, and deploy scripts in `package.json`
 - automatic copying of Cesium runtime assets before Next.js and vinext builds
 
@@ -60,7 +60,7 @@ Commit and push `package.json`, `package-lock.json`, `vite.config.ts`, `wrangler
 
 | Setting | Value |
 | --- | --- |
-| Worker name | `mn-mapping` |
+| Worker name | `mnmapping` |
 | Production branch | `main` |
 | Root directory | Leave blank |
 | Build command | `npm run build:vinext` |
@@ -70,26 +70,26 @@ Commit and push `package.json`, `package-lock.json`, `vite.config.ts`, `wrangler
 The Worker name must match the `name` in `wrangler.jsonc`. No environment variables or secrets are currently required.
 
 7. Select **Save and Deploy**.
-8. When the build finishes, open the assigned `mn-mapping.<account-subdomain>.workers.dev` address.
+8. When the build finishes, open the assigned `mnmapping.<account-subdomain>.workers.dev` address.
 9. Test location search, select a result, enter Map View, and enable one statewide layer and one county layer. This exercises the page, Cesium assets, location-search route, and GIS proxy.
 
 After this connection, every push to `main` builds and deploys automatically. Builds from other branches can produce preview versions when non-production branch builds are enabled under **Settings > Build > Branch control**.
 
-This `mn-mapping` application is the **personal** build. Two one-time steps turn it from the pre-audit configuration into the password-protected personal deployment:
+This `mnmapping` application is the **personal** build. Two one-time steps turn it from the pre-audit configuration into the password-protected personal deployment:
 
-1. Open the `mn-mapping` application, then **Settings > Variables and Secrets**, and add a build variable: `NEXT_PUBLIC_APP_MODE` = `personal`. Trigger a new deployment (push to `main`, or **Deployments > Retry deployment**) so the build picks it up.
+1. Open the `mnmapping` application, then **Settings > Variables and Secrets**, and add a build variable: `NEXT_PUBLIC_APP_MODE` = `personal`. Trigger a new deployment (push to `main`, or **Deployments > Retry deployment**) so the build picks it up.
 2. Set up Cloudflare Access (below) so only you can reach it.
 
 ## Set up the public sharing deployment
 
-This is a second, separate Cloudflare application built from the same repository and branch, deployed as its own Worker (`public-mn-mapping`, defined under `env.public` in `wrangler.jsonc`) so it gets its own URL and is never password-gated.
+This is a second, separate Cloudflare application built from the same repository and branch, deployed as its own Worker (`publicmnmapping`, defined under `env.public` in `wrangler.jsonc`) so it gets its own URL and is never password-gated.
 
 1. In the Cloudflare dashboard, open **Workers & Pages > Create application > Import a repository** and select `eisch067/MnMapping` again (the same repo can back more than one application).
 2. Enter these settings:
 
 | Setting | Value |
 | --- | --- |
-| Worker name | `public-mn-mapping` |
+| Worker name | `publicmnmapping` |
 | Production branch | `main` |
 | Root directory | Leave blank |
 | Build command | `npm run build:vinext` |
@@ -98,11 +98,11 @@ This is a second, separate Cloudflare application built from the same repository
 
 3. Under **Settings > Variables and Secrets**, add two build variables:
    - `NEXT_PUBLIC_APP_MODE` = `public`
-   - `CLOUDFLARE_ENV` = `public` (this is what makes the build emit the `public-mn-mapping` Worker config instead of the default `mn-mapping` one — see the `env.public` block in `wrangler.jsonc`)
+   - `CLOUDFLARE_ENV` = `public` (this is what makes the build emit the `publicmnmapping` Worker config instead of the default `mnmapping` one — see the `env.public` block in `wrangler.jsonc`)
 4. Select **Save and Deploy**. Do not add a Cloudflare Access policy to this application — it's meant to be open.
-5. Open the assigned `public-mn-mapping.<account-subdomain>.workers.dev` address and run through the same smoke test as step 9 above, then confirm a county with unlicensed vendor imagery (e.g. Aitkin) shows an "External imagery ↗" link rather than an embedded layer, and that a county from the H2 redaction list (e.g. Hennepin) shows parcel shape/acres/legal description but no owner name or mailing address.
+5. Open the assigned `publicmnmapping.<account-subdomain>.workers.dev` address and run through the same smoke test as step 9 above, then confirm a county with unlicensed vendor imagery (e.g. Aitkin) shows an "External imagery ↗" link rather than an embedded layer, and that a county from the H2 redaction list (e.g. Hennepin) shows parcel shape/acres/legal description but no owner name or mailing address.
 
-Every future push to `main` now deploys to both `mn-mapping` (personal) and `public-mn-mapping` (sharing) automatically, each built from the identical source with only the build variables differing.
+Every future push to `main` now deploys to both `mnmapping` (personal) and `publicmnmapping` (sharing) automatically, each built from the identical source with only the build variables differing.
 
 ## Continuous integration
 
@@ -124,17 +124,17 @@ Cloudflare Access sits in front of the Worker and blocks every request until the
 
 1. In the Cloudflare dashboard, open **Zero Trust** (left sidebar, may prompt you to enable Zero Trust on the account the first time — the free plan covers a small number of users).
 2. Go to **Access > Applications > Add an application**, and choose **Self-hosted**.
-3. Set the application domain to the `mn-mapping` Worker's hostname (`mnmapping.eischens-brad.workers.dev`, or your custom domain if you've added one under **Domains & Routes**).
+3. Set the application domain to the `mnmapping` Worker's hostname (`mnmapping.eischens-brad.workers.dev`, or your custom domain if you've added one under **Domains & Routes**).
 4. Add a policy, e.g. named "Owner only", action **Allow**, with an Include rule of **Emails** listing the address(es) you personally use to sign in. Save.
 5. Visit the personal URL in a private/incognito window. Cloudflare should present a login page (a one-time code emailed to you, or whatever identity provider you configured) before MnMapping loads at all. Confirm an email **not** on the allow list is rejected.
 
-The public (`public-mn-mapping`) application should have no Access application in front of it.
+The public (`publicmnmapping`) application should have no Access application in front of it.
 
 ## Add a custom domain
 
 The domain must already be an active zone in the same Cloudflare account.
 
-1. Open **Workers & Pages** and select `mn-mapping`.
+1. Open **Workers & Pages** and select `mnmapping`.
 2. Open **Settings > Domains & Routes**.
 3. Select **Add > Custom Domain**.
 4. Enter a hostname such as `map.example.com` and select **Add Custom Domain**.
