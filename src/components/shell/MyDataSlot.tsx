@@ -11,6 +11,7 @@ import {
   type MyMapItem,
 } from "@/lib/myData";
 import type { ExportScope } from "@/lib/exchange/scope";
+import type { SyncStatus } from "@/lib/syncClient";
 import { MyDataToolbar } from "./MyDataToolbar";
 
 export interface MyDataSlotProps {
@@ -19,6 +20,9 @@ export interface MyDataSlotProps {
   folders: readonly MyDataFolder[];
   settings: MyDataSettings | null;
   error: string | null;
+  syncStatus: SyncStatus;
+  conflictCount: number;
+  onSyncRetry: () => void;
   visible: boolean;
   onVisibleChange: (visible: boolean) => void;
   onImportFile: (file: File) => Promise<void>;
@@ -197,6 +201,18 @@ export function MyDataSlot(props: MyDataSlotProps) {
         onCreateFolder={props.onCreateFolder}
       />
       {props.error && <p role="alert" className="my-data-error">{props.error}</p>}
+      {isPersonalMode && (
+        <div className="my-data-sync-status" role="status" aria-live="polite">
+          {props.syncStatus === "paused" ? (
+            <><span>sync paused</span><button type="button" onClick={props.onSyncRetry}>Retry sync</button></>
+          ) : props.syncStatus === "error" ? (
+            <><span>Sync unavailable; local changes are saved.</span><button type="button" onClick={props.onSyncRetry}>Retry sync</button></>
+          ) : props.syncStatus === "syncing" ? <span>Syncing…</span> : <span>Synced</span>}
+          {props.conflictCount > 0 && (
+            <p role="alert">{props.conflictCount} conflict {props.conflictCount === 1 ? "copy needs" : "copies need"} review.</p>
+          )}
+        </div>
+      )}
       {inTrash ? <TrashView {...props} /> : (
         <>
           <MyDataToolbar
@@ -236,7 +252,7 @@ export function MyDataSlot(props: MyDataSlotProps) {
       <SettingsEditor settings={props.settings} onUpdateSettings={props.onUpdateSettings} />
       <label className="file-import">Import GPX, KML, or GeoJSON<input type="file" accept=".gpx,.kml,.geojson,.json" onChange={importSelectedFile} /></label>
       <button type="button" onClick={props.onOpenBackup}>Backup and restore</button>
-      <p>Stored only in this browser unless you export it. Trash is removed after 30 days.</p>
+      <p>{isPersonalMode ? "Synced across devices in your personal account." : "Stored only in this browser unless you export it."} Trash is removed after 30 days.</p>
     </div>
   );
 }

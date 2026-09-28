@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { isPersonalMode } from "@/config/appMode";
+import type { SyncStatus } from "@/lib/syncClient";
 import {
   getMyDataStore,
   type MyDataFolder,
@@ -15,37 +17,69 @@ export function useMyData() {
   const [settings, setSettings] = useState<MyDataSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [visible, setVisible] = useState(true);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(isPersonalMode ? "syncing" : "idle");
+  const [conflictCount, setConflictCount] = useState(0);
+  const syncing = useRef(false);
 
   const refresh = useCallback(async () => {
-    const snapshot = await (await getMyDataStore()).load();
+    const store = await getMyDataStore();
+    const snapshot = await store.load();
+    const syncState = await store.getState();
     setItems(snapshot.items);
     setFolders(snapshot.folders);
     setSettings(snapshot.settings);
+    setConflictCount(syncState.conflictCount ?? 0);
   }, []);
 
+  const syncNow = useCallback(async () => {
+    if (!isPersonalMode || syncing.current) return;
+    syncing.current = true;
+    setSyncStatus("syncing");
+    try {
+      const store = await getMyDataStore();
+      const { synchronize } = await import("@/lib/syncClient");
+      await synchronize(store);
+      await refresh();
+      setSyncStatus("idle");
+    } catch (reason) {
+      setSyncStatus(reason instanceof Error && reason.name === "SyncPausedError" ? "paused" : "error");
+    } finally {
+      syncing.current = false;
+    }
+  }, [refresh]);
+
   useEffect(() => {
-    void getMyDataStore()
-      .then((store) => store.load())
-      .then((snapshot) => {
-        setItems(snapshot.items);
-        setFolders(snapshot.folders);
-        setSettings(snapshot.settings);
-      })
-      .catch((reason: unknown) => {
+    const initialLoad = window.setTimeout(() => {
+      void refresh().catch((reason: unknown) => {
         setError(reason instanceof Error ? reason.message : "Unable to load My Data.");
       });
-  }, []);
+    }, 0);
+    return () => window.clearTimeout(initialLoad);
+  }, [refresh]);
+
+  useEffect(() => {
+    if (!isPersonalMode) return;
+    const initialSync = window.setTimeout(() => void syncNow(), 0);
+    const interval = window.setInterval(() => void syncNow(), 30_000);
+    window.addEventListener("online", syncNow);
+    return () => {
+      window.clearTimeout(initialSync);
+      window.clearInterval(interval);
+      window.removeEventListener("online", syncNow);
+    };
+  }, [syncNow]);
 
   const mutate = useCallback(async (operation: () => Promise<unknown>) => {
     try {
       setError(null);
       await operation();
       await refresh();
+      void syncNow();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to update My Data.");
       throw reason;
     }
-  }, [refresh]);
+  }, [refresh, syncNow]);
 
   const add = useCallback(async (item: NewMyDataItem) => {
     await mutate(async () => (await getMyDataStore()).addItem(item));
@@ -57,6 +91,9 @@ export function useMyData() {
     folders,
     settings,
     error,
+    syncStatus,
+    conflictCount,
+    onSyncRetry: syncNow,
     visible,
     onVisibleChange: setVisible,
     add,

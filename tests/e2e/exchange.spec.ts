@@ -1,3 +1,4 @@
+import { importJWK, SignJWT } from "jose";
 import { readFile } from "node:fs/promises";
 import { expect, test, type Download, type Page } from "@playwright/test";
 import { openMap } from "./support/map";
@@ -24,6 +25,23 @@ const kmlFile = {
     </Folder>
     <GroundOverlay><name>Old map</name></GroundOverlay></Document></kml>`),
 };
+
+async function authorizeLocalSync(page: Page) {
+  if (process.env.NEXT_PUBLIC_APP_MODE !== "personal") return;
+  const privateJwk = JSON.parse(await readFile("test-results/sync-test-key.json", "utf8"));
+  const signingKey = await importJWK(privateJwk, "RS256");
+  const token = await new SignJWT({})
+    .setProtectedHeader({ alg: "RS256" })
+    .setIssuer("https://mnmapping.local")
+    .setAudience("local-test-aud")
+    .setSubject(`archive-test-${crypto.randomUUID()}`)
+    .setIssuedAt()
+    .setExpirationTime("5m")
+    .sign(signingKey);
+  await page.route("**/api/sync**", (route) => route.continue({
+    headers: { ...route.request().headers(), "cf-access-jwt-assertion": token },
+  }));
+}
 
 function sheetOf(page: Page) {
   return page.getByRole("complementary", { name: "Map sheet" });
@@ -168,6 +186,7 @@ test("select mode exports only the chosen items", async ({ page }) => {
 
 test("an archive restores what delete-all removed", async ({ page }) => {
   test.setTimeout(90_000);
+  await authorizeLocalSync(page);
   await openMap(page);
   await importFile(page, geojsonFile("keep.geojson", pointFeature("Keeper", [-95, 47])));
   const sheet = await openMyData(page);

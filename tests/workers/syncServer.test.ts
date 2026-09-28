@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, it } from "vitest";
-import { deleteAccount, pullChanges, purgeExpired, pushMutation, validMutation, type Mutation } from "../../src/lib/syncServer";
+import { deleteAccount, pullChanges, purgeExpired, pushMutation, validMutation, type Mutation, type SyncDatabase } from "../../src/lib/syncServer";
 
 const db = env.DB;
 const now = new Date("2026-09-27T12:00:00.000Z");
@@ -17,7 +17,7 @@ beforeAll(async () => {
     db.prepare("CREATE INDEX IF NOT EXISTS sync_records_purge ON sync_records(deleted_at) WHERE deleted_at IS NOT NULL AND tombstone = 0"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS sync_folders_owner_name ON sync_records(owner, name_key) WHERE kind='folder' AND deleted_at IS NULL AND name_key IS NOT NULL"),
     db.prepare(`CREATE TABLE IF NOT EXISTS sync_mutations (
-      owner TEXT NOT NULL, mutation_id TEXT NOT NULL, applied_at TEXT NOT NULL,
+      owner TEXT NOT NULL, mutation_id TEXT NOT NULL, applied_at TEXT NOT NULL, revision INTEGER NOT NULL,
       PRIMARY KEY(owner, mutation_id)) WITHOUT ROWID`),
     db.prepare(`CREATE TABLE IF NOT EXISTS sync_account_state (
       owner TEXT PRIMARY KEY, reset_at TEXT NOT NULL) WITHOUT ROWID`),
@@ -53,6 +53,27 @@ function mutation(owner: string, overrides: Partial<Mutation> = {}): Mutation {
 }
 
 describe("sync server mutations and cursors", () => {
+  it("returns a retryable pause for D1 daily-limit failures on reads and writes", async () => {
+    const blockedDatabase = {
+      prepare() {
+        return {
+          bind() { return this; },
+          first: async () => null,
+          all: async () => { throw new Error("D1 daily request limit exceeded"); },
+          run: async () => { throw new Error("D1 daily request limit exceeded"); },
+        };
+      },
+      batch: async () => { throw new Error("D1 daily request limit exceeded"); },
+    } as unknown as SyncDatabase;
+    const owner = `limited-${id()}`;
+    const push = await pushMutation(blockedDatabase, owner, mutation(owner), now);
+    expect(push.status).toBe(503);
+    expect(await push.json()).toMatchObject({ error: expect.stringContaining("daily limit") });
+    const pull = await pullChanges(blockedDatabase, owner, 0, 100);
+    expect(pull.status).toBe(503);
+    expect(await pull.json()).toMatchObject({ error: expect.stringContaining("daily limit") });
+  });
+
   it("scopes records by verified owner and never trusts a payload owner", async () => {
     const ownerA = `a-${id()}`;
     const ownerB = `b-${id()}`;
@@ -77,6 +98,10 @@ describe("sync server mutations and cursors", () => {
     expect((await pushMutation(db, owner, stale, now)).status).toBe(409);
     const current = mutation(owner, { expectedRevision: 1, record: { id: `${owner}-item`, name: "updated" } });
     expect(await (await pushMutation(db, owner, current, now)).json()).toMatchObject({ revision: 2 });
+    expect(await (await pushMutation(db, owner, first, now)).json()).toMatchObject({
+      replayed: true,
+      revision: 1,
+    });
   });
 
   it("pages each saved row once and leaves tombstones after 30 days", async () => {
