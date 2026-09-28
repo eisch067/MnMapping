@@ -144,12 +144,16 @@ describe("sync server mutations and cursors", () => {
     await clean(owner);
     await pushMutation(db, owner, mutation(owner), now);
     const response = await deleteAccount(db, owner, now);
-    expect(await response.json()).toMatchObject({ resetAt: now.toISOString() });
+    const resetResponse = await response.json() as { resetAt: string };
+    expect(resetResponse.resetAt).toMatch(new RegExp(`^${now.toISOString()}#`));
     const pulled = await pullChanges(db, owner, 0, 100).then((result) => result.json() as Promise<{ changes: unknown[]; resetAt: string }>);
-    expect(pulled).toMatchObject({ changes: [], resetAt: now.toISOString() });
+    expect(pulled).toMatchObject({ changes: [], resetAt: resetResponse.resetAt });
     const staleWrite = mutation(owner, { mutationId: `${owner}-pre-reset` });
     expect((await pushMutation(db, owner, staleWrite, now)).status).toBe(409);
     const acknowledgedReset = mutation(owner, { accountResetAt: pulled.resetAt });
     expect((await pushMutation(db, owner, acknowledgedReset, now)).status).toBe(200);
+    const secondReset = await deleteAccount(db, owner, now).then((result) => result.json() as Promise<{ resetAt: string }>);
+    expect(secondReset.resetAt).not.toBe(resetResponse.resetAt);
+    expect((await pushMutation(db, owner, acknowledgedReset, now)).status).toBe(409);
   });
 });

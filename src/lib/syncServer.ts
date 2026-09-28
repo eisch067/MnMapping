@@ -194,7 +194,7 @@ export async function pullChanges(db: SyncDatabase, owner: string, cursor: numbe
 }
 
 export async function deleteAccount(db: SyncDatabase, owner: string, now: Date): Promise<Response> {
-  const resetAt = now.toISOString();
+  const resetAt = `${now.toISOString()}#${crypto.randomUUID()}`;
   const results = await db.batch([
     db.prepare("DELETE FROM sync_records WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM sync_mutations WHERE owner = ?").bind(owner),
@@ -255,7 +255,7 @@ function isMutationOperation(value: unknown): value is Mutation["operation"] {
 }
 
 function validResetMarker(value: unknown): value is string | null {
-  return value === null || (typeof value === "string" && Number.isFinite(Date.parse(value)));
+  return value === null || (typeof value === "string" && value.length <= 128);
 }
 
 function validExpectedRevision(revision: unknown): revision is number | null {
