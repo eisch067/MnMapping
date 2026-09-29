@@ -75,29 +75,37 @@ test("shows and remembers the first-use guide and live compass in the personal b
   await expect(page.getByLabel("First-use terrain guide")).toHaveCount(0);
 });
 
+async function selectMapSheet(page: Page, name: string, id: string) {
+  await page
+    .getByRole("navigation", { name: "Map tools" })
+    .getByRole("button", { name, exact: true })
+    .dispatchEvent("click");
+  await expect(page.locator(`#sheet-${id}`)).toBeVisible();
+}
+
 test("keeps the Terrain sheet 3D terrain switch in sync with Layers", async ({ page }) => {
   test.skip(!personalBuild, "3D terrain is available only in the personal build.");
   await openMap(page);
 
-  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Terrain" }).click();
+  await selectMapSheet(page, "Terrain", "terrain");
   const terrainSheet = page.getByRole("complementary", { name: "Map sheet" });
   const terrainSwitch = terrainSheet.getByRole("checkbox", { name: "3D terrain" });
   await expect(terrainSwitch).not.toBeChecked();
   await terrainSwitch.check();
 
-  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Layers" }).click();
+  await selectMapSheet(page, "Layers", "layers");
   const layersSheet = page.getByRole("complementary", { name: "Map sheet" });
   await layersSheet.getByRole("button", { name: /^3D terrain/ }).click();
   const layerSwitch = layersSheet.locator("#layer-section-terrain").getByRole("checkbox", { name: /3D Terrain/ });
   await expect(layerSwitch).toBeChecked();
   await layerSwitch.uncheck({ force: true });
 
-  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Terrain" }).click();
+  await selectMapSheet(page, "Terrain", "terrain");
   await expect(terrainSwitch).not.toBeChecked();
 
-  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Layers" }).click({ force: true });
+  await selectMapSheet(page, "Layers", "layers");
   await layerSwitch.check({ force: true });
-  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Terrain" }).click({ force: true });
+  await selectMapSheet(page, "Terrain", "terrain");
   await expect(terrainSwitch).toBeChecked();
 });
 
