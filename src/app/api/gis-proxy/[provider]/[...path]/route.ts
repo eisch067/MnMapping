@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { isPersonalMode } from "@/config/appMode";
-import { resolveUpstream } from "@/lib/gisProxy";
+import { gisProxyCacheControl, resolveUpstream } from "@/lib/gisProxy";
 
 export async function GET(
   request: NextRequest,
@@ -8,17 +8,22 @@ export async function GET(
 ) {
   const { provider, path } = await params;
   if (!isPersonalMode && path.at(-1)?.toLowerCase() === "getsamples") {
-    return Response.json({ error: "DEM measurements are available in the personal build only." }, { status: 404 });
+    return Response.json(
+      { error: "DEM measurements are available in the personal build only." },
+      { status: 404, headers: { "cache-control": "no-store" } },
+    );
   }
   const upstreamUrl = resolveUpstream(provider, path);
   if (!upstreamUrl) {
-    return Response.json({ error: "Unsupported GIS proxy target." }, { status: 400 });
+    return Response.json(
+      { error: "Unsupported GIS proxy target." },
+      { status: 400, headers: { "cache-control": "no-store" } },
+    );
   }
   upstreamUrl.search = request.nextUrl.search;
 
   try {
     const upstream = await fetch(upstreamUrl, {
-      cache: "no-store",
       headers: { accept: request.headers.get("accept") ?? "*/*" },
     });
     const headers = new Headers();
@@ -26,11 +31,12 @@ export async function GET(
       const value = upstream.headers.get(name);
       if (value) headers.set(name, value);
     }
-    if (provider === "dnr-gis" || provider === "dnr-gis-item") {
-      headers.set("cache-control", "no-store");
-    }
+    headers.set("cache-control", gisProxyCacheControl(provider, path, upstream.status));
     return new Response(upstream.body, { status: upstream.status, headers });
   } catch {
-    return Response.json({ error: "The county GIS service did not respond." }, { status: 502 });
+    return Response.json(
+      { error: "The county GIS service did not respond." },
+      { status: 502, headers: { "cache-control": "no-store" } },
+    );
   }
 }

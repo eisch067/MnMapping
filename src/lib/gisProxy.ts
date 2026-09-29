@@ -73,6 +73,26 @@ const providerRoots = {
 
 type Provider = keyof typeof providerRoots;
 
+const DAY = 86_400;
+const FEATURE_QUERY_TTL = 300;
+
+export function gisProxyCacheControl(provider: string, path: readonly string[], status: number): string {
+  if (status < 200 || status >= 300 || provider.startsWith("dnr-")) return "no-store";
+
+  const endpoint = path.at(-1)?.toLowerCase();
+  if (endpoint === "query") return `public, max-age=${FEATURE_QUERY_TTL}, s-maxage=${FEATURE_QUERY_TTL}`;
+  if (
+    path.some((segment) => segment.toLowerCase() === "tile") ||
+    endpoint === "export" ||
+    endpoint === "exportimage" ||
+    endpoint === "exportmap"
+  ) {
+    return `public, max-age=${DAY}, s-maxage=${DAY}`;
+  }
+
+  return "no-store";
+}
+
 function isProvider(value: string): value is Provider {
   return Object.hasOwn(providerRoots, value);
 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dnrGisRoot, dnrLakeFinderRoot, resolveUpstream } from "@/lib/gisProxy";
+import { dnrGisRoot, dnrLakeFinderRoot, gisProxyCacheControl, resolveUpstream } from "@/lib/gisProxy";
 
 const cwdPath = [
   "Hosted",
@@ -12,6 +12,30 @@ const cwdPath = [
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.resetModules();
+});
+
+describe("gisProxyCacheControl", () => {
+  it("caches imagery tiles and map exports for a day", () => {
+    const expected = "public, max-age=86400, s-maxage=86400";
+
+    expect(gisProxyCacheControl("becker-imagery", ["MapServer", "tile", "10", "1", "2"], 200)).toBe(expected);
+    expect(gisProxyCacheControl("mngeo-imagery", ["export"], 200)).toBe(expected);
+    expect(gisProxyCacheControl("becker", ["Imagery", "MapServer", "exportImage"], 200)).toBe(expected);
+  });
+
+  it("caches feature queries for a shorter period", () => {
+    expect(gisProxyCacheControl("mngeo-features", ["public", "FeatureServer", "0", "query"], 200)).toBe(
+      "public, max-age=300, s-maxage=300",
+    );
+  });
+
+  it("never caches seasonal DNR responses", () => {
+    expect(gisProxyCacheControl("dnr-gis", ["Hosted", "seasonal", "MapServer", "tile", "1", "0", "0"], 200)).toBe("no-store");
+  });
+
+  it.each([400, 404, 500, 503, 522])("never caches HTTP %i responses", (status) => {
+    expect(gisProxyCacheControl("becker-imagery", ["MapServer", "tile", "10", "1", "2"], status)).toBe("no-store");
+  });
 });
 
 describe("resolveUpstream", () => {
