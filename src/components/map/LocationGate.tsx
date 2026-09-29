@@ -39,8 +39,17 @@ export function LocationGate({ onLocationSelect }: LocationGateProps) {
   const [resolvingPoint, setResolvingPoint] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [recentLocations, setRecentLocations] = useState<MapLocation[]>(() => loadRecentLocations());
-  const [savedLocations, setSavedLocations] = useState<MapLocation[]>(() => loadSavedLocations());
+  const [recentLocations, setRecentLocations] = useState<MapLocation[]>([]);
+  const [savedLocations, setSavedLocations] = useState<MapLocation[]>([]);
+
+  // Read after mount: the server has no localStorage, so reading during render breaks hydration.
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setRecentLocations(loadRecentLocations());
+      setSavedLocations(loadSavedLocations());
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   useEffect(() => {
     const browserWindow = window as typeof window & {
