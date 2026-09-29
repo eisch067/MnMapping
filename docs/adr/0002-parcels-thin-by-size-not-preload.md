@@ -1,0 +1,3 @@
+# Parcels thin by size as you zoom out instead of preloading the state
+
+We considered loading every parcel in the state in the background so that zooming out would be instant, and rejected it. The configured counties hold about 2.6 million parcels, far more shapes than a browser can draw. Instead, parcels follow the approach OnX uses. Close in, every parcel draws in full detail. Further out, only larger parcels draw, with outlines the server simplifies to what the screen can show. Beyond 35 km, parcel lines appear as flat images for the whole state. Parcels also load in a margin past the screen edge, so panning stays ahead of the view. The acreage cut-offs are starting values that are expected to be tuned.
