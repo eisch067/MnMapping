@@ -50,7 +50,14 @@ export interface SyncResponse {
   resetAt?: string | null;
 }
 
-export type SyncStatus = "idle" | "syncing" | "paused" | "error";
+export type SyncStatus = "idle" | "syncing" | "paused" | "error" | "sign-in-needed";
+
+export class SyncAuthenticationError extends Error {
+  constructor() {
+    super("Sync needs you to sign in again.");
+    this.name = "SyncAuthenticationError";
+  }
+}
 
 export class SyncPausedError extends Error {
   constructor() {
@@ -159,6 +166,7 @@ async function pushPending(storage: SyncStorage, request: typeof fetch, resetAt:
 
 async function callApi(request: typeof fetch, path: string, init: RequestInit): Promise<SyncResponse> {
   const response = await request(path, { ...init, cache: "no-store" });
+  if (response.status === 401) throw new SyncAuthenticationError();
   let result: SyncResponse;
   try {
     result = await response.json() as SyncResponse;

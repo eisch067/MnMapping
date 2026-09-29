@@ -203,7 +203,9 @@ export function MyDataSlot(props: MyDataSlotProps) {
       {props.error && <p role="alert" className="my-data-error">{props.error}</p>}
       {isPersonalMode && (
         <div className="my-data-sync-status" role="status" aria-live="polite">
-          {props.syncStatus === "paused" ? (
+          {props.syncStatus === "sign-in-needed" ? (
+            <span>Sync needs you to sign in again.</span>
+          ) : props.syncStatus === "paused" ? (
             <><span>sync paused</span><button type="button" onClick={props.onSyncRetry}>Retry sync</button></>
           ) : props.syncStatus === "error" ? (
             <><span>Sync unavailable; local changes are saved.</span><button type="button" onClick={props.onSyncRetry}>Retry sync</button></>

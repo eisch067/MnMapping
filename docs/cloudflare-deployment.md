@@ -56,7 +56,7 @@ The personal Worker exposes `GET` and `POST` under `/api/sync`. Every request mu
 
 Production D1 is `D1.sync` (`b29d3aa1-8ab4-4200-882b-abd146a49d22`); preview D1 is `D1.sync.preview` (`f03132d8-a400-4ab2-aa31-972f5f3e4e4e`). They are wired as different `database_id` and `preview_database_id` values. Apply schema changes with `npx wrangler d1 migrations apply D1.sync --remote` for production and `npx wrangler d1 migrations apply D1.sync --remote --preview` for preview. Do not point preview traffic at production.
 
-Set the non-secret Worker variables `ACCESS_TEAM_DOMAIN` (team domain without scheme) and `ACCESS_AUD` (the Access application audience tag) for both production and preview in Cloudflare. They are intentionally not checked into source control. The daily `0 3 * * *` cron uses Worker server time and replaces content of 30-day-old deleted records with minimal tombstones.
+Set `ACCESS_TEAM_DOMAIN` (team domain without scheme) and `ACCESS_AUD` (the Access application audience tag) as **Worker Secrets** for the personal Worker, for both production and preview. These values are sensitive deployment configuration and must not be checked into source control. Do not enter them as plain-text dashboard variables: a deploy from this repository removes plain-text dashboard variables because the Worker config declares no variables and does not set `keep_vars`. Worker Secrets are retained across deploys. The daily `0 3 * * *` cron uses Worker server time and replaces content of 30-day-old deleted records with minimal tombstones.
 
 The synced-item write path uses five D1 statements on success (three reads and a two-statement atomic batch), with at most 15 bound values in any statement; pull uses two statements. The owner/cursor index serves pull and cursor allocation, the composite primary key serves item lookup, and the partial purge index serves retention. An upsert accounts for five D1 row writes including index entries: one mutation row and its primary-key index, plus one record row and its primary-key and cursor-index entries. Soft delete adds one purge-index entry. `tests/workers/syncServer.test.ts` protects those query plans. On each personal client, local Trash remains until D1's accepted deletion time is at least 30 days old and the server's tombstone reaches the device; local wall-clock changes do not permanently remove synchronized records.
 
@@ -78,7 +78,7 @@ The synced-item write path uses five D1 statements on success (three reads and a
 | Deploy command | `npm run deploy:vinext` |
 | Non-production branch deploy command | `npx wrangler versions upload --config dist/server/wrangler.json` |
 
-The Worker name must match the `name` in `wrangler.jsonc`. No environment variables or secrets are currently required.
+The Worker name must match the `name` in `wrangler.jsonc`. For the personal Worker, add `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` as Worker Secrets as described in [My Data sync server](#my-data-sync-server); do not add them as plain-text dashboard variables because deploys remove variables not declared in the Worker config.
 
 7. Select **Save and Deploy**.
 8. When the build finishes, open the assigned `mnmapping.<account-subdomain>.workers.dev` address.

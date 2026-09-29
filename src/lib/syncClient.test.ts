@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  SyncAuthenticationError,
   SyncPausedError,
   synchronize,
   type RemoteChange,
@@ -62,6 +63,20 @@ describe("synchronize", () => {
     expect(storage.entries).toEqual([]);
     expect(storage.migrated).toBe(true);
     expect(calls).toContain("POST /api/sync");
+  });
+
+  it("stops on an authentication response without changing pending data", async () => {
+    const storage = new MemoryStorage();
+    storage.entries = [pendingEntry()];
+    let calls = 0;
+    const request: typeof fetch = async () => {
+      calls += 1;
+      return response({ error: "Unauthorized." }, 401);
+    };
+
+    await expect(synchronize(storage, request)).rejects.toBeInstanceOf(SyncAuthenticationError);
+    expect(calls).toBe(1);
+    expect(storage.entries).toHaveLength(1);
   });
 
   it("keeps every outbox mutation when D1 reports a daily-limit pause", async () => {

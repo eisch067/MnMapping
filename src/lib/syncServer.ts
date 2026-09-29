@@ -42,9 +42,34 @@ const keySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 const maxJsonBytes = 512_000;
 const maxPullLimit = 100;
 
+type AccessRejectionReason =
+  | "header_missing"
+  | "settings_missing"
+  | "issuer_mismatch"
+  | "audience_mismatch"
+  | "signature_or_expiry_failure";
+
+function logAccessRejection(reason: AccessRejectionReason): null {
+  console.warn("Sync authentication rejected", { reason });
+  return null;
+}
+
+export function unauthorizedResponse(): Response {
+  return Response.json({ error: "Unauthorized." }, { status: 401 });
+}
+
+function tokenFailureReason(error: unknown): AccessRejectionReason {
+  if (error && typeof error === "object" && "code" in error && error.code === "ERR_JWT_CLAIM_VALIDATION_FAILED" && "claim" in error) {
+    if (error.claim === "iss") return "issuer_mismatch";
+    if (error.claim === "aud") return "audience_mismatch";
+  }
+  return "signature_or_expiry_failure";
+}
+
 export async function verifyAccessToken(request: Request, env: SyncEnv): Promise<string | null> {
   const token = request.headers.get("cf-access-jwt-assertion");
-  if (!token || !env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) return null;
+  if (!token) return logAccessRejection("header_missing");
+  if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) return logAccessRejection("settings_missing");
   try {
     const issuer = `https://${env.ACCESS_TEAM_DOMAIN.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
     const hostname = new URL(request.url).hostname;
@@ -56,7 +81,9 @@ export async function verifyAccessToken(request: Request, env: SyncEnv): Promise
         audience: env.ACCESS_AUD,
         algorithms: ["RS256"],
       });
-      return typeof payload.sub === "string" && payload.sub.length > 0 ? payload.sub : null;
+      return typeof payload.sub === "string" && payload.sub.length > 0
+        ? payload.sub
+        : logAccessRejection("signature_or_expiry_failure");
     }
     let keys = keySets.get(issuer);
     if (!keys) {
@@ -64,9 +91,11 @@ export async function verifyAccessToken(request: Request, env: SyncEnv): Promise
       keySets.set(issuer, keys);
     }
     const { payload } = await jwtVerify(token, keys, { issuer, audience: env.ACCESS_AUD, algorithms: ["RS256"] });
-    return typeof payload.sub === "string" && payload.sub.length > 0 ? payload.sub : null;
-  } catch {
-    return null;
+    return typeof payload.sub === "string" && payload.sub.length > 0
+      ? payload.sub
+      : logAccessRejection("signature_or_expiry_failure");
+  } catch (error) {
+    return logAccessRejection(tokenFailureReason(error));
   }
 }
 
