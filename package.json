@@ -14,6 +14,7 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "next typegen && tsc --noEmit && tsc --noEmit -p tests/workers",
     "audit:registry": "node scripts/registry-audit.mjs",
+    "board:status": "node scripts/board-status.mjs",
     "test": "vitest run && npm run audit:registry",
     "test:e2e": "playwright test",
     "smoke:remote:north": "node scripts/remote-source-smoke.mjs",
