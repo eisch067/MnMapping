@@ -9,8 +9,20 @@ An independently displayable map dataset with its own visibility, opacity, order
 _Avoid_: Overlay, feed
 
 **Layer group**:
-A named collection of related layers whose group control suspends and restores the user's active subset.
-_Avoid_: Master layer, all-layers toggle
+A named collection of related layers with a group control and, for Parcels, Reference, Public lands, and each DNR Recreation heading, a category switch.
+_Avoid_: Master layer
+
+**Group control**:
+The checkbox on a layer group heading that hides the group's active subset and later restores exactly those layers.
+_Avoid_: All on, master toggle
+
+**Category switch**:
+The All on / All off switch on a layer group heading that turns every available layer in the group on or off; it reads on only while every available layer is on, and switching it off leaves nothing to restore.
+_Avoid_: Group control, all-layers toggle, master layer
+
+**Parcel range**:
+The counties any part of which lies within 50 miles of the center of the screen; while the Parcels category switch is on, parcel layers follow the parcel range as the map moves.
+_Avoid_: Viewport, nearby counties
 
 **Active subset**:
 The layers within a layer group that the user has individually selected and expects the group control to restore.
