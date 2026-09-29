@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { openMap } from "./support/map";
 
+const personal = process.env.NEXT_PUBLIC_APP_MODE === "personal";
+
 async function openReferenceLayers(page: Page) {
   await openMap(page);
   await page.getByRole("button", { name: "Layers", exact: true }).click();
@@ -9,6 +11,7 @@ async function openReferenceLayers(page: Page) {
 }
 
 test("a feature layer with a degenerate polygon does not stop subsequent layers", async ({ page }) => {
+  test.skip(!personal, "Only the personal build issues this mocked GIS feature-layer request in the smoke-test map view.");
   const errors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") errors.push(message.text());
