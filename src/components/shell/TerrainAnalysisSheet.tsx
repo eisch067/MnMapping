@@ -10,14 +10,16 @@ export interface TerrainAnalysisSheetProps {
   observer: Position | null;
   pickingObserver: boolean;
   thresholdBounds: ViewportBounds | null;
+  terrainEnabled: boolean;
+  onTerrainVisibilityChange: (visible: boolean) => void;
   onPickObserver: () => void;
 }
 
 const accuracyDisclosure = "Viewsheds are estimates from sampled Minnesota lidar elevations, not survey-grade measurements. Buildings, vegetation, and features smaller than the sampling interval may be missing.";
 const temporaryLabel = "temporary on this device only · not synced, exported, or a My Data item.";
 
-export function TerrainAnalysisSheet({ observer, pickingObserver, thresholdBounds, onPickObserver }: TerrainAnalysisSheetProps) {
-  const [tool, setTool] = useState<"threshold" | "viewshed">("threshold");
+export function TerrainAnalysisSheet({ observer, pickingObserver, thresholdBounds, terrainEnabled, onTerrainVisibilityChange, onPickObserver }: TerrainAnalysisSheetProps) {
+  const [tool, setTool] = useState<"threshold" | "viewshed">("viewshed");
   const [thresholdFeet, setThresholdFeet] = useState(1450);
   const [observerHeightFeet, setObserverHeightFeet] = useState(6);
   const [rangeMeters, setRangeMeters] = useState(500);
@@ -29,6 +31,15 @@ export function TerrainAnalysisSheet({ observer, pickingObserver, thresholdBound
 
   return (
     <section className="terrain-analysis" aria-label="Terrain analysis">
+      <label className="terrain-toggle">
+        <input
+          type="checkbox"
+          aria-label="3D terrain"
+          checked={terrainEnabled}
+          onChange={(event) => onTerrainVisibilityChange(event.target.checked)}
+        />
+        <span><strong>3D terrain</strong></span>
+      </label>
       <div className="tool-buttons" role="group" aria-label="Terrain tools">
         <button type="button" aria-pressed={tool === "threshold"} onClick={() => { setTool("threshold"); setSaved(false); setSaveError(null); }}>Threshold</button>
         <button type="button" aria-pressed={tool === "viewshed"} onClick={() => { setTool("viewshed"); setSaved(false); setSaveError(null); }}>Viewshed</button>

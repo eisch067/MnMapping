@@ -75,16 +75,42 @@ test("shows and remembers the first-use guide and live compass in the personal b
   await expect(page.getByLabel("First-use terrain guide")).toHaveCount(0);
 });
 
+test("keeps the Terrain sheet 3D terrain switch in sync with Layers", async ({ page }) => {
+  test.skip(!personalBuild, "3D terrain is available only in the personal build.");
+  await openMap(page);
+
+  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Terrain" }).click();
+  const terrainSheet = page.getByRole("complementary", { name: "Map sheet" });
+  const terrainSwitch = terrainSheet.getByRole("checkbox", { name: "3D terrain" });
+  await expect(terrainSwitch).not.toBeChecked();
+  await terrainSwitch.check();
+
+  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Layers" }).click();
+  const layersSheet = page.getByRole("complementary", { name: "Map sheet" });
+  await layersSheet.getByRole("button", { name: /^3D terrain/ }).click();
+  const layerSwitch = layersSheet.locator("#layer-section-terrain").getByRole("checkbox", { name: /3D Terrain/ });
+  await expect(layerSwitch).toBeChecked();
+  await layerSwitch.uncheck({ force: true });
+
+  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Terrain" }).click();
+  await expect(terrainSwitch).not.toBeChecked();
+
+  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Layers" }).click({ force: true });
+  await layerSwitch.check({ force: true });
+  await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Terrain" }).click({ force: true });
+  await expect(terrainSwitch).toBeChecked();
+});
+
 test("runs a local viewshed and shows its disclosure and temporary-save label", async ({ page }, testInfo) => {
   test.skip(!personalBuild, "Terrain analysis is personal-build only.");
   const canvas = await openMap(page, stubDem);
   await page.getByRole("navigation", { name: "Map tools" }).getByRole("button", { name: "Terrain" }).click();
   const sheet = page.getByRole("complementary", { name: "Map sheet" });
   await expect(sheet.getByRole("button", { name: "Threshold" })).toBeVisible();
-  await expect(sheet.getByRole("button", { name: "Viewshed" })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Viewshed" })).toHaveAttribute("aria-pressed", "true");
+  const terrainSwitch = sheet.getByRole("checkbox", { name: "3D terrain" });
+  await expect(terrainSwitch).not.toBeChecked();
   await expect(sheet.locator(".terrain-accuracy-note")).toBeVisible();
-  await expect(sheet.getByText(/temporary on this device only · not synced, exported, or a My Data item/)).toBeVisible();
-  await sheet.getByRole("button", { name: "Viewshed" }).click();
   await sheet.getByRole("button", { name: "Place observer on map" }).click();
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Map canvas is not visible.");
