@@ -19,9 +19,18 @@ export function geodesicLengthMeters(coordinates: readonly Position[]): number {
 }
 
 export function geodesicMidpoint(start: Position, end: Position): Position {
+  return geodesicPointAt(start, end, 0.5);
+}
+
+export function geodesicPointAt(start: Position, end: Position, fraction: number): Position {
   const inverse = Geodesic.WGS84.Inverse(start[1], start[0], end[1], end[0]);
-  const midpoint = Geodesic.WGS84.Direct(start[1], start[0], inverse.azi1, inverse.s12 / 2);
-  return [midpoint.lon2, midpoint.lat2];
+  const point = Geodesic.WGS84.Direct(
+    start[1],
+    start[0],
+    inverse.azi1,
+    inverse.s12 * Math.max(0, Math.min(1, fraction)),
+  );
+  return [point.lon2, point.lat2];
 }
 
 export function geodesicPolygonMeasurements(ring: readonly Position[]): PolygonMeasurements {

@@ -16,10 +16,13 @@ import { useShapeDrawing } from "@/components/shell/useShapeDrawing";
 import { useSheetState } from "@/components/shell/useSheetState";
 import type { Bounds } from "@/lib/exchange/bounds";
 import type { IdentifyPoint } from "@/lib/identify/types";
+import { isPersonalMode } from "@/config/appMode";
 import type { MapLocation, ViewportBounds } from "@/lib/location";
+import type { Position } from "@/lib/geodesy";
 import { recordRecentLocation } from "@/lib/locationHistory";
 import { CesiumMap, type MapViewControls } from "./CesiumMap";
 import { LocationGate } from "./LocationGate";
+import { TerrainCoachMark } from "./TerrainCoachMark";
 
 function statusText(cursor: [number, number] | null, viewportCounties: readonly string[]): string {
   if (cursor) return `${cursor[1].toFixed(5)}, ${cursor[0].toFixed(5)}`;
@@ -32,6 +35,9 @@ export function MapShell() {
   const [location, setLocation] = useState<MapLocation | null>(null);
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const [cameraHeight, setCameraHeight] = useState(Number.POSITIVE_INFINITY);
+  const [heading, setHeading] = useState(0);
+  const [observer, setObserver] = useState<Position | null>(null);
+  const [pickingObserver, setPickingObserver] = useState(false);
   const [cursor, setCursor] = useState<[number, number] | null>(null);
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
   const [viewControls, setViewControls] = useState<MapViewControls | null>(null);
@@ -59,6 +65,7 @@ export function MapShell() {
         tools.reset();
         shapes.cancel();
       }
+      if (openId !== sheetIds.terrain) setPickingObserver(false);
     },
   });
 
@@ -81,10 +88,17 @@ export function MapShell() {
     recordRecentLocation(next);
   };
   const changeArea = () => {
+    setObserver(null);
+    setPickingObserver(false);
     setViewportBounds(null);
     setLocation(null);
   };
   const handleMapClick = (point: IdentifyPoint) => {
+    if (pickingObserver) {
+      setObserver([point.longitude, point.latitude]);
+      setPickingObserver(false);
+      return;
+    }
     if (shapes.active) {
       if (!shapes.active.item) shapes.addPoint(point.longitude, point.latitude);
       return;
@@ -97,7 +111,7 @@ export function MapShell() {
   if (!location) return <LocationGate onLocationSelect={chooseLocation} />;
 
   const sheets = shellSheets({
-    layers: { ...layerControls.drawer, cameraHeight },
+    layers: { ...layerControls.drawer, cameraHeight, myDataVisible: myData.visible },
     myData: {
       ...myData,
       onImportFile: exchange.importFile,
@@ -109,6 +123,12 @@ export function MapShell() {
       },
     },
     explore: { state: identify, onSelect: identify.select, onClear: identify.clear },
+    terrain: {
+      observer,
+      pickingObserver,
+      thresholdBounds: viewportBounds,
+      onPickObserver: () => setPickingObserver(true),
+    },
     add: {
       mode: tools.mode,
       settingsReady: Boolean(myData.settings),
@@ -120,6 +140,12 @@ export function MapShell() {
         minimumVertices: shapes.minimumVertices,
         canUndo: shapes.active.state.history.length > 0,
         measurement: shapes.measurement,
+        elevationMeasurement: shapes.elevationMeasurement,
+        allowElevationMeasurements: isPersonalMode,
+        lineDimension: shapes.active.kind === "line" && shapes.active.primaryDimension && "unit" in shapes.active.primaryDimension
+          ? shapes.active.primaryDimension.kind
+          : undefined,
+        onLineDimensionChange: shapes.setLineDimension,
         polygonDimension: shapes.active.primaryDimension && "areaUnit" in shapes.active.primaryDimension
           ? shapes.active.primaryDimension.kind
           : undefined,
@@ -152,7 +178,7 @@ export function MapShell() {
   });
 
   return (
-    <div className={`app-shell ${sheet.docked ? "is-docked" : ""}`}>
+    <div className={`app-shell ${sheet.docked ? "is-docked" : ""} ${pickingObserver ? "is-picking-observer" : ""}`}>
       <main className="map-region">
         <CesiumMap
           {...layerControls.map}
@@ -161,6 +187,7 @@ export function MapShell() {
           onViewControlsReady={setViewControls}
           onViewportChange={setViewportBounds}
           onCameraHeightChange={setCameraHeight}
+          onHeadingChange={setHeading}
           interactionMode={shapes.active ? (shapes.active.item ? "edit" : shapes.active.kind) : tools.mode}
           myData={myData.items}
           myDataVisible={myData.visible}
@@ -172,7 +199,14 @@ export function MapShell() {
         />
       </main>
       <ShellHeader location={location} onChangeArea={changeArea} />
-      <MapControls onRecenter={() => resetCamera?.()} onTerrain={showTerrainView} />
+      <TerrainCoachMark onOpenLayers={() => sheet.open(sheetIds.layers)} />
+      <MapControls
+        onRecenter={() => resetCamera?.()}
+        onTerrain={showTerrainView}
+        heading={heading}
+        showCompass={isPersonalMode}
+        onResetNorth={() => viewControls?.resetNorth()}
+      />
       <SheetHost
         sheets={sheets}
         visibleId={sheet.visibleId}

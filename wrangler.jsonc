@@ -1,15 +1,25 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   // Default environment (no --env flag / CLOUDFLARE_ENV unset): the "personal" build. Deployed
-  // as the Worker named "mn-mapping" — this keeps the existing production URL. See
+  // as the Worker named "mnmapping" — this keeps the existing production URL. See
   // docs/two-versions.md for the full personal-vs-public deployment setup, including the
   // build-time NEXT_PUBLIC_APP_MODE and CLOUDFLARE_ENV variables each Cloudflare app must set.
-  "name": "mn-mapping",
+  "name": "mnmapping",
   "compatibility_date": "2026-09-14",
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "main": "vinext/server/fetch-handler",
+  "main": "src/worker.ts",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "D1.sync",
+      "database_id": "b29d3aa1-8ab4-4200-882b-abd146a49d22",
+      "preview_database_id": "f03132d8-a400-4ab2-aa31-972f5f3e4e4e",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "triggers": { "crons": ["0 3 * * *"] },
   "assets": {
     "directory": "dist/client",
     "not_found_handling": "none",
@@ -25,7 +35,7 @@
   // so everything except `name` is repeated here on purpose.
   "env": {
     "public": {
-      "name": "public-mn-mapping",
+      "name": "publicmnmapping",
       "compatibility_date": "2026-09-14",
       "compatibility_flags": [
         "nodejs_compat"
@@ -41,7 +51,9 @@
       },
       "version_metadata": {
         "binding": "CF_VERSION_METADATA"
-      }
+      },
+      "d1_databases": [],
+      "triggers": { "crons": [] }
     }
   }
 }

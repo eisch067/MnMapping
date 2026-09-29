@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { builtInSymbols } from "@/lib/myDataSymbols";
+import { isPersonalMode } from "@/config/appMode";
 import {
   TRASH_VIEW_ID,
   UNFILED_VIEW_ID,
@@ -10,6 +11,7 @@ import {
   type MyMapItem,
 } from "@/lib/myData";
 import type { ExportScope } from "@/lib/exchange/scope";
+import type { SyncStatus } from "@/lib/syncClient";
 import { MyDataToolbar } from "./MyDataToolbar";
 
 export interface MyDataSlotProps {
@@ -18,6 +20,9 @@ export interface MyDataSlotProps {
   folders: readonly MyDataFolder[];
   settings: MyDataSettings | null;
   error: string | null;
+  syncStatus: SyncStatus;
+  conflictCount: number;
+  onSyncRetry: () => void;
   visible: boolean;
   onVisibleChange: (visible: boolean) => void;
   onImportFile: (file: File) => Promise<void>;
@@ -136,7 +141,7 @@ function SettingsEditor(props: Pick<MyDataSlotProps, "settings" | "onUpdateSetti
         <label>Pin color<input type="color" value={settings.point.color} onChange={(event) => void updatePoint({ color: event.target.value })} /></label>
         <label>Line color<input type="color" value={settings.line.color} onChange={(event) => void updateLine({ color: event.target.value })} /></label>
         <label>Line width<input type="range" min="1" max="10" step="1" value={settings.line.width} onChange={(event) => void updateLine({ width: event.target.valueAsNumber })} /><output>{settings.line.width}px</output></label>
-        <label>Line distance<select value={settings.line.dimensionKind} onChange={(event) => void updateLine({ dimensionKind: event.target.value as MyDataSettings["line"]["dimensionKind"] })}><option value="horizontal">Horizontal</option><option value="direct" disabled>Direct (S12)</option><option value="ground" disabled>Ground (S12)</option></select></label>
+        <label>Line distance<select value={settings.line.dimensionKind} onChange={(event) => void updateLine({ dimensionKind: event.target.value as MyDataSettings["line"]["dimensionKind"] })}><option value="horizontal">Horizontal</option>{isPersonalMode && <><option value="direct">Direct (DEM)</option><option value="ground">Ground (DEM)</option></>}</select></label>
         <label>Line unit<select value={settings.line.unit} onChange={(event) => void updateLine({ unit: event.target.value as MyDataSettings["line"]["unit"] })}><option value="miles">Miles</option><option value="feet">Feet</option><option value="kilometers">Kilometers</option><option value="meters">Meters</option></select></label>
         <label>Polygon outline<input type="color" value={settings.polygon.outlineColor} onChange={(event) => void updatePolygon({ outlineColor: event.target.value })} /></label>
         <label>Polygon fill<input type="color" value={settings.polygon.fillColor} onChange={(event) => void updatePolygon({ fillColor: event.target.value })} /></label>
@@ -146,6 +151,7 @@ function SettingsEditor(props: Pick<MyDataSlotProps, "settings" | "onUpdateSetti
         <label>Perimeter unit<select value={settings.polygon.perimeterUnit} onChange={(event) => void updatePolygon({ perimeterUnit: event.target.value as MyDataSettings["polygon"]["perimeterUnit"] })}><option value="miles">Miles</option><option value="feet">Feet</option><option value="kilometers">Kilometers</option><option value="meters">Meters</option></select></label>
       </div>
       <small>Changes apply to new items only.</small>
+      {isPersonalMode && <small>Direct and ground distances are estimates from Minnesota’s 0.5 m NAVD88 lidar DEM (2021–2023); MNDNR contributed data. They are not survey measurements.</small>}
     </details>
   );
 }
@@ -195,6 +201,18 @@ export function MyDataSlot(props: MyDataSlotProps) {
         onCreateFolder={props.onCreateFolder}
       />
       {props.error && <p role="alert" className="my-data-error">{props.error}</p>}
+      {isPersonalMode && (
+        <div className="my-data-sync-status" role="status" aria-live="polite">
+          {props.syncStatus === "paused" ? (
+            <><span>sync paused</span><button type="button" onClick={props.onSyncRetry}>Retry sync</button></>
+          ) : props.syncStatus === "error" ? (
+            <><span>Sync unavailable; local changes are saved.</span><button type="button" onClick={props.onSyncRetry}>Retry sync</button></>
+          ) : props.syncStatus === "syncing" ? <span>Syncing…</span> : <span>Synced</span>}
+          {props.conflictCount > 0 && (
+            <p role="alert">{props.conflictCount} conflict {props.conflictCount === 1 ? "copy needs" : "copies need"} review.</p>
+          )}
+        </div>
+      )}
       {inTrash ? <TrashView {...props} /> : (
         <>
           <MyDataToolbar
@@ -234,7 +252,7 @@ export function MyDataSlot(props: MyDataSlotProps) {
       <SettingsEditor settings={props.settings} onUpdateSettings={props.onUpdateSettings} />
       <label className="file-import">Import GPX, KML, or GeoJSON<input type="file" accept=".gpx,.kml,.geojson,.json" onChange={importSelectedFile} /></label>
       <button type="button" onClick={props.onOpenBackup}>Backup and restore</button>
-      <p>Stored only in this browser unless you export it. Trash is removed after 30 days.</p>
+      <p>{isPersonalMode ? "Synced across devices in your personal account." : "Stored only in this browser unless you export it."} Trash is removed after 30 days.</p>
     </div>
   );
 }

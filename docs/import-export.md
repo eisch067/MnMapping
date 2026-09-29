@@ -72,9 +72,9 @@ Restore is additive and never changes anything already present:
 
 The result lists what was restored, left unchanged, and skipped.
 
-## Delete-all (local half)
+## Delete all My Data
 
-**Delete all my data…** offers an archive download first, then requires ticking "I understand this cannot be undone." before **Delete everything** is enabled. It clears items, folders, Trash, and settings from this browser and recreates default settings. The server half arrives with sync.
+**Delete all my data…** offers an archive download first, then requires ticking "I understand this cannot be undone." before **Delete everything** is enabled. In the personal build, confirmation first resets the account's synchronized records and obtains a server reset marker, then clears items, folders, Trash, local sync metadata, and settings in this browser and recreates default settings. A reset failure leaves the local copy untouched. Reconnecting devices pull the new marker and purge their old copy instead of uploading it. In the public build, deletion remains local.
 
 ## Tests
 

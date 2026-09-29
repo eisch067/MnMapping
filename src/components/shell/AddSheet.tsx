@@ -1,5 +1,5 @@
 import type { InteractionMode } from "@/components/map/CesiumMap";
-import type { PolygonDimensionKind } from "@/lib/myData";
+import type { DistanceKind, PolygonDimensionKind } from "@/lib/myData";
 import { ShapeActionPanel } from "./ShapeActionPanel";
 
 interface ActiveShapeProps {
@@ -10,6 +10,10 @@ interface ActiveShapeProps {
   minimumVertices: number;
   canUndo: boolean;
   measurement: string | null;
+  elevationMeasurement: boolean;
+  allowElevationMeasurements: boolean;
+  lineDimension?: DistanceKind;
+  onLineDimensionChange: (kind: DistanceKind) => void;
   polygonDimension?: PolygonDimensionKind;
   onDimensionChange: (kind: PolygonDimensionKind) => void;
   onUndo: () => void;

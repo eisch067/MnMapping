@@ -1,4 +1,4 @@
-import type { PolygonDimensionKind } from "@/lib/myData";
+import type { DistanceKind, PolygonDimensionKind } from "@/lib/myData";
 
 interface ShapeActionPanelProps {
   editing: boolean;
@@ -8,6 +8,10 @@ interface ShapeActionPanelProps {
   minimumVertices: number;
   canUndo: boolean;
   measurement: string | null;
+  elevationMeasurement: boolean;
+  allowElevationMeasurements: boolean;
+  lineDimension?: DistanceKind;
+  onLineDimensionChange: (kind: DistanceKind) => void;
   polygonDimension?: PolygonDimensionKind;
   onDimensionChange: (kind: PolygonDimensionKind) => void;
   onUndo: () => void;
@@ -23,6 +27,18 @@ export function ShapeActionPanel(props: ShapeActionPanelProps) {
       <span className="shape-kicker">{title}</span>
       <strong>{props.vertexCount} {props.vertexCount === 1 ? "vertex" : "vertices"}</strong>
       <p>{props.measurement ?? "Place vertices on the map. Segment labels update live."}</p>
+      {props.kind === "line" && (
+        <fieldset className="shape-dimension-picker">
+          <legend>Primary dimension</legend>
+          {(props.allowElevationMeasurements
+            ? ["horizontal", "direct", "ground"] as const
+            : ["horizontal"] as const).map((kind) => (
+            <button key={kind} type="button" aria-pressed={props.lineDimension === kind} onClick={() => props.onLineDimensionChange(kind)}>
+              {kind === "horizontal" ? "Horizontal" : kind === "direct" ? "Direct" : "Ground"}
+            </button>
+          ))}
+        </fieldset>
+      )}
       {props.kind === "polygon" && (
         <fieldset className="shape-dimension-picker">
           <legend>Primary dimension</legend>
@@ -32,6 +48,11 @@ export function ShapeActionPanel(props: ShapeActionPanelProps) {
             </button>
           ))}
         </fieldset>
+      )}
+      {props.allowElevationMeasurements && props.elevationMeasurement && (
+        <p className="measurement-disclosure">
+          Direct and ground distances are estimates from Minnesota’s 0.5 m NAVD88 lidar DEM (2021–2023); MNDNR contributed data. Verify critical measurements in the field.
+        </p>
       )}
       {props.editing && <p>Select a + midpoint on the map to insert a vertex.</p>}
       <div className="shape-actions">

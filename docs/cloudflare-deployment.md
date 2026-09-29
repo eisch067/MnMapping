@@ -14,8 +14,10 @@ One `main` branch produces two different deployments, distinguished only by a bu
 | Vendor county imagery (EagleView/Pictometry/etc., docs/licensing RISK-REGISTER.md item B1) | Embedded live | Linked out via "External imagery" only |
 | Parcel owner/mailing-address/tax fields for the 10 counties in item H2 | Shown | Redacted, with a link to the county's own site |
 | Esri 3D terrain (item H1) | Included | Not included |
+| My Data sync API and D1 storage | Included; Cloudflare Access identity required | Not deployed |
 | DNR Recreation layers, the Boundary Waters boundary, and the `dnr-gis` proxy provider ([DNR Recreation](dnr-recreation.md)) | Included | Not included; DNR must confirm a public release first |
-| Worker name / `wrangler.jsonc` environment | `mn-mapping` (default env) | `public-mn-mapping` (`env.public`) |
+| Terrain threshold and viewshed analysis ([Elevation and terrain sources](elevation-sources.md)) | Included; results remain on this device | Not included |
+| Worker name / `wrangler.jsonc` environment | `mnmapping` (default env) | `publicmnmapping` (`env.public`) |
 | Access | Password-protected (Cloudflare Access) — operator only | Open to anyone |
 
 Because this is a single codebase, every county or feature added in the future automatically exists in both builds — there is nothing to keep in sync between branches. `wrangler.jsonc` defines both Worker configurations; `package.json` has a matching `deploy:vinext:public` script alongside the existing `deploy:vinext`.
@@ -32,7 +34,7 @@ NEXT_PUBLIC_APP_MODE=personal npm run build:vinext         # personal
 The repository is already configured with:
 
 - `vite.config.ts` for vinext and the Cloudflare Vite plugin
-- `wrangler.jsonc` with the Worker name `mn-mapping`
+- `wrangler.jsonc` with the Worker name `mnmapping`
 - Cloudflare build, local-preview, and deploy scripts in `package.json`
 - automatic copying of Cesium runtime assets before Next.js and vinext builds
 
@@ -48,6 +50,16 @@ Wrangler serves the production Worker at `http://localhost:8787`. Press `x` in t
 
 Commit and push `package.json`, `package-lock.json`, `vite.config.ts`, `wrangler.jsonc`, and `.gitignore` before connecting Cloudflare. Cloudflare can only build files that exist in the GitHub repository.
 
+## My Data sync server
+
+The personal Worker exposes `GET` and `POST` under `/api/sync`. Every request must include the Cloudflare Access `cf-access-jwt-assertion` header. The Worker verifies the RS256 signature against the Access team JWKS and checks issuer, audience, expiry, and subject. The subject claim is the only owner key; request bodies cannot supply one. The personal client keeps the outbox, server cursor, acknowledged record baselines, and migration marker in IndexedDB. It pulls pages, pushes revision-checked idempotent mutations, and resumes after reconnect or a transient failure; an outbox entry is cleared only after its mutation is acknowledged. `POST /api/sync/reset` deletes that subject's records and replay markers and returns a server-time reset marker. Mutations must include the latest `accountResetAt` returned by a pull; the marker combines server time with a unique nonce so consecutive resets cannot reuse it. Missing or stale markers are rejected so a device cannot repopulate data after account reset. Reconnecting clients that see a changed marker purge their local records. D1 daily-limit errors return a retryable response; the client retains its outbox and reports **sync paused** until a later retry succeeds. The public build omits the sync route and has no D1 binding or cron trigger.
+
+Production D1 is `D1.sync` (`b29d3aa1-8ab4-4200-882b-abd146a49d22`); preview D1 is `D1.sync.preview` (`f03132d8-a400-4ab2-aa31-972f5f3e4e4e`). They are wired as different `database_id` and `preview_database_id` values. Apply schema changes with `npx wrangler d1 migrations apply D1.sync --remote` for production and `npx wrangler d1 migrations apply D1.sync --remote --preview` for preview. Do not point preview traffic at production.
+
+Set the non-secret Worker variables `ACCESS_TEAM_DOMAIN` (team domain without scheme) and `ACCESS_AUD` (the Access application audience tag) for both production and preview in Cloudflare. They are intentionally not checked into source control. The daily `0 3 * * *` cron uses Worker server time and replaces content of 30-day-old deleted records with minimal tombstones.
+
+The synced-item write path uses five D1 statements on success (three reads and a two-statement atomic batch), with at most 15 bound values in any statement; pull uses two statements. The owner/cursor index serves pull and cursor allocation, the composite primary key serves item lookup, and the partial purge index serves retention. An upsert accounts for five D1 row writes including index entries: one mutation row and its primary-key index, plus one record row and its primary-key and cursor-index entries. Soft delete adds one purge-index entry. `tests/workers/syncServer.test.ts` protects those query plans. On each personal client, local Trash remains until D1's accepted deletion time is at least 30 days old and the server's tombstone reaches the device; local wall-clock changes do not permanently remove synchronized records.
+
 ## Connect GitHub for automatic deployment
 
 1. Sign in to the Cloudflare dashboard and open **Workers & Pages**.
@@ -59,7 +71,7 @@ Commit and push `package.json`, `package-lock.json`, `vite.config.ts`, `wrangler
 
 | Setting | Value |
 | --- | --- |
-| Worker name | `mn-mapping` |
+| Worker name | `mnmapping` |
 | Production branch | `main` |
 | Root directory | Leave blank |
 | Build command | `npm run build:vinext` |
@@ -69,26 +81,26 @@ Commit and push `package.json`, `package-lock.json`, `vite.config.ts`, `wrangler
 The Worker name must match the `name` in `wrangler.jsonc`. No environment variables or secrets are currently required.
 
 7. Select **Save and Deploy**.
-8. When the build finishes, open the assigned `mn-mapping.<account-subdomain>.workers.dev` address.
+8. When the build finishes, open the assigned `mnmapping.<account-subdomain>.workers.dev` address.
 9. Test location search, select a result, enter Map View, and enable one statewide layer and one county layer. This exercises the page, Cesium assets, location-search route, and GIS proxy.
 
 After this connection, every push to `main` builds and deploys automatically. Builds from other branches can produce preview versions when non-production branch builds are enabled under **Settings > Build > Branch control**.
 
-This `mn-mapping` application is the **personal** build. Two one-time steps turn it from the pre-audit configuration into the password-protected personal deployment:
+This `mnmapping` application is the **personal** build. Two one-time steps turn it from the pre-audit configuration into the password-protected personal deployment:
 
-1. Open the `mn-mapping` application, then **Settings > Variables and Secrets**, and add a build variable: `NEXT_PUBLIC_APP_MODE` = `personal`. Trigger a new deployment (push to `main`, or **Deployments > Retry deployment**) so the build picks it up.
+1. Open the `mnmapping` application, then **Settings > Variables and Secrets**, and add a build variable: `NEXT_PUBLIC_APP_MODE` = `personal`. Trigger a new deployment (push to `main`, or **Deployments > Retry deployment**) so the build picks it up.
 2. Set up Cloudflare Access (below) so only you can reach it.
 
 ## Set up the public sharing deployment
 
-This is a second, separate Cloudflare application built from the same repository and branch, deployed as its own Worker (`public-mn-mapping`, defined under `env.public` in `wrangler.jsonc`) so it gets its own URL and is never password-gated.
+This is a second, separate Cloudflare application built from the same repository and branch, deployed as its own Worker (`publicmnmapping`, defined under `env.public` in `wrangler.jsonc`) so it gets its own URL and is never password-gated.
 
 1. In the Cloudflare dashboard, open **Workers & Pages > Create application > Import a repository** and select `eisch067/MnMapping` again (the same repo can back more than one application).
 2. Enter these settings:
 
 | Setting | Value |
 | --- | --- |
-| Worker name | `public-mn-mapping` |
+| Worker name | `publicmnmapping` |
 | Production branch | `main` |
 | Root directory | Leave blank |
 | Build command | `npm run build:vinext` |
@@ -97,11 +109,11 @@ This is a second, separate Cloudflare application built from the same repository
 
 3. Under **Settings > Variables and Secrets**, add two build variables:
    - `NEXT_PUBLIC_APP_MODE` = `public`
-   - `CLOUDFLARE_ENV` = `public` (this is what makes the build emit the `public-mn-mapping` Worker config instead of the default `mn-mapping` one — see the `env.public` block in `wrangler.jsonc`)
+   - `CLOUDFLARE_ENV` = `public` (this is what makes the build emit the `publicmnmapping` Worker config instead of the default `mnmapping` one — see the `env.public` block in `wrangler.jsonc`)
 4. Select **Save and Deploy**. Do not add a Cloudflare Access policy to this application — it's meant to be open.
-5. Open the assigned `public-mn-mapping.<account-subdomain>.workers.dev` address and run through the same smoke test as step 9 above, then confirm a county with unlicensed vendor imagery (e.g. Aitkin) shows an "External imagery ↗" link rather than an embedded layer, and that a county from the H2 redaction list (e.g. Hennepin) shows parcel shape/acres/legal description but no owner name or mailing address.
+5. Open the assigned `publicmnmapping.<account-subdomain>.workers.dev` address and run through the same smoke test as step 9 above, then confirm a county with unlicensed vendor imagery (e.g. Aitkin) shows an "External imagery ↗" link rather than an embedded layer, and that a county from the H2 redaction list (e.g. Hennepin) shows parcel shape/acres/legal description but no owner name or mailing address.
 
-Every future push to `main` now deploys to both `mn-mapping` (personal) and `public-mn-mapping` (sharing) automatically, each built from the identical source with only the build variables differing.
+Every future push to `main` now deploys to both `mnmapping` (personal) and `publicmnmapping` (sharing) automatically, each built from the identical source with only the build variables differing.
 
 ## Continuous integration
 
@@ -115,7 +127,13 @@ The `CI` workflow (`.github/workflows/ci.yml`) runs on every pull request. It ne
 
 The `DNR live smoke` workflow (`.github/workflows/dnr-smoke.yml`) is separate: it runs `npm run smoke:dnr` against DNR's live services weekly and on demand, and is not a pull-request check.
 
-Branch protection on `main` requires all three checks to pass and blocks direct pushes, so every change reaches `main` through a pull request. Actions in the workflow are pinned to commit SHAs with a version comment; update the SHA and the comment together. When a Playwright run fails, the workflow uploads its report and traces as an artifact for seven days.
+The `Cloudflare Worker name check` workflow (`.github/workflows/cloudflare-name-smoke.yml`) is also separate: it runs `npm run smoke:cloudflare-name` weekly and on demand, confirming `wrangler.jsonc`'s Worker names still match what's actually deployed (the two drifted silently for a long stretch — see `mnmapping` vs. `mn-mapping` in this file's own history). It needs two repository secrets, added once under **Settings > Secrets and variables > Actions** on the GitHub repo:
+- `CLOUDFLARE_ACCOUNT_ID` — the account ID shown on the Cloudflare dashboard's overview page.
+- `CLOUDFLARE_API_TOKEN` — a token scoped to **Workers Scripts:Read** only (**My Profile > API Tokens > Create Token**), not the full edit permission the deploy path doesn't need for this check.
+
+Until both secrets are added, this workflow's runs fail with a clear message asking for them, rather than silently skipping.
+
+Branch protection on `main` requires all three pull-request checks to pass and blocks direct pushes, so every change reaches `main` through a pull request. Actions in the workflow are pinned to commit SHAs with a version comment; update the SHA and the comment together. When a Playwright run fails, the workflow uploads its report and traces as an artifact for seven days.
 
 ## Password-protect the personal deployment with Cloudflare Access
 
@@ -123,17 +141,17 @@ Cloudflare Access sits in front of the Worker and blocks every request until the
 
 1. In the Cloudflare dashboard, open **Zero Trust** (left sidebar, may prompt you to enable Zero Trust on the account the first time — the free plan covers a small number of users).
 2. Go to **Access > Applications > Add an application**, and choose **Self-hosted**.
-3. Set the application domain to the `mn-mapping` Worker's hostname (`mnmapping.eischens-brad.workers.dev`, or your custom domain if you've added one under **Domains & Routes**).
+3. Set the application domain to the `mnmapping` Worker's hostname (`mnmapping.eischens-brad.workers.dev`, or your custom domain if you've added one under **Domains & Routes**).
 4. Add a policy, e.g. named "Owner only", action **Allow**, with an Include rule of **Emails** listing the address(es) you personally use to sign in. Save.
 5. Visit the personal URL in a private/incognito window. Cloudflare should present a login page (a one-time code emailed to you, or whatever identity provider you configured) before MnMapping loads at all. Confirm an email **not** on the allow list is rejected.
 
-The public (`public-mn-mapping`) application should have no Access application in front of it.
+The public (`publicmnmapping`) application should have no Access application in front of it.
 
 ## Add a custom domain
 
 The domain must already be an active zone in the same Cloudflare account.
 
-1. Open **Workers & Pages** and select `mn-mapping`.
+1. Open **Workers & Pages** and select `mnmapping`.
 2. Open **Settings > Domains & Routes**.
 3. Select **Add > Custom Domain**.
 4. Enter a hostname such as `map.example.com` and select **Add Custom Domain**.

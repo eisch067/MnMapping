@@ -19,6 +19,7 @@ export async function createDrawingOverlay(state: DrawingOverlayState): Promise<
     ColorMaterialProperty,
     ConstantProperty,
     CustomDataSource,
+    HeightReference,
     LabelStyle,
     PolygonHierarchy,
     VerticalOrigin,
@@ -41,13 +42,14 @@ export async function createDrawingOverlay(state: DrawingOverlayState): Promise<
       ),
       outline: new ConstantProperty(true),
       outlineColor: new ConstantProperty(lineColor),
+      heightReference: new ConstantProperty(HeightReference.CLAMP_TO_GROUND),
     },
   });
   state.vertices.forEach((point, index) => dataSource.entities.add({
     id: `drawing-vertex-${index}`,
     position: Cartesian3.fromDegrees(point[0], point[1]),
-    point: { color: Color.fromCssColorString("#ffd76a"), outlineColor: Color.WHITE, outlineWidth: 3, pixelSize: 22 },
-    label: { text: String(index + 1), fillColor: Color.fromCssColorString("#07041f"), font: "bold 11px sans-serif", style: LabelStyle.FILL, verticalOrigin: VerticalOrigin.CENTER },
+    point: { color: Color.fromCssColorString("#ffd76a"), outlineColor: Color.WHITE, outlineWidth: 3, pixelSize: 22, heightReference: HeightReference.CLAMP_TO_GROUND },
+    label: { text: String(index + 1), fillColor: Color.fromCssColorString("#07041f"), font: "bold 11px sans-serif", style: LabelStyle.FILL, verticalOrigin: VerticalOrigin.CENTER, heightReference: HeightReference.CLAMP_TO_GROUND },
   }));
   const segmentCount = state.closed ? state.vertices.length : Math.max(0, state.vertices.length - 1);
   for (let index = 0; index < segmentCount; index += 1) {
@@ -57,8 +59,8 @@ export async function createDrawingOverlay(state: DrawingOverlayState): Promise<
     dataSource.entities.add({
       id: `drawing-segment-${index}`,
       position: Cartesian3.fromDegrees(midpoint[0], midpoint[1]),
-      label: { text: formatDistance(geodesicDistanceMeters(start, end), state.segmentUnit), fillColor: Color.WHITE, font: "bold 11px sans-serif", showBackground: true, backgroundColor: Color.fromCssColorString("#07041f"), pixelOffset: new Cartesian2(0, -22) },
-      point: state.editing ? { color: Color.fromCssColorString("#07041f"), outlineColor: Color.fromCssColorString("#ffd76a"), outlineWidth: 2, pixelSize: 18 } : undefined,
+      label: { text: formatDistance(geodesicDistanceMeters(start, end), state.segmentUnit), fillColor: Color.WHITE, font: "bold 11px sans-serif", showBackground: true, backgroundColor: Color.fromCssColorString("#07041f"), pixelOffset: new Cartesian2(0, -22), heightReference: HeightReference.CLAMP_TO_GROUND },
+      point: state.editing ? { color: Color.fromCssColorString("#07041f"), outlineColor: Color.fromCssColorString("#ffd76a"), outlineWidth: 2, pixelSize: 18, heightReference: HeightReference.CLAMP_TO_GROUND } : undefined,
     });
   }
   return dataSource;

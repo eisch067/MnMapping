@@ -9,8 +9,20 @@ An independently displayable map dataset with its own visibility, opacity, order
 _Avoid_: Overlay, feed
 
 **Layer group**:
-A named collection of related layers whose group control suspends and restores the user's active subset.
-_Avoid_: Master layer, all-layers toggle
+A named collection of related layers with a group control and, for Parcels, Reference, Public lands, and each DNR Recreation heading, a category switch.
+_Avoid_: Master layer
+
+**Group control**:
+The checkbox on a layer group heading that hides the group's active subset and later restores exactly those layers.
+_Avoid_: All on, master toggle
+
+**Category switch**:
+The All on / All off switch on a layer group heading that turns every available layer in the group on or off; it reads on only while every available layer is on, and switching it off leaves nothing to restore.
+_Avoid_: Group control, all-layers toggle, master layer
+
+**Parcel range**:
+The counties any part of which lies within 50 miles of the center of the screen; while the Parcels category switch is on, parcel layers follow the parcel range as the map moves.
+_Avoid_: Viewport, nearby counties
 
 **Active subset**:
 The layers within a layer group that the user has individually selected and expects the group control to restore.
@@ -132,8 +144,12 @@ A live DNR bathymetry layer showing mapped lake outlines, depth contours, and an
 _Avoid_: LakeFinder summary, statewide depth coverage
 
 **Terrain viewshed**:
-An estimated area visible from an observer location based only on mapped terrain, observer height, and maximum distance.
+An estimated area visible from an observer location based only on sampled terrain, observer height, and maximum distance; the analysis is bounded by a device cell budget.
 _Avoid_: Line of sight, visibility guarantee
+
+**Temporary terrain analysis**:
+A threshold or viewshed result saved only in the current browser's local storage, not synchronized, exported, or managed as a My Data item.
+_Avoid_: My Data item, synced analysis
 
 **Identify**:
 Listing what the visible layers and saved My Data hold at one exact clicked or tapped point, shown in the Explore sheet with the point's coordinates and a crosshair on the map.

@@ -25,6 +25,7 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
     Color,
     ConstantProperty,
     GeoJsonDataSource,
+    HeightReference,
     ImageryLayer,
     Rectangle,
     TileMapServiceImageryProvider,
@@ -115,8 +116,11 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
         common,
       );
     }
-    case "geojson":
-      return GeoJsonDataSource.load(layer.url, geoJsonStyle(layer, Color));
+    case "geojson": {
+      const dataSource = await GeoJsonDataSource.load(layer.url, geoJsonStyle(layer, Color));
+      decorateGeoJson(dataSource, ConstantProperty, HeightReference);
+      return dataSource;
+    }
     case "cesium-terrain":
       return CesiumTerrainProvider.fromUrl(layer.url);
     case "arcgis-terrain":
@@ -146,7 +150,7 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
         onProgress: context.onProgress,
       });
       const dataSource = await GeoJsonDataSource.load(featureCollection, geoJsonStyle(layer, Color));
-      decorateGeoJson(dataSource, ConstantProperty);
+      decorateGeoJson(dataSource, ConstantProperty, HeightReference);
       return dataSource;
     }
   }
@@ -184,7 +188,7 @@ function geoJsonStyle(layer: LayerDefinition, Color: typeof import("cesium").Col
   const fillAlpha = Number(layer.options?.fillAlpha ?? 0.22) * opacity;
   const fill = Color.fromCssColorString(stringOption(layer, "fillColor") ?? "#68a677").withAlpha(fillAlpha);
   return {
-    clampToGround: false,
+    clampToGround: true,
     stroke,
     fill,
     strokeWidth: Number(layer.options?.strokeWidth ?? 2),
@@ -195,13 +199,16 @@ function geoJsonStyle(layer: LayerDefinition, Color: typeof import("cesium").Col
 function decorateGeoJson(
   dataSource: GeoJsonDataSource,
   ConstantProperty: typeof import("cesium").ConstantProperty,
+  HeightReference: typeof import("cesium").HeightReference,
 ) {
   for (const entity of dataSource.entities.values) {
     if (entity.polygon) {
-      entity.polygon.height = new ConstantProperty(0);
+      entity.polygon.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
       entity.polygon.outline = new ConstantProperty(true);
     }
     if (entity.polyline) entity.polyline.clampToGround = new ConstantProperty(true);
+    if (entity.billboard) entity.billboard.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
+    if (entity.point) entity.point.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
   }
 }
 
