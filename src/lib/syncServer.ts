@@ -54,8 +54,13 @@ function logAccessRejection(reason: AccessRejectionReason): null {
   return null;
 }
 
-export function unauthorizedResponse(): Response {
+function unauthorizedResponse(): Response {
   return Response.json({ error: "Unauthorized." }, { status: 401 });
+}
+
+export async function authorizeSyncRequest(request: Request, env: SyncEnv): Promise<string | Response> {
+  const owner = await verifyAccessToken(request, env);
+  return owner ?? unauthorizedResponse();
 }
 
 function tokenFailureReason(error: unknown): AccessRejectionReason {

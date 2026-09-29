@@ -1,6 +1,6 @@
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { describe, expect, it, vi } from "vitest";
-import { unauthorizedResponse, verifyAccessToken, type SyncEnv } from "../../src/lib/syncServer";
+import { authorizeSyncRequest, verifyAccessToken, type SyncEnv } from "../../src/lib/syncServer";
 
 const issuer = "https://sync-test.cloudflareaccess.com";
 const env = { ACCESS_TEAM_DOMAIN: "sync-test.cloudflareaccess.com", ACCESS_AUD: "app-aud", DB: {} } as SyncEnv;
@@ -16,11 +16,6 @@ async function token(privateKey: CryptoKey, claims: { iss?: string; aud?: string
 }
 
 describe("Cloudflare Access authentication", () => {
-  it("returns a plain unauthorized response when authentication fails", async () => {
-    const response = unauthorizedResponse();
-    expect(response.status).toBe(401);
-    expect(await response.json()).toEqual({ error: "Unauthorized." });
-  });
 
   it("accepts valid tokens and logs safe reason codes for every rejection", async () => {
     const { publicKey, privateKey } = await generateKeyPair("RS256");
@@ -44,7 +39,15 @@ describe("Cloudflare Access authentication", () => {
       ];
       for (const entry of rejectionCases) {
         const headers = entry.token ? { "cf-access-jwt-assertion": entry.token } : undefined;
-        expect(await verifyAccessToken(new Request("https://app.test", { headers }), entry.env ?? env)).toBeNull();
+        const authorization = await authorizeSyncRequest(
+          new Request("https://app.test", { headers }),
+          entry.env ?? env,
+        );
+        expect(authorization).toBeInstanceOf(Response);
+        if (authorization instanceof Response) {
+          expect(authorization.status).toBe(401);
+          expect(await authorization.json()).toEqual({ error: "Unauthorized." });
+        }
       }
 
       const logs = JSON.stringify(warn.mock.calls);
