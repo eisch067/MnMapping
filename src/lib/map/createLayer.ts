@@ -2,6 +2,7 @@ import type { GeoJsonDataSource, ImageryLayer, TerrainProvider } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
 import type { LayerBounds } from "@/config/layers/types";
 import { fetchAllArcGisFeatures, type ArcGisQueryProgress } from "@/lib/map/arcgisFeatures";
+import { decorateGeoJson } from "@/lib/map/decorateGeoJson";
 import {
   absoluteBrowserUrl,
   booleanOption,
@@ -194,22 +195,6 @@ function geoJsonStyle(layer: LayerDefinition, Color: typeof import("cesium").Col
     strokeWidth: Number(layer.options?.strokeWidth ?? 2),
     markerColor: Color.fromCssColorString(stringOption(layer, "fillColor") ?? "#68a677"),
   };
-}
-
-function decorateGeoJson(
-  dataSource: GeoJsonDataSource,
-  ConstantProperty: typeof import("cesium").ConstantProperty,
-  HeightReference: typeof import("cesium").HeightReference,
-) {
-  for (const entity of dataSource.entities.values) {
-    if (entity.polygon) {
-      entity.polygon.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
-      entity.polygon.outline = new ConstantProperty(true);
-    }
-    if (entity.polyline) entity.polyline.clampToGround = new ConstantProperty(true);
-    if (entity.billboard) entity.billboard.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
-    if (entity.point) entity.point.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
-  }
 }
 
 function levelOptions(layer: LayerDefinition) {

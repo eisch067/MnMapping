@@ -8,6 +8,43 @@ async function openReferenceLayers(page: Page) {
   return page.locator("#layer-section-reference");
 }
 
+test("a feature layer with a degenerate polygon does not stop subsequent layers", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  let featureQueryCount = 0;
+  const canvas = await openMap(page, async (currentPage) => {
+    await currentPage.route("**/api/gis-proxy/**", (route) => {
+      const url = new URL(route.request().url());
+      if (!url.pathname.endsWith("/query")) return route.abort();
+      featureQueryCount += 1;
+      return route.fulfill({ json: {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          properties: { unit_name: "Collapsed WMA" },
+          geometry: { type: "Polygon", coordinates: [[[-95, 47], [-95, 47], [-95, 47], [-95, 47]]] },
+        }],
+      } });
+    });
+  });
+  await page.getByRole("button", { name: "Layers", exact: true }).click();
+  await page.getByRole("button", { name: /^Public lands\b/ }).click();
+  const publicLands = page.locator("#layer-section-public-land");
+  const wmas = publicLands.getByRole("checkbox", { name: /^Publicly Accessible WMAs/ });
+  if (await wmas.isChecked()) await wmas.uncheck();
+  await wmas.check();
+  await expect.poll(() => featureQueryCount).toBeGreaterThan(0);
+  await expect(publicLands.getByRole("checkbox", { name: /^Publicly Accessible WMAs/ })).toBeChecked();
+  await expect(page.locator(".cesium-widget-errorPanel")).toHaveCount(0);
+  await publicLands.getByRole("checkbox", { name: /^Scientific & Natural Areas/ }).check();
+  await expect.poll(() => featureQueryCount).toBeGreaterThan(1);
+  await expect(canvas).toBeVisible();
+  await expect(page.locator(".cesium-widget-errorPanel")).toHaveCount(0);
+  expect(errors.join("\n")).not.toContain("Entity corridor, ellipse, polygon or rectangle with heightReference must also have a defined height");
+});
+
 test("a layer can be toggled on and off", async ({ page }) => {
   const reference = await openReferenceLayers(page);
   const roads = reference.getByRole("checkbox", { name: /^Roads & Highways/ });
