@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isPersonalMode } from "@/config/appMode";
 import type { SyncStatus } from "@/lib/syncClient";
 import { startSyncPolling } from "@/lib/syncPolling";
+import { retainUnchanged, sameValue } from "@/lib/retainUnchanged";
 import {
   getMyDataStore,
   type MyDataFolder,
@@ -21,16 +22,21 @@ export function useMyData() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(isPersonalMode ? "syncing" : "idle");
   const [conflictCount, setConflictCount] = useState(0);
   const syncing = useRef(false);
+  const refreshRequest = useRef(0);
   const signInNeededRef = useRef(false);
   const signInNeeded = syncStatus === "sign-in-needed";
 
   const refresh = useCallback(async () => {
+    const request = ++refreshRequest.current;
     const store = await getMyDataStore();
     const snapshot = await store.load();
     const syncState = await store.getState();
-    setItems(snapshot.items);
-    setFolders(snapshot.folders);
-    setSettings(snapshot.settings);
+    if (request !== refreshRequest.current) return;
+    setItems((previous) => retainUnchanged(previous, snapshot.items));
+    setFolders((previous) => retainUnchanged(previous, snapshot.folders));
+    setSettings((previous) =>
+      previous && sameValue(previous, snapshot.settings) ? previous : snapshot.settings,
+    );
     setConflictCount(syncState.conflictCount ?? 0);
   }, []);
 
@@ -95,8 +101,10 @@ export function useMyData() {
     await mutate(async () => (await getMyDataStore()).addItem(item));
   }, [mutate]);
 
+  const visibleItems = useMemo(() => items.filter((item) => !item.deletion), [items]);
+
   return {
-    items: items.filter((item) => !item.deletion),
+    items: visibleItems,
     allItems: items,
     folders,
     settings,

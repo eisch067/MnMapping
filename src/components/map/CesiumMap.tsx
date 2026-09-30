@@ -100,6 +100,8 @@ export function CesiumMap({
   const retryVersionRef = useRef<Record<string, number>>({});
   const activeLayerIdsRef = useRef(new Set(layers.map((layer) => layer.id)));
   const personalDataRef = useRef<GeoJsonDataSource | null>(null);
+  const myDataRequestRef = useRef(0);
+  const myDataVisibleRef = useRef(myDataVisible);
   const measurementLabelCacheRef = useRef(new Map<string, string | null>());
   const drawingDataRef = useRef<CustomDataSource | null>(null);
   const drawingOverlayRef = useRef(drawingOverlay);
@@ -288,23 +290,32 @@ export function CesiumMap({
   useEffect(() => { headingChangeRef.current = onHeadingChange; }, [onHeadingChange]);
   useEffect(() => { drawingOverlayRef.current = drawingOverlay; }, [drawingOverlay]);
   useEffect(() => { midpointInsertRef.current = onMidpointInsert; }, [onMidpointInsert]);
+  useEffect(() => {
+    myDataVisibleRef.current = myDataVisible;
+    if (personalDataRef.current) personalDataRef.current.show = myDataVisible;
+  }, [myDataVisible]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!mapReady || !viewer) return;
     let cancelled = false;
+    const request = ++myDataRequestRef.current;
     void import("cesium").then(async ({ Color, ConstantProperty, GeoJsonDataSource, HeightReference }) => {
       const dataSource = await GeoJsonDataSource.load(toGeoJson(myData), { clampToGround: true, markerColor: Color.fromCssColorString("#de6b48"), stroke: Color.fromCssColorString("#de6b48"), fill: Color.fromCssColorString("#de6b48").withAlpha(0.2), strokeWidth: 3 });
       await applyMyDataAppearance(dataSource, myData);
       decorateGeoJson(dataSource, ConstantProperty, HeightReference);
       dataSource.name = "My Data";
-      dataSource.show = myDataVisible;
-      if (cancelled || viewer.isDestroyed()) return;
+      dataSource.show = myDataVisibleRef.current;
+      if (cancelled || request !== myDataRequestRef.current || viewer.isDestroyed()) return;
       const previous = personalDataRef.current;
       await viewer.dataSources.add(dataSource);
+      if (cancelled || request !== myDataRequestRef.current || viewer.isDestroyed()) {
+        if (!viewer.isDestroyed()) viewer.dataSources.remove(dataSource, true);
+        return;
+      }
       personalDataRef.current = dataSource;
       if (previous) viewer.dataSources.remove(previous, true);
-      if (myDataVisible) {
+      if (myDataVisibleRef.current) {
         void addMyDataMeasurementLabels(
           dataSource,
           myData,
@@ -315,7 +326,7 @@ export function CesiumMap({
       }
     });
     return () => { cancelled = true; };
-  }, [mapReady, myData, myDataVisible]);
+  }, [mapReady, myData]);
 
   useEffect(() => {
     const viewer = viewerRef.current;

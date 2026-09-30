@@ -8,7 +8,6 @@ interface TerrainSectionProps {
   layers: readonly LayerDefinition[];
   state: LayerStateById;
   drapedLayerNames: readonly string[];
-  myDataVisible: boolean;
   exaggeration: number;
   onVisibilityChange: (id: string, visible: boolean) => void;
   onExaggerationChange: (exaggeration: number) => void;
@@ -20,7 +19,6 @@ export function TerrainSection({
   layers,
   state,
   drapedLayerNames,
-  myDataVisible,
   exaggeration,
   onVisibilityChange,
   onExaggerationChange,
@@ -53,11 +51,10 @@ export function TerrainSection({
           ))}
           <div className="draped-layer-status" role="status" aria-label="Draped layers">
             <strong>Draped layers</strong>
-            {drapedLayerNames.length === 0 && !myDataVisible
-              ? <small>No visible map overlays or My Data.</small>
+            {drapedLayerNames.length === 0
+              ? <small>No visible map overlays.</small>
               : <ul>
                 {drapedLayerNames.map((name) => <li key={name}>{name} <span>clamped to surface</span></li>)}
-                {myDataVisible && <li>My Data <span>clamped to surface</span></li>}
               </ul>}
           </div>
         </div>
