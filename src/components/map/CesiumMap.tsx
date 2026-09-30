@@ -34,7 +34,10 @@ interface CesiumMapProps {
   verticalExaggeration: number;
   onResetReady: (reset: () => void) => void;
   onViewControlsReady: (controls: MapViewControls) => void;
-  onViewportChange: (bounds: ViewportBounds) => void;
+  onViewportChange: (
+    bounds: ViewportBounds,
+    center: { latitude: number; longitude: number },
+  ) => void;
   onCameraHeightChange: (height: number) => void;
   onHeadingChange: (heading: number) => void;
   interactionMode: InteractionMode;
@@ -203,7 +206,20 @@ export function CesiumMap({
         const currentCameraHeight = viewer.camera.positionCartographic.height;
         setCameraHeight(currentCameraHeight);
         onCameraHeightChange(currentCameraHeight);
-        onViewportChange(bounds);
+        const screenCenter = new Cartesian2(viewer.canvas.clientWidth / 2, viewer.canvas.clientHeight / 2);
+        const centerCartesian = viewer.camera.pickEllipsoid(screenCenter, viewer.scene.globe.ellipsoid);
+        const centerPoint = centerCartesian
+          ? viewer.scene.globe.ellipsoid.cartesianToCartographic(centerCartesian)
+          : undefined;
+        onViewportChange(bounds, centerPoint
+          ? {
+              latitude: CesiumMath.toDegrees(centerPoint.latitude),
+              longitude: CesiumMath.toDegrees(centerPoint.longitude),
+            }
+          : {
+              latitude: (bounds.south + bounds.north) / 2,
+              longitude: (bounds.west + bounds.east) / 2,
+            });
       };
       viewer.camera.moveEnd.addEventListener(reportViewport);
       viewer.camera.moveEnd.addEventListener(reportHeading);

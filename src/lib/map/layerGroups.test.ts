@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyParcelRange,
   categorySwitch,
   categorySwitchIsOn,
   forgetSuspended,
   groupStatus,
   restoreGroup,
   setLayerVisible,
+  setParcelRangeFollowing,
+  setParcelVisibleManually,
   suspendGroup,
   toggleGroup,
 } from "@/lib/map/layerGroups";
@@ -18,7 +21,7 @@ function selection(visibleIds: readonly string[], suspended: LayerSelection["sus
   const layers = Object.fromEntries(
     [...members, "outside"].map((id) => [id, { visible: visibleIds.includes(id), opacity: 0.6 }]),
   );
-  return { layers, suspended } satisfies LayerSelection;
+  return { layers, suspended, parcelRangeFollowing: false } satisfies LayerSelection;
 }
 
 function visibleIds(state: LayerSelection): string[] {
@@ -207,7 +210,7 @@ describe("toggleGroup", () => {
   });
 
   it("cycles through suspend and restore without drifting", () => {
-    let state = selection(["forest", "county"]);
+    let state: LayerSelection = selection(["forest", "county"]);
     for (let cycle = 0; cycle < 3; cycle++) {
       state = toggleGroup(toggleGroup(state, group, members), group, members);
     }
@@ -265,6 +268,56 @@ describe("categorySwitch", () => {
 
     expect(visibleIds(next)).toEqual(["wma", "county"]);
     expect(next.layers.forest?.visible).toBe(false);
+  });
+});
+
+describe("parcel range following", () => {
+  const countyLayers = { North: ["north-parcels"], South: ["south-parcels"] };
+  const start = {
+    ...selection([]),
+    layers: {
+      ...selection([]).layers,
+      "north-parcels": { visible: false, opacity: 0.8 },
+      "south-parcels": { visible: false, opacity: 0.8 },
+    },
+  };
+
+  it("turns counties on as they enter and off as they leave the range", () => {
+    const following = setParcelRangeFollowing(start, true, []);
+    const northIn = applyParcelRange(following, countyLayers, ["North"]);
+    expect(northIn.layers["north-parcels"]?.visible).toBe(true);
+    expect(northIn.layers["south-parcels"]?.visible).toBe(false);
+    const southIn = applyParcelRange(northIn, countyLayers, ["South"]);
+
+    expect(southIn.layers["north-parcels"]?.visible).toBe(false);
+    expect(southIn.layers["south-parcels"]?.visible).toBe(true);
+  });
+
+  it("manual opt-out turns following off", () => {
+    const initiallySelected = {
+      ...start,
+      layers: {
+        ...start.layers,
+        "north-parcels": { visible: true, opacity: 0.8 },
+        "south-parcels": { visible: true, opacity: 0.8 },
+      },
+    };
+    const following = setParcelRangeFollowing(initiallySelected, true, []);
+    const next = setParcelVisibleManually(following, "north-parcels", false);
+    const manual = applyParcelRange(next, countyLayers, []);
+
+    expect(next.parcelRangeFollowing).toBe(false);
+    expect(categorySwitchIsOn(next, ["north-parcels", "south-parcels"])).toBe(false);
+    expect(manual.layers["north-parcels"]?.visible).toBe(false);
+    expect(manual.layers["south-parcels"]?.visible).toBe(true);
+  });
+
+  it("pauses while parcels are suspended and resumes after restore", () => {
+    const active = { ...setParcelRangeFollowing(start, true, []), layers: { ...start.layers, "north-parcels": { visible: true, opacity: 0.8 } } };
+    const paused = { ...active, suspended: { parcels: ["north-parcels"] } };
+
+    expect(applyParcelRange(paused, countyLayers, []).layers["north-parcels"]?.visible).toBe(true);
+    expect(applyParcelRange({ ...paused, suspended: {} }, countyLayers, []).layers["north-parcels"]?.visible).toBe(false);
   });
 });
 

@@ -13,6 +13,7 @@ export type SuspendedByGroup = Record<string, readonly string[]>;
 export interface LayerSelection {
   layers: LayerStateById;
   suspended: SuspendedByGroup;
+  parcelRangeFollowing: boolean;
 }
 
 export interface LayerPreferences extends LayerSelection {
@@ -21,7 +22,7 @@ export interface LayerPreferences extends LayerSelection {
 }
 
 const preferenceKey = "mnmapping.layer-preferences";
-const preferencesVersion = 2;
+const preferencesVersion = 3;
 // Preferences saved before they carried a version live under their own key.
 const legacyPreferenceKey = "mnmapping.layer-preferences.v1";
 const legacyOrderVersion = 2;
@@ -42,6 +43,7 @@ export function restoreLayerPreferences(layers: readonly LayerDefinition[]): Lay
   return {
     layers: restoreLayers(layers, stored.layers),
     suspended: restoreSuspended(stored.suspended, new Set(layers.map((layer) => layer.id))),
+    parcelRangeFollowing: stored.parcelRangeFollowing === true,
     order: restoreOrder(layers, stored.order),
     verticalExaggeration: restoreVerticalExaggeration(stored.verticalExaggeration),
   };
@@ -114,6 +116,7 @@ function readPreferences(): StoredPreferences | null {
   if (typeof window === "undefined") return null;
   const current = readJson(preferenceKey);
   if (isRecord(current) && current.version === preferencesVersion) return current;
+  if (isRecord(current) && current.version === 2) return current;
   const legacy = readJson(legacyPreferenceKey);
   return isRecord(legacy) ? migrateLegacyPreferences(legacy) : null;
 }
