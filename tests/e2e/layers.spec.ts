@@ -125,7 +125,7 @@ test("the Reference category switch turns every layer on and off without changin
   await expect(groupControl).toBeChecked();
 
   await categorySwitch.uncheck();
-  await expect(page.getByRole("status")).toHaveText(
+  await expect(page.locator(".category-all-off-note")).toHaveText(
     "All layers are off. To hide and bring back only your picks, use the checkbox.",
   );
   await expect(roads).not.toBeChecked();
