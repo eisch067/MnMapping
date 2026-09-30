@@ -113,7 +113,7 @@ export function MapShell() {
 
   const terrainLayer = layerControls.drawer.layers.find(isTerrainLayer);
   const sheets = shellSheets({
-    layers: { ...layerControls.drawer, cameraHeight, myDataVisible: myData.visible },
+    layers: { ...layerControls.drawer, cameraHeight },
     myData: {
       ...myData,
       onImportFile: exchange.importFile,

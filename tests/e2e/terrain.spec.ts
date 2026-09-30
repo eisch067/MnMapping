@@ -83,6 +83,36 @@ async function selectMapSheet(page: Page, name: string, id: string) {
   await expect(page.locator(`#sheet-${id}`)).toBeVisible();
 }
 
+test("keeps My Data out of the Draped layers list", async ({ page }) => {
+  test.skip(!personalBuild, "The Draped layers list is available only with 3D terrain in the personal build.");
+  await openMap(page);
+  await page.getByRole("navigation", { name: "Map tools" })
+    .getByRole("button", { name: "My Data", exact: true }).click();
+  const myDataSheet = page.getByRole("complementary", { name: "Map sheet" });
+  await myDataSheet.getByLabel("Import GPX, KML, or GeoJSON").setInputFiles({
+    name: "draped-list.geojson",
+    mimeType: "application/geo+json",
+    buffer: Buffer.from(JSON.stringify({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        properties: { name: "Private pin" },
+        geometry: { type: "Point", coordinates: [-95, 47] },
+      }],
+    })),
+  });
+  await expect(myDataSheet.getByText(/^Imported into draped-list\.geojson /)).toBeVisible();
+
+  await page.getByRole("navigation", { name: "Map tools" })
+    .getByRole("button", { name: "Layers", exact: true }).click();
+  const layersSheet = page.getByRole("complementary", { name: "Map sheet" });
+  await layersSheet.getByRole("button", { name: /^3D terrain/ }).click();
+  const drapedLayers = layersSheet.getByRole("status", { name: "Draped layers" });
+  await expect(drapedLayers).toBeVisible();
+  await expect(drapedLayers).not.toContainText("My Data");
+  await expect(drapedLayers).not.toContainText("Private pin");
+});
+
 test("keeps the Terrain sheet 3D terrain switch in sync with Layers", async ({ page }) => {
   test.skip(!personalBuild, "3D terrain is available only in the personal build.");
   await openMap(page);

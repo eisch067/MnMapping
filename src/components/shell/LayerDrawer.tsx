@@ -21,7 +21,6 @@ import { useLayerTransfer, usageFor } from "./layers/useLayerTransfer";
 export interface LayerDrawerProps extends LayerControls {
   layers: readonly LayerDefinition[];
   terrainExaggeration: number;
-  myDataVisible?: boolean;
   onTerrainExaggerationChange: (exaggeration: number) => void;
   externalImagery: readonly RestrictedImagerySource[];
   pendingParcelCounties: readonly string[];
@@ -92,7 +91,6 @@ export function LayerDrawer(props: LayerDrawerProps) {
           layers={terrainLayers}
           state={state}
           drapedLayerNames={layers.filter((layer) => !isTerrainLayer(layer) && isLayerVisible(layer, state) && isLayerAvailableAtCameraHeight(layer, cameraHeight)).map((layer) => layer.name)}
-          myDataVisible={props.myDataVisible ?? false}
           exaggeration={props.terrainExaggeration}
           onVisibilityChange={props.onVisibilityChange}
           onExaggerationChange={props.onTerrainExaggerationChange}
