@@ -165,8 +165,10 @@ test.describe("the personal build", () => {
     for (const heading of headings) {
       await expect(headingButton(page, heading)).toBeVisible();
       await expect(groupControl(page, heading)).toBeVisible();
+      await expect(page.getByRole("checkbox", { name: `All ${heading} on` })).toBeVisible();
     }
     await expect(page.getByRole("button", { name: /^DNR Recreation\b.*0 on/ })).toBeVisible();
+    await expect(page.getByRole("checkbox", { name: "All DNR Recreation on" })).toHaveCount(0);
     for (const heading of headings.slice(0, 3)) await headingButton(page, heading).click();
     const section = page.locator("#layer-section-dnr-recreation");
     await expect(section.getByRole("checkbox", { checked: true })).toHaveCount(0);

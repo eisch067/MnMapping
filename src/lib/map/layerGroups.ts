@@ -98,6 +98,24 @@ export function toggleGroup(
     : suspendGroup(selection, groupId, memberIds);
 }
 
+export function categorySwitch(
+  selection: LayerSelection,
+  memberIds: readonly string[],
+  visible: boolean,
+): LayerSelection {
+  return {
+    layers: withLayerVisibility(selection.layers, memberIds, visible),
+    suspended: withoutSuspendedIds(selection.suspended, (id) => memberIds.includes(id)),
+  };
+}
+
+export function categorySwitchIsOn(
+  selection: Pick<LayerSelection, "layers">,
+  memberIds: readonly string[],
+): boolean {
+  return memberIds.length > 0 && memberIds.every((id) => selection.layers[id]?.visible);
+}
+
 export function forgetSuspended(
   selection: LayerSelection,
   shouldForget: (layerId: string) => boolean,

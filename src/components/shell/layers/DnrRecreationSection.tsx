@@ -32,6 +32,9 @@ export function DnrRecreationSection({ layers, controls, sections }: DnrRecreati
                 layers={headingLayers}
                 state={controls.state}
                 groupControls={controls}
+                categorySwitch
+                seasonGates={controls.seasonGates}
+                onToggleCategory={controls.onToggleCategory}
                 showWhenEmpty
                 expanded={!collapsed}
                 onToggleExpand={() => sections.toggle(groupId)}

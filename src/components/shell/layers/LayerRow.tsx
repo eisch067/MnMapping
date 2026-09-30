@@ -18,6 +18,7 @@ export interface LayerControls {
   seasonGates: SeasonGates;
   onVisibilityChange: (id: string, visible: boolean) => void;
   onToggleGroup: (groupId: string, layerIds: readonly string[]) => void;
+  onToggleCategory: (groupId: string, layerIds: readonly string[], visible: boolean) => void;
   onOpacityChange: (id: string, opacity: number) => void;
   onMoveLayer: (id: string, direction: "up" | "down") => void;
   onRetryLayer: (id: string) => void;

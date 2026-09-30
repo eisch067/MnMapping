@@ -13,7 +13,7 @@ import {
   type MapLocation,
   type ViewportBounds,
 } from "@/lib/location";
-import { forgetSuspended, setLayerVisible, toggleGroup } from "@/lib/map/layerGroups";
+import { categorySwitch, forgetSuspended, setLayerVisible, toggleGroup } from "@/lib/map/layerGroups";
 import type { LayerRuntimeState, LayerRuntimeStateById } from "@/lib/map/layerRuntime";
 import {
   restoreLayerPreferences,
@@ -221,6 +221,14 @@ export function useLayerControls(
     const available = layerIds.filter((id) => isSeasonAvailable(seasonGates, id));
     setSelection((current) => toggleGroup(current, groupId, available));
   };
+  const toggleLayerCategory = (
+    groupId: string,
+    layerIds: readonly string[],
+    visible: boolean,
+  ) => {
+    const available = layerIds.filter((id) => isSeasonAvailable(seasonGates, id));
+    setSelection((current) => categorySwitch(current, available, visible));
+  };
   const moveLayer = (id: string, direction: "up" | "down") => {
     const target = findMoveTarget(area.activeLayers, id, direction);
     if (target) setLayerOrder((current) => swapIds(current, id, target.id));
@@ -234,6 +242,7 @@ export function useLayerControls(
     terrainExaggeration: verticalExaggeration,
     onVisibilityChange: setVisible,
     onToggleGroup: toggleLayerGroup,
+    onToggleCategory: toggleLayerCategory,
     onOpacityChange: setOpacity,
     onTerrainExaggerationChange: setVerticalExaggeration,
     onMoveLayer: moveLayer,
