@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import { LayersIcon } from "@/components/ui/MapIcons";
+import { isTerrainLayer } from "@/config/layers/types";
 import { MapControls } from "@/components/shell/MapControls";
 import { SheetHost } from "@/components/shell/SheetHost";
 import { ShellHeader } from "@/components/shell/ShellHeader";
@@ -110,6 +111,7 @@ export function MapShell() {
 
   if (!location) return <LocationGate onLocationSelect={chooseLocation} />;
 
+  const terrainLayer = layerControls.drawer.layers.find(isTerrainLayer);
   const sheets = shellSheets({
     layers: { ...layerControls.drawer, cameraHeight, myDataVisible: myData.visible },
     myData: {
@@ -127,6 +129,10 @@ export function MapShell() {
       observer,
       pickingObserver,
       thresholdBounds: viewportBounds,
+      terrainEnabled: Boolean(terrainLayer && layerControls.drawer.state[terrainLayer.id]?.visible),
+      onTerrainVisibilityChange: (visible: boolean) => {
+        if (terrainLayer) layerControls.drawer.onVisibilityChange(terrainLayer.id, visible);
+      },
       onPickObserver: () => setPickingObserver(true),
     },
     add: {
