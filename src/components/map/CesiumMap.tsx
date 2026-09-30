@@ -10,7 +10,7 @@ import type { IdentifyPoint } from "@/lib/identify/types";
 import { applyGeoJsonOpacity, createLayerResource } from "@/lib/map/createLayer";
 import { decorateGeoJson } from "@/lib/map/decorateGeoJson";
 import { imageryStackBand } from "@/lib/map/layerStack";
-import { parcelZoomBand } from "@/lib/map/parcelLoading";
+import { parcelZoomBand, shouldUseParcelOverviewImagery } from "@/lib/map/parcelLoading";
 import type { LayerStateById } from "@/lib/map/layerState";
 import type { LayerRuntimeState } from "@/lib/map/layerRuntime";
 import type { Bounds } from "@/lib/exchange/bounds";
@@ -385,11 +385,14 @@ export function CesiumMap({
     for (const [id, imagery] of imageryRef.current) {
       const currentState = layerState[id];
       const definition = layers.find((layer) => layer.id === id);
+      const overviewImagery = definition?.options?.overviewImageryUrl !== undefined;
+      const isOverviewImage = overviewImagery
+        && shouldUseParcelOverviewImagery(cameraHeight, Number(definition.options?.maxCameraHeight ?? Number.POSITIVE_INFINITY));
       // Cesium layers expose visibility through an intentionally mutable object API.
       // eslint-disable-next-line react-hooks/immutability
       imagery.show = activeLayerIds.has(id)
         && (currentState?.visible ?? false)
-        && Boolean(definition && isLayerAvailableAtCameraHeight(definition, cameraHeight));
+        && (isOverviewImage || Boolean(definition && isLayerAvailableAtCameraHeight(definition, cameraHeight)));
       imagery.alpha = currentState?.opacity ?? 1;
     }
     for (const [id, dataSource] of dataSourcesRef.current) {
@@ -403,15 +406,29 @@ export function CesiumMap({
 
     layers.forEach((layer) => {
       const currentState = layerState[layer.id];
-      if (isTerrainLayer(layer) || layer.sourceType === "arcgis-featureserver" || layer.sourceType === "geojson" || !currentState?.visible || !isLayerAvailableAtCameraHeight(layer, cameraHeight) || imageryRef.current.has(layer.id) || pendingImageryRef.current.has(layer.id) || failedImageryRef.current.has(layer.id)) return;
+      const isParcelOverview = layer.sourceType === "arcgis-featureserver"
+        && typeof layer.options?.overviewImageryUrl === "string"
+        && shouldUseParcelOverviewImagery(cameraHeight, Number(layer.options.maxCameraHeight ?? Number.POSITIVE_INFINITY));
+      if (isTerrainLayer(layer) || (layer.sourceType === "arcgis-featureserver" && !isParcelOverview) || layer.sourceType === "geojson" || !currentState?.visible || (!isParcelOverview && !isLayerAvailableAtCameraHeight(layer, cameraHeight)) || imageryRef.current.has(layer.id) || pendingImageryRef.current.has(layer.id) || failedImageryRef.current.has(layer.id)) return;
       pendingImageryRef.current.add(layer.id);
       layerStatusChangeRef.current(layer.id, { status: "loading", message: "Loading imagery…" });
-      void createLayerResource(layer).then((resource) => {
+      const imageryDefinition = isParcelOverview
+        ? {
+          ...layer,
+          sourceType: "arcgis-mapserver" as const,
+          url: String(layer.options?.overviewImageryUrl),
+          sourceUrl: String(layer.options?.overviewImagerySourceUrl ?? layer.sourceUrl),
+          options: { ...layer.options, layers: String(layer.options?.overviewImageryLayers ?? "show:1") },
+        }
+        : layer;
+      void createLayerResource(imageryDefinition).then((resource) => {
         pendingImageryRef.current.delete(layer.id);
         const currentViewer = viewerRef.current;
         if (!currentViewer || currentViewer.isDestroyed() || !("alpha" in resource) || !activeLayerIdsRef.current.has(layer.id)) return;
         const latestState = layerStateRef.current[layer.id];
-        resource.show = latestState?.visible ?? false;
+        const overviewStillAvailable = !isParcelOverview
+          || shouldUseParcelOverviewImagery(currentViewer.camera.positionCartographic.height, Number(layer.options?.maxCameraHeight ?? Number.POSITIVE_INFINITY));
+        resource.show = (latestState?.visible ?? false) && overviewStillAvailable;
         resource.alpha = latestState?.opacity ?? layer.defaultOpacity;
         currentViewer.imageryLayers.add(resource);
         imageryRef.current.set(layer.id, resource);

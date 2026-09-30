@@ -48,6 +48,53 @@ test("a feature layer with a degenerate polygon does not stop subsequent layers"
   expect(errors.join("\n")).not.toContain("Entity corridor, ellipse, polygon or rectangle with heightReference must also have a defined height");
 });
 
+test("statewide parcels use map images beyond 35 km instead of feature queries", async ({ page }) => {
+  let featureQueries = 0;
+  let mapImages = 0;
+  const beckerCounty = {
+    id: "becker-county",
+    label: "Becker County, Minnesota",
+    latitude: 46.9,
+    longitude: -95.6,
+    county: "Becker",
+    kind: "county" as const,
+  };
+
+  await openMap(page, async (currentPage) => {
+    await currentPage.route("**/api/gis-proxy/mngeo-features/us_mn_state_mngeo/plan_parcels_open/**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/query") && url.pathname.includes("FeatureServer")) {
+        featureQueries += 1;
+        await route.fulfill({ json: { type: "FeatureCollection", features: [] } });
+        return;
+      }
+      if (url.pathname.endsWith("/export")) {
+        mapImages += 1;
+        await route.fulfill({ status: 200, contentType: "image/png", body: "" });
+        return;
+      }
+      await route.fulfill({ json: {
+        currentVersion: 11.5,
+        capabilities: "Map,Query,Data",
+        singleFusedMapCache: false,
+        spatialReference: { wkid: 102100, latestWkid: 3857 },
+        fullExtent: { xmin: -11000000, ymin: 5000000, xmax: -9000000, ymax: 7000000, spatialReference: { wkid: 3857 } },
+        supportedImageFormatTypes: "PNG32,PNG24,PNG,JPG",
+        layers: [{ id: 1, name: "Plan Parcels Open", defaultVisibility: true }],
+      } });
+    });
+  }, beckerCounty);
+
+  await page.getByRole("button", { name: "Layers", exact: true }).click();
+  await page.getByRole("button", { name: /^Parcels\b/ }).click();
+  await page.getByRole("checkbox", { name: /^Becker tax parcels/ }).check();
+  await expect.poll(() => mapImages).toBeGreaterThan(0);
+
+  expect(featureQueries).toBe(0);
+  await page.getByRole("checkbox", { name: /^Becker tax parcels/ }).uncheck();
+  await expect(page.getByRole("checkbox", { name: /^Becker tax parcels/ })).not.toBeChecked();
+});
+
 test("category switches appear only on Parcels, Reference, and Public lands", async ({ page }) => {
   await openMap(page);
   await page.getByRole("button", { name: "Layers", exact: true }).click();
