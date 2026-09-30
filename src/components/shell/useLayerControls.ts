@@ -38,11 +38,8 @@ const parcelLayersByCounty = Object.fromEntries(
   ]),
 );
 
-function parcelCountiesForViewport(bounds: ViewportBounds): string[] {
-  return countiesInParcelRange({
-    latitude: (bounds.south + bounds.north) / 2,
-    longitude: (bounds.west + bounds.east) / 2,
-  }, countyRegistry);
+function parcelCountiesForCenter(center: { latitude: number; longitude: number }): string[] {
+  return countiesInParcelRange(center, countyRegistry);
 }
 
 function useLayerPreferences() {
@@ -204,6 +201,7 @@ function selectionForNewLocation(current: LayerSelection, location: MapLocation)
 export function useLayerControls(
   location: MapLocation | null,
   viewportBounds: ViewportBounds | null,
+  viewportCenter: { latitude: number; longitude: number } | null,
 ) {
   const {
     selection,
@@ -223,10 +221,10 @@ export function useLayerControls(
   const runtime = useLayerRuntime();
 
   useEffect(() => {
-    if (!viewportBounds) return;
-    const counties = parcelCountiesForViewport(viewportBounds);
+    if (!viewportCenter) return;
+    const counties = parcelCountiesForCenter(viewportCenter);
     setSelection((current) => applyParcelRange(current, parcelLayersByCounty, counties));
-  }, [selection.suspended, setSelection, viewportBounds]);
+  }, [selection.suspended, setSelection, viewportCenter]);
 
   const setVisible = (id: string, visible: boolean) => {
     if (visible && !isSeasonAvailable(seasonGates, id)) return;
@@ -255,12 +253,8 @@ export function useLayerControls(
     setSelection((current) => {
       if (groupId !== "parcels") return categorySwitch(current, available, visible);
       const following = setParcelRangeFollowing(current, visible, available);
-      if (!visible || !viewportBounds) return following;
-      return applyParcelRange(
-        following,
-        parcelLayersByCounty,
-        parcelCountiesForViewport(viewportBounds),
-      );
+      if (!visible || !viewportCenter) return following;
+      return applyParcelRange(following, parcelLayersByCounty, parcelCountiesForCenter(viewportCenter));
     });
   };
   const moveLayer = (id: string, direction: "up" | "down") => {

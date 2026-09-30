@@ -35,6 +35,7 @@ function statusText(cursor: [number, number] | null, viewportCounties: readonly 
 export function MapShell() {
   const [location, setLocation] = useState<MapLocation | null>(null);
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
+  const [viewportCenter, setViewportCenter] = useState<{ latitude: number; longitude: number } | null>(null);
   const [cameraHeight, setCameraHeight] = useState(Number.POSITIVE_INFINITY);
   const [heading, setHeading] = useState(0);
   const [observer, setObserver] = useState<Position | null>(null);
@@ -43,7 +44,11 @@ export function MapShell() {
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
   const [viewControls, setViewControls] = useState<MapViewControls | null>(null);
   const registerReset = useCallback((reset: () => void) => setResetCamera(() => reset), []);
-  const layerControls = useLayerControls(location, viewportBounds);
+  const updateViewport = useCallback((bounds: ViewportBounds, center: { latitude: number; longitude: number }) => {
+    setViewportBounds(bounds);
+    setViewportCenter(center);
+  }, []);
+  const layerControls = useLayerControls(location, viewportBounds, viewportCenter);
   const myData = useMyData();
   const tools = useMapTools(myData.add);
   const shapes = useShapeDrawing(myData.add, myData.onUpdateItemGeometry);
@@ -85,6 +90,7 @@ export function MapShell() {
   const chooseLocation = (next: MapLocation) => {
     layerControls.resetForLocation(next);
     setViewportBounds(null);
+    setViewportCenter(null);
     setLocation(next);
     recordRecentLocation(next);
   };
@@ -92,6 +98,7 @@ export function MapShell() {
     setObserver(null);
     setPickingObserver(false);
     setViewportBounds(null);
+    setViewportCenter(null);
     setLocation(null);
   };
   const handleMapClick = (point: IdentifyPoint) => {
@@ -191,7 +198,7 @@ export function MapShell() {
           location={location}
           onResetReady={registerReset}
           onViewControlsReady={setViewControls}
-          onViewportChange={setViewportBounds}
+          onViewportChange={updateViewport}
           onCameraHeightChange={setCameraHeight}
           onHeadingChange={setHeading}
           interactionMode={shapes.active ? (shapes.active.item ? "edit" : shapes.active.kind) : tools.mode}
