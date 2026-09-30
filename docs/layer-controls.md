@@ -36,9 +36,11 @@ The transitions live in `src/lib/map/layerGroups.ts` as pure functions over the 
 
 ## Persistence
 
-Visibility, opacity, display order, the layers each group control has suspended, and vertical terrain exaggeration are stored in browser `localStorage` under `mnmapping.layer-preferences`. The stored value carries a `version` (currently 2), and a value with any other version is ignored. Preferences saved before the format was versioned, under `mnmapping.layer-preferences.v1`, are read once, migrated, and replaced by the versioned entry on the next save. A display order saved by an older ordering scheme is dropped.
+Visibility, opacity, display order, the layers each group control has suspended, parcel-range following, and vertical terrain exaggeration are stored in browser `localStorage` under `mnmapping.layer-preferences`. The stored value carries a `version` (currently 3); version 2 and the earlier unversioned preferences are migrated, and unsupported versions are ignored. Preferences saved before the format was versioned, under `mnmapping.layer-preferences.v1`, are read once, migrated, and replaced by the versioned entry on the next save. A display order saved by an older ordering scheme is dropped.
 
 Unknown or retired layer identifiers are ignored, including in suspended subsets, and newly registered layers are appended with their configured defaults. Location searches are not persisted.
+
+When the Parcels category switch is on, parcel visibility follows counties within 50 miles of the map center. Counties enter and leave as the map moves. Manually turning a parcel layer off ends following; suspending Parcels pauses it until restore.
 
 ## Active layers
 
