@@ -24,10 +24,12 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
     ArcGISTiledElevationTerrainProvider,
     CesiumTerrainProvider,
     Color,
+    ColorMaterialProperty,
     ConstantProperty,
     GeoJsonDataSource,
     HeightReference,
     ImageryLayer,
+    PropertyBag,
     Rectangle,
     TileMapServiceImageryProvider,
     UrlTemplateImageryProvider,
@@ -119,7 +121,12 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
     }
     case "geojson": {
       const dataSource = await GeoJsonDataSource.load(layer.url, geoJsonStyle(layer, Color));
-      decorateGeoJson(dataSource, ConstantProperty, HeightReference);
+      decorateGeoJson(
+        dataSource,
+        ConstantProperty,
+        HeightReference,
+        polygonBorderDecoration(layer, Color, ColorMaterialProperty, PropertyBag),
+      );
       return dataSource;
     }
     case "cesium-terrain":
@@ -151,7 +158,12 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
         onProgress: context.onProgress,
       });
       const dataSource = await GeoJsonDataSource.load(featureCollection, geoJsonStyle(layer, Color));
-      decorateGeoJson(dataSource, ConstantProperty, HeightReference);
+      decorateGeoJson(
+        dataSource,
+        ConstantProperty,
+        HeightReference,
+        polygonBorderDecoration(layer, Color, ColorMaterialProperty, PropertyBag),
+      );
       return dataSource;
     }
   }
@@ -165,8 +177,7 @@ export async function applyGeoJsonOpacity(dataSource: GeoJsonDataSource, layer: 
   for (const entity of dataSource.entities.values) {
     if (entity.polygon) {
       entity.polygon.material = new ColorMaterialProperty(fill);
-      entity.polygon.outline = new ConstantProperty(true);
-      entity.polygon.outlineColor = new ConstantProperty(stroke);
+      entity.polygon.outline = new ConstantProperty(false);
     }
     if (entity.polyline) {
       entity.polyline.material = new ColorMaterialProperty(stroke);
@@ -183,9 +194,36 @@ function decodeTemplateBraces(url: string): string {
   return url.replaceAll("%7B", "{").replaceAll("%7D", "}");
 }
 
+function polygonBorderDecoration(
+  layer: LayerDefinition,
+  Color: typeof import("cesium").Color,
+  ColorMaterialProperty: typeof import("cesium").ColorMaterialProperty,
+  PropertyBag: typeof import("cesium").PropertyBag,
+) {
+  if (layer.category !== "public-land" && layer.category !== "dnr-recreation" && layer.category !== "parcels") {
+    return undefined;
+  }
+  return {
+    style: {
+      color: configuredStrokeColor(layer, Color, layer.defaultOpacity),
+      width: Number(layer.options?.strokeWidth ?? 2),
+    },
+    ColorMaterialProperty,
+    PropertyBag,
+  };
+}
+
+function configuredStrokeColor(
+  layer: LayerDefinition,
+  Color: typeof import("cesium").Color,
+  opacity: number,
+) {
+  return Color.fromCssColorString(stringOption(layer, "strokeColor") ?? "#3c7550").withAlpha(opacity);
+}
+
 function geoJsonStyle(layer: LayerDefinition, Color: typeof import("cesium").Color) {
   const opacity = layer.defaultOpacity;
-  const stroke = Color.fromCssColorString(stringOption(layer, "strokeColor") ?? "#3c7550").withAlpha(opacity);
+  const stroke = configuredStrokeColor(layer, Color, opacity);
   const fillAlpha = Number(layer.options?.fillAlpha ?? 0.22) * opacity;
   const fill = Color.fromCssColorString(stringOption(layer, "fillColor") ?? "#68a677").withAlpha(fillAlpha);
   return {
