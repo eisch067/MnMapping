@@ -60,6 +60,7 @@ describe("restoreLayerPreferences", () => {
     expect(restored.layers.basemap).toEqual({ visible: true, opacity: 0.8 });
     expect(restored.layers.wma).toEqual({ visible: false, opacity: 0.8 });
     expect(restored.suspended).toEqual({});
+    expect(restored.parcelRangeFollowing).toBe(false);
     expect(restored.order).toEqual(["basemap", "wma", "forest", "parcels"]);
     expect(restored.verticalExaggeration).toBe(1);
   });
@@ -111,6 +112,21 @@ describe("restoreLayerPreferences", () => {
   });
 
   describe("migrating the current preferences", () => {
+    it("loads the previous version and defaults parcel following off", () => {
+      storage.setItem(currentKey, JSON.stringify({
+        version: 2,
+        layers: { parcels: { visible: true, opacity: 0.6 } },
+        order: ["parcels"],
+        verticalExaggeration: 2,
+      }));
+
+      const restored = restoreLayerPreferences(registry);
+
+      expect(restored.layers.parcels).toEqual({ visible: true, opacity: 0.6 });
+      expect(restored.parcelRangeFollowing).toBe(false);
+      expect(restored.order[0]).toBe("parcels");
+    });
+
     it("reads visibility, opacity, order, and exaggeration", () => {
       storeLegacy({
         layers: { wma: { visible: true, opacity: 0.3 } },
@@ -125,6 +141,7 @@ describe("restoreLayerPreferences", () => {
       expect(restored.order).toEqual(["parcels", "forest", "wma", "basemap"]);
       expect(restored.verticalExaggeration).toBe(3);
       expect(restored.suspended).toEqual({});
+      expect(restored.parcelRangeFollowing).toBe(false);
     });
 
     it("drops an order saved by an older ordering scheme", () => {
@@ -142,7 +159,7 @@ describe("restoreLayerPreferences", () => {
       storeLegacy({ layers: { wma: { visible: true, opacity: 1 } } });
       storage.setItem(
         currentKey,
-        JSON.stringify({ version: 2, layers: { wma: { visible: false, opacity: 0.2 } } }),
+        JSON.stringify({ version: 3, layers: { wma: { visible: false, opacity: 0.2 } } }),
       );
 
       const { layers } = restoreLayerPreferences(registry);
@@ -164,6 +181,7 @@ describe("saveLayerPreferences", () => {
       suspended: { "public-land": ["wma", "forest"] },
       order: ["parcels", "forest", "wma", "basemap"],
       verticalExaggeration: 1.5,
+      parcelRangeFollowing: true,
     };
 
     saveLayerPreferences(preferences);
@@ -177,7 +195,7 @@ describe("saveLayerPreferences", () => {
     saveLayerPreferences(restoreLayerPreferences(registry));
 
     expect(storage.getItem(legacyKey)).toBeNull();
-    expect(JSON.parse(storage.getItem(currentKey) ?? "null")).toMatchObject({ version: 2 });
+    expect(JSON.parse(storage.getItem(currentKey) ?? "null")).toMatchObject({ version: 3 });
   });
 
   it("does not throw when storage is unavailable", () => {

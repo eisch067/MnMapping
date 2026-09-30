@@ -45,6 +45,7 @@ export function setLayerVisible(
   visible: boolean,
 ): LayerSelection {
   return {
+    ...selection,
     layers: withLayerVisibility(selection.layers, [id], visible),
     suspended: visible
       ? withoutSuspendedIds(selection.suspended, (layerId) => layerId === id)
@@ -61,6 +62,7 @@ export function suspendGroup(
   if (active.length === 0) return selection;
   const remembered = [...new Set([...(selection.suspended[groupId] ?? []), ...active])];
   return {
+    ...selection,
     layers: withLayerVisibility(selection.layers, active, false),
     suspended: { ...selection.suspended, [groupId]: remembered },
   };
@@ -70,13 +72,14 @@ export function restoreGroup(selection: LayerSelection, groupId: string): LayerS
   const remembered = selection.suspended[groupId];
   if (!remembered) return selection;
   return {
+    ...selection,
     layers: withLayerVisibility(selection.layers, remembered, true),
     suspended: withoutGroup(selection.suspended, groupId),
   };
 }
 
 export function groupStatus(
-  selection: LayerSelection,
+  selection: Pick<LayerSelection, "layers" | "suspended">,
   groupId: string,
   memberIds: readonly string[],
 ): GroupStatus {
@@ -104,9 +107,46 @@ export function categorySwitch(
   visible: boolean,
 ): LayerSelection {
   return {
+    ...selection,
     layers: withLayerVisibility(selection.layers, memberIds, visible),
     suspended: withoutSuspendedIds(selection.suspended, (id) => memberIds.includes(id)),
   };
+}
+
+export function setParcelVisibleManually(
+  selection: LayerSelection,
+  id: string,
+  visible: boolean,
+): LayerSelection {
+  const next = setLayerVisible(selection, id, visible);
+  return visible ? next : { ...next, parcelRangeFollowing: false };
+}
+
+export function setParcelRangeFollowing(
+  selection: LayerSelection,
+  following: boolean,
+  memberIds: readonly string[],
+): LayerSelection {
+  return {
+    ...categorySwitch(selection, memberIds, following),
+    parcelRangeFollowing: following,
+  };
+}
+
+export function applyParcelRange(
+  selection: LayerSelection,
+  layersByCounty: Readonly<Record<string, readonly string[]>>,
+  countiesInRange: readonly string[],
+): LayerSelection {
+  if (!selection.parcelRangeFollowing || selection.suspended.parcels?.length) return selection;
+  const inRange = new Set(countiesInRange);
+  const layers = { ...selection.layers };
+  for (const [county, ids] of Object.entries(layersByCounty)) {
+    for (const id of ids) {
+      if (layers[id]) layers[id] = { ...layers[id], visible: inRange.has(county) };
+    }
+  }
+  return { ...selection, layers };
 }
 
 export function categorySwitchIsOn(

@@ -13,7 +13,8 @@ import {
   type MapLocation,
   type ViewportBounds,
 } from "@/lib/location";
-import { categorySwitch, forgetSuspended, setLayerVisible, toggleGroup } from "@/lib/map/layerGroups";
+import { applyParcelRange, categorySwitch, forgetSuspended, setLayerVisible, setParcelRangeFollowing, setParcelVisibleManually, toggleGroup } from "@/lib/map/layerGroups";
+import { countiesInParcelRange } from "@/lib/parcelRange";
 import type { LayerRuntimeState, LayerRuntimeStateById } from "@/lib/map/layerRuntime";
 import {
   restoreLayerPreferences,
@@ -30,12 +31,26 @@ const imageryLayerIds = new Set(
   layerRegistry.filter((layer) => layer.category === "imagery").map((layer) => layer.id),
 );
 const terrainLayer = layerRegistry.find(isTerrainLayer);
+const parcelLayersByCounty = Object.fromEntries(
+  countyRegistry.map((county) => [
+    county.name,
+    county.layers.filter((layer) => layer.category === "parcels").map((layer) => layer.id),
+  ]),
+);
+
+function parcelCountiesForViewport(bounds: ViewportBounds): string[] {
+  return countiesInParcelRange({
+    latitude: (bounds.south + bounds.north) / 2,
+    longitude: (bounds.west + bounds.east) / 2,
+  }, countyRegistry);
+}
 
 function useLayerPreferences() {
   const [restored] = useState(() => restoreLayerPreferences(layerRegistry));
   const [selection, setSelection] = useState<LayerSelection>({
     layers: restored.layers,
     suspended: restored.suspended,
+    parcelRangeFollowing: restored.parcelRangeFollowing,
   });
   const [layerOrder, setLayerOrder] = useState(restored.order);
   const [verticalExaggeration, setVerticalExaggeration] = useState(restored.verticalExaggeration);
@@ -207,9 +222,19 @@ export function useLayerControls(
   const area = useAreaLayers(location, viewportBounds, layerState, layerOrder);
   const runtime = useLayerRuntime();
 
+  useEffect(() => {
+    if (!viewportBounds) return;
+    const counties = parcelCountiesForViewport(viewportBounds);
+    setSelection((current) => applyParcelRange(current, parcelLayersByCounty, counties));
+  }, [selection.suspended, setSelection, viewportBounds]);
+
   const setVisible = (id: string, visible: boolean) => {
     if (visible && !isSeasonAvailable(seasonGates, id)) return;
-    setSelection((current) => setLayerVisible(current, id, visible));
+    setSelection((current) => {
+      return layerRegistryById.get(id)?.category === "parcels"
+        ? setParcelVisibleManually(current, id, visible)
+        : setLayerVisible(current, id, visible);
+    });
   };
   const setOpacity = (id: string, opacity: number) => {
     setSelection((current) => ({
@@ -227,7 +252,16 @@ export function useLayerControls(
     visible: boolean,
   ) => {
     const available = layerIds.filter((id) => isSeasonAvailable(seasonGates, id));
-    setSelection((current) => categorySwitch(current, available, visible));
+    setSelection((current) => {
+      if (groupId !== "parcels") return categorySwitch(current, available, visible);
+      const following = setParcelRangeFollowing(current, visible, available);
+      if (!visible || !viewportBounds) return following;
+      return applyParcelRange(
+        following,
+        parcelLayersByCounty,
+        parcelCountiesForViewport(viewportBounds),
+      );
+    });
   };
   const moveLayer = (id: string, direction: "up" | "down") => {
     const target = findMoveTarget(area.activeLayers, id, direction);
