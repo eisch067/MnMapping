@@ -84,6 +84,7 @@ async function selectMapSheet(page: Page, name: string, id: string) {
 }
 
 test("keeps My Data out of the Draped layers list", async ({ page }) => {
+  test.skip(!personalBuild, "The Draped layers list is available only with 3D terrain in the personal build.");
   await openMap(page);
   await page.getByRole("navigation", { name: "Map tools" })
     .getByRole("button", { name: "My Data", exact: true }).click();
