@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  categorySwitch,
+  categorySwitchIsOn,
   forgetSuspended,
   groupStatus,
   restoreGroup,
@@ -212,6 +214,57 @@ describe("toggleGroup", () => {
 
     expect(visibleIds(state)).toEqual(["forest", "county"]);
     expect(state.suspended).toEqual({});
+  });
+});
+
+describe("categorySwitch", () => {
+  it("turns every available layer on", () => {
+    const next = categorySwitch(selection(["outside"]), members, true);
+
+    expect(visibleIds(next)).toEqual(["wma", "forest", "county", "outside"]);
+    expect(categorySwitchIsOn(next, members)).toBe(true);
+  });
+
+  it("turns every layer off and forgets the suspended subset", () => {
+    const suspended = suspendGroup(selection(["wma", "county", "outside"]), group, members);
+    const next = categorySwitch(suspended, members, false);
+
+    expect(visibleIds(next)).toEqual(["outside"]);
+    expect(next.suspended[group]).toBeUndefined();
+  });
+
+  it("removes switched-off members from every suspended group", () => {
+    const start = selection([], { [group]: ["wma"], "outer-group": ["wma", "outside"] });
+    const next = categorySwitch(start, ["wma"], false);
+
+    expect(next.suspended).toEqual({ "outer-group": ["outside"] });
+  });
+
+  it("reports off until every available layer is on", () => {
+    expect(categorySwitchIsOn(selection(["wma", "county"]), members)).toBe(false);
+    expect(categorySwitchIsOn(selection(["wma", "county"]), ["wma", "county"])).toBe(true);
+    expect(categorySwitchIsOn(selection([]), [])).toBe(false);
+  });
+
+  it("turning one member off flips the derived switch off", () => {
+    const allOn = categorySwitch(selection([]), members, true);
+
+    expect(categorySwitchIsOn(setLayerVisible(allOn, "forest", false), members)).toBe(false);
+  });
+
+  it("switches on a suspended group and clears those remembered layers", () => {
+    const suspended = suspendGroup(selection(["wma", "county"]), group, members);
+    const next = categorySwitch(suspended, members, true);
+
+    expect(visibleIds(next)).toEqual(["wma", "forest", "county"]);
+    expect(next.suspended[group]).toBeUndefined();
+  });
+
+  it("only switches the available members passed to it", () => {
+    const next = categorySwitch(selection([]), ["wma", "county"], true);
+
+    expect(visibleIds(next)).toEqual(["wma", "county"]);
+    expect(next.layers.forest?.visible).toBe(false);
   });
 });
 

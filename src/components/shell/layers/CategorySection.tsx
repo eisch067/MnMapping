@@ -56,6 +56,9 @@ export function CategorySection(props: CategorySectionProps) {
           layers={layers}
           state={controls.state}
           groupControls={controls}
+          categorySwitch={category === "parcels" || category === "reference" || category === "public-land"}
+          seasonGates={controls.seasonGates}
+          onToggleCategory={controls.onToggleCategory}
           expanded={!collapsed}
           onToggleExpand={() => sections.toggle(category)}
         />

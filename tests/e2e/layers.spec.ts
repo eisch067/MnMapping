@@ -48,6 +48,18 @@ test("a feature layer with a degenerate polygon does not stop subsequent layers"
   expect(errors.join("\n")).not.toContain("Entity corridor, ellipse, polygon or rectangle with heightReference must also have a defined height");
 });
 
+test("category switches appear only on Parcels, Reference, and Public lands", async ({ page }) => {
+  await openMap(page);
+  await page.getByRole("button", { name: "Layers", exact: true }).click();
+
+  for (const category of ["Parcels", "Reference", "Public lands"]) {
+    await expect(page.getByRole("checkbox", { name: `All ${category} on` })).toBeVisible();
+  }
+  for (const category of ["Imagery", "Basemap", "Elevation", "DNR Recreation"]) {
+    await expect(page.getByRole("checkbox", { name: `All ${category} on` })).toHaveCount(0);
+  }
+});
+
 test("a layer can be toggled on and off", async ({ page }) => {
   const reference = await openReferenceLayers(page);
   const roads = reference.getByRole("checkbox", { name: /^Roads & Highways/ });
@@ -64,6 +76,7 @@ test("a layer can be toggled on and off", async ({ page }) => {
 
 const groupControlName = "Suspend or restore Reference layers";
 const suspendedReferenceHeading = /^Reference\b.*0 on · 1 suspended/;
+const referenceCategorySwitch = "All Reference on";
 
 test("a group control suspends and restores exactly the layers that were on", async ({ page }) => {
   const reference = await openReferenceLayers(page);
@@ -82,6 +95,41 @@ test("a group control suspends and restores exactly the layers that were on", as
   await expect(roads).toBeChecked();
   await expect(places).not.toBeChecked();
   await expect(page.getByRole("button", { name: /^Reference\b.*1 on(?! ·)/ })).toBeVisible();
+});
+
+test("the Reference category switch turns every layer on and off without changing group control semantics", async ({ page }) => {
+  const reference = await openReferenceLayers(page);
+  const roads = reference.getByRole("checkbox", { name: /^Roads & Highways/ });
+  const places = reference.getByRole("checkbox", { name: /^Place Labels & Boundaries/ });
+  const categorySwitch = page.getByRole("checkbox", { name: referenceCategorySwitch });
+  const groupControl = page.getByRole("checkbox", { name: groupControlName });
+
+  await expect(categorySwitch).toHaveAttribute("title", "Turns every layer on or off.");
+  await expect(categorySwitch).not.toBeChecked();
+  await categorySwitch.check();
+  await expect(roads).toBeChecked();
+  await expect(places).toBeChecked();
+  await expect(categorySwitch).toBeChecked();
+
+  await roads.uncheck();
+  await expect(categorySwitch).not.toBeChecked();
+  await expect(page.getByRole("button", { name: /^Reference\b.*1 on/ })).toBeVisible();
+
+  await groupControl.uncheck();
+  await expect(categorySwitch).not.toBeChecked();
+  await expect(places).not.toBeChecked();
+
+  await categorySwitch.check();
+  await expect(roads).toBeChecked();
+  await expect(places).toBeChecked();
+  await expect(groupControl).toBeChecked();
+
+  await categorySwitch.uncheck();
+  await expect(page.locator(".category-all-off-note")).toHaveText(
+    "All layers are off. To hide and bring back only your picks, use the checkbox.",
+  );
+  await expect(roads).not.toBeChecked();
+  await expect(places).not.toBeChecked();
 });
 
 test("a group control cannot turn on a layer when none were on", async ({ page }) => {

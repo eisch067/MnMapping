@@ -15,9 +15,11 @@ The Layers action in the tool row opens the Layers sheet: a bottom sheet on a ph
 
 Each layer group heading has a checkbox that suspends and restores the group's **active subset**: the layers the user has switched on. A group is a category, an Imagery scope (County, each county, Statewide, NAIP, CIR), or one of the five headings under DNR Recreation. The DNR Recreation control and a heading's control work independently: each remembers its own subset, and a layer switched on again by hand leaves every remembered subset it was in. See [DNR Recreation](dnr-recreation.md).
 
+Parcels, Reference, Public lands, and each of the five DNR Recreation headings also have a category switch. It turns every available layer in that group on or off, and reads on only while all available layers are on. Turning it off clears those layers from remembered subsets; it does not affect the separate group control. Season-unverified DNR layers are skipped. Imagery, basemap, elevation, terrain, and the overall DNR Recreation heading have no category switch.
+
 - **Suspend.** Unchecking the control hides every layer in the group and remembers the ones that were on. The heading reads, for example, "0 on · 2 suspended".
 - **Restore.** Checking a suspended group switches on exactly the remembered layers. Layers that were not on stay off, and each layer keeps its opacity.
-- **Nothing to suspend.** With no layer on and nothing suspended the control is disabled. No control turns every layer in a group on at once; layers are switched on one at a time in their own rows.
+- **Nothing to suspend.** With no layer on and nothing suspended the group control is disabled. The separate category switch, where present, can turn every available layer on at once.
 - **A layer switched on while the group is suspended** shows on its own. The remembered subset holds only layers that are still hidden, so switching a remembered layer on takes it out of the subset, and a layer that was not remembered is never added to it. Restoring brings back the layers still remembered, alongside whatever is on. A group counts as suspended while any remembered layer is hidden.
 - **A layer that comes into view** by panning or zooming is never added to the active subset.
 - **A new location search** resets county layers to their defaults and forgets any suspended county layers, so a restore never brings back a layer from the previous search.
