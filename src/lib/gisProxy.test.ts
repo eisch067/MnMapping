@@ -21,6 +21,7 @@ describe("gisProxyCacheControl", () => {
     expect(gisProxyCacheControl("becker-imagery", ["MapServer", "tile", "10", "1", "2"], 200)).toBe(expected);
     expect(gisProxyCacheControl("mngeo-imagery", ["export"], 200)).toBe(expected);
     expect(gisProxyCacheControl("becker", ["Imagery", "MapServer", "exportImage"], 200)).toBe(expected);
+    expect(gisProxyCacheControl("mngeo-features", ["us_mn_state_mngeo", "plan_parcels_open", "MapServer", "export"], 200)).toBe(expected);
   });
 
   it("caches feature queries for a shorter period", () => {

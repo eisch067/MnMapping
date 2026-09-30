@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { parcelZoomBand, parcelZoomThresholds, statewideParcelQuery } from "@/lib/map/parcelLoading";
+import { parcelZoomBand, parcelZoomThresholds, shouldUseParcelOverviewImagery, statewideParcelQuery } from "@/lib/map/parcelLoading";
+
+describe("shouldUseParcelOverviewImagery", () => {
+  it.each([
+    [34_999, false],
+    [35_000, false],
+    [35_001, true],
+  ] as const)("selects overview imagery at %i metres: %s", (height, expected) => {
+    expect(shouldUseParcelOverviewImagery(height, 35_000)).toBe(expected);
+  });
+});
 
 describe("parcelZoomBand", () => {
   it.each([

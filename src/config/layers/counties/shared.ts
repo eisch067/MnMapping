@@ -3,6 +3,8 @@ import { isPersonalMode } from "../../appMode";
 
 const parcelService = "/api/gis-proxy/mngeo-features/us_mn_state_mngeo/plan_parcels_open/FeatureServer";
 const parcelSource = "https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_mngeo/plan_parcels_open/FeatureServer/1";
+const parcelMapService = "/api/gis-proxy/mngeo-features/us_mn_state_mngeo/plan_parcels_open/MapServer";
+const parcelMapSource = "https://enterprise.gisdata.mn.gov/aghost/rest/services/us_mn_state_mngeo/plan_parcels_open/MapServer";
 const verifiedAt = "2026-09-14";
 
 // These counties run their own property-lookup site with an explicit anti-bulk-extraction or
@@ -73,6 +75,9 @@ export function createMnGeoParcelLayer(
       strokeWidth: 1,
       maxCameraHeight: 35_000,
       parcelZoomAcreageField: "acres_poly",
+      overviewImageryUrl: parcelMapService,
+      overviewImagerySourceUrl: parcelMapSource,
+      overviewImageryLayers: "show:1",
     },
   };
 }

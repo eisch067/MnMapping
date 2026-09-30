@@ -8,6 +8,10 @@ export const parcelZoomThresholds = {
 
 export type ParcelZoomBand = "detailed" | "medium" | "wide" | "hidden";
 
+export function shouldUseParcelOverviewImagery(cameraHeight: number, maximumFeatureHeight: number): boolean {
+  return cameraHeight > maximumFeatureHeight;
+}
+
 export function parcelZoomBand(cameraHeight: number): ParcelZoomBand {
   if (cameraHeight < parcelZoomThresholds.detailedBelowMeters) return "detailed";
   if (cameraHeight < parcelZoomThresholds.mediumBelowMeters) return "medium";
