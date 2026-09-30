@@ -3,6 +3,7 @@ import type { LayerDefinition } from "@/config/layers";
 import type { LayerBounds } from "@/config/layers/types";
 import { fetchAllArcGisFeatures, type ArcGisQueryProgress } from "@/lib/map/arcgisFeatures";
 import { decorateGeoJson } from "@/lib/map/decorateGeoJson";
+import { statewideParcelQuery } from "@/lib/map/parcelLoading";
 import {
   absoluteBrowserUrl,
   booleanOption,
@@ -14,6 +15,8 @@ export type CesiumLayerResource = ImageryLayer | GeoJsonDataSource | TerrainProv
 
 interface LayerRequestContext {
   bounds?: LayerBounds;
+  cameraHeight?: number;
+  screenWidthPixels?: number;
   signal?: AbortSignal;
   onProgress?: (progress: ArcGisQueryProgress) => void;
 }
@@ -137,18 +140,35 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
       const layerId = String(layer.options?.layerId ?? "0");
       const serviceUrl = absoluteBrowserUrl(layer.url);
       const queryUrl = new URL(`${serviceUrl}/${layerId}/query`);
-      queryUrl.searchParams.set("where", stringOption(layer, "where") ?? "1=1");
+      let queryBounds = context.bounds;
+      let where = stringOption(layer, "where") ?? "1=1";
+      const acreageField = stringOption(layer, "parcelZoomAcreageField");
+      if (acreageField && context.bounds && context.cameraHeight !== undefined) {
+        const parcelQuery = statewideParcelQuery(
+          where,
+          context.cameraHeight,
+          acreageField,
+          context.bounds,
+          context.screenWidthPixels ?? 1,
+        );
+        where = parcelQuery.where;
+        queryBounds = parcelQuery.bounds;
+        if (parcelQuery.maxAllowableOffset !== undefined) {
+          queryUrl.searchParams.set("maxAllowableOffset", String(parcelQuery.maxAllowableOffset));
+        }
+      }
+      queryUrl.searchParams.set("where", where);
       queryUrl.searchParams.set("outFields", stringOption(layer, "outFields") ?? "*");
       queryUrl.searchParams.set("returnGeometry", "true");
       queryUrl.searchParams.set("outSR", "4326");
       queryUrl.searchParams.set("geometryPrecision", "6");
       queryUrl.searchParams.set("f", "geojson");
       const maxAllowableOffset = Number(layer.options?.maxAllowableOffset);
-      if (Number.isFinite(maxAllowableOffset) && maxAllowableOffset > 0) {
+      if (!queryUrl.searchParams.has("maxAllowableOffset") && Number.isFinite(maxAllowableOffset) && maxAllowableOffset > 0) {
         queryUrl.searchParams.set("maxAllowableOffset", String(maxAllowableOffset));
       }
-      if (context.bounds) {
-        queryUrl.searchParams.set("geometry", `${context.bounds.west},${context.bounds.south},${context.bounds.east},${context.bounds.north}`);
+      if (queryBounds) {
+        queryUrl.searchParams.set("geometry", `${queryBounds.west},${queryBounds.south},${queryBounds.east},${queryBounds.north}`);
         queryUrl.searchParams.set("geometryType", "esriGeometryEnvelope");
         queryUrl.searchParams.set("inSR", "4326");
         queryUrl.searchParams.set("spatialRel", "esriSpatialRelIntersects");

@@ -72,6 +72,7 @@ export function createMnGeoParcelLayer(
       fillAlpha: 0.01,
       strokeWidth: 1,
       maxCameraHeight: 35_000,
+      parcelZoomAcreageField: "acres_poly",
     },
   };
 }

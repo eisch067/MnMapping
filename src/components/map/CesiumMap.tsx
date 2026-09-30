@@ -10,6 +10,7 @@ import type { IdentifyPoint } from "@/lib/identify/types";
 import { applyGeoJsonOpacity, createLayerResource } from "@/lib/map/createLayer";
 import { decorateGeoJson } from "@/lib/map/decorateGeoJson";
 import { imageryStackBand } from "@/lib/map/layerStack";
+import { parcelZoomBand } from "@/lib/map/parcelLoading";
 import type { LayerStateById } from "@/lib/map/layerState";
 import type { LayerRuntimeState } from "@/lib/map/layerRuntime";
 import type { Bounds } from "@/lib/exchange/bounds";
@@ -430,13 +431,19 @@ export function CesiumMap({
     });
 
     if (viewportBounds) {
-      const extentKey = [viewportBounds.west, viewportBounds.south, viewportBounds.east, viewportBounds.north]
-        .map((value) => value.toFixed(3))
-        .join(",");
       for (const layer of layers) {
         const currentState = layerState[layer.id];
         const maxCameraHeight = Number(layer.options?.maxCameraHeight ?? Number.POSITIVE_INFINITY);
         if (layer.sourceType !== "arcgis-featureserver") continue;
+        const extentKey = [
+          viewportBounds.west,
+          viewportBounds.south,
+          viewportBounds.east,
+          viewportBounds.north,
+          ...(typeof layer.options?.parcelZoomAcreageField === "string"
+            ? [parcelZoomBand(cameraHeight), viewer.canvas.clientWidth]
+            : []),
+        ].map((value) => typeof value === "number" ? value.toFixed(3) : value).join(",");
         if (!currentState?.visible || cameraHeight > maxCameraHeight) {
           dataAbortRef.current.get(layer.id)?.abort();
           dataAbortRef.current.delete(layer.id);
@@ -459,6 +466,8 @@ export function CesiumMap({
         layerStatusChangeRef.current(layer.id, { status: "loading", message: "Loading features…", featureCount: 0 });
         void createLayerResource(layer, {
           bounds: viewportBounds,
+          cameraHeight,
+          screenWidthPixels: viewer.canvas.clientWidth,
           signal: controller.signal,
           onProgress: ({ loaded }) => {
             if (dataRequestRef.current.get(layer.id) !== requestNumber) return;
