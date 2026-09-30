@@ -8,6 +8,7 @@ import { cameraHeightForLocation, type MapLocation, type ViewportBounds } from "
 import { geodesicMidpoint } from "@/lib/geodesy";
 import type { IdentifyPoint } from "@/lib/identify/types";
 import { applyGeoJsonOpacity, createLayerResource } from "@/lib/map/createLayer";
+import { decorateGeoJson } from "@/lib/map/decorateGeoJson";
 import { imageryStackBand } from "@/lib/map/layerStack";
 import type { LayerStateById } from "@/lib/map/layerState";
 import type { LayerRuntimeState } from "@/lib/map/layerRuntime";
@@ -295,15 +296,7 @@ export function CesiumMap({
     void import("cesium").then(async ({ Color, ConstantProperty, GeoJsonDataSource, HeightReference }) => {
       const dataSource = await GeoJsonDataSource.load(toGeoJson(myData), { clampToGround: true, markerColor: Color.fromCssColorString("#de6b48"), stroke: Color.fromCssColorString("#de6b48"), fill: Color.fromCssColorString("#de6b48").withAlpha(0.2), strokeWidth: 3 });
       await applyMyDataAppearance(dataSource, myData);
-      for (const entity of dataSource.entities.values) {
-        if (entity.polygon) {
-          entity.polygon.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
-          entity.polygon.outline = new ConstantProperty(true);
-        }
-        if (entity.polyline) entity.polyline.clampToGround = new ConstantProperty(true);
-        if (entity.billboard) entity.billboard.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
-        if (entity.point) entity.point.heightReference = new ConstantProperty(HeightReference.CLAMP_TO_GROUND);
-      }
+      decorateGeoJson(dataSource, ConstantProperty, HeightReference);
       dataSource.name = "My Data";
       dataSource.show = myDataVisible;
       if (cancelled || viewer.isDestroyed()) return;
