@@ -1,6 +1,6 @@
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { describe, expect, it, vi } from "vitest";
-import { verifyAccessToken, type SyncEnv } from "../../src/lib/syncServer";
+import { authorizeSyncRequest, verifyAccessToken, type SyncEnv } from "../../src/lib/syncServer";
 
 const issuer = "https://sync-test.cloudflareaccess.com";
 const env = { ACCESS_TEAM_DOMAIN: "sync-test.cloudflareaccess.com", ACCESS_AUD: "app-aud", DB: {} } as SyncEnv;
@@ -16,29 +16,47 @@ async function token(privateKey: CryptoKey, claims: { iss?: string; aud?: string
 }
 
 describe("Cloudflare Access authentication", () => {
-  it("accepts valid tokens and rejects bad signature, issuer, audience, and expiration", async () => {
+
+  it("accepts valid tokens and logs safe reason codes for every rejection", async () => {
     const { publicKey, privateKey } = await generateKeyPair("RS256");
     const wrongPair = await generateKeyPair("RS256");
     const jwk = await exportJWK(publicKey);
     const fetchMock = vi.fn(async () => Response.json({ keys: [{ ...jwk, kid: "test-key", alg: "RS256", use: "sig" }] }));
     vi.stubGlobal("fetch", fetchMock);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       expect(await verifyAccessToken(new Request("https://app.test", {
         headers: { "cf-access-jwt-assertion": await token(privateKey) },
       }), env)).toBe("verified-user");
-      expect(await verifyAccessToken(new Request("https://app.test", {
-        headers: { "cf-access-jwt-assertion": await token(wrongPair.privateKey) },
-      }), env)).toBeNull();
-      expect(await verifyAccessToken(new Request("https://app.test", {
-        headers: { "cf-access-jwt-assertion": await token(privateKey, { iss: "https://attacker.test" }) },
-      }), env)).toBeNull();
-      expect(await verifyAccessToken(new Request("https://app.test", {
-        headers: { "cf-access-jwt-assertion": await token(privateKey, { aud: "wrong-aud" }) },
-      }), env)).toBeNull();
-      expect(await verifyAccessToken(new Request("https://app.test", {
-        headers: { "cf-access-jwt-assertion": await token(privateKey, { exp: Math.floor(Date.now() / 1000) - 10 }) },
-      }), env)).toBeNull();
+
+      const rejectionCases: Array<{ token: string | null; env?: SyncEnv; reason: string }> = [
+        { token: null, reason: "header_missing" },
+        { token: await token(privateKey), env: { ...env, ACCESS_AUD: "" }, reason: "settings_missing" },
+        { token: await token(privateKey, { iss: "https://attacker.test" }), reason: "issuer_mismatch" },
+        { token: await token(privateKey, { aud: "wrong-aud" }), reason: "audience_mismatch" },
+        { token: await token(wrongPair.privateKey), reason: "signature_or_expiry_failure" },
+        { token: await token(privateKey, { exp: Math.floor(Date.now() / 1000) - 10 }), reason: "signature_or_expiry_failure" },
+      ];
+      for (const entry of rejectionCases) {
+        const headers = entry.token ? { "cf-access-jwt-assertion": entry.token } : undefined;
+        const authorization = await authorizeSyncRequest(
+          new Request("https://app.test", { headers }),
+          entry.env ?? env,
+        );
+        expect(authorization).toBeInstanceOf(Response);
+        if (authorization instanceof Response) {
+          expect(authorization.status).toBe(401);
+          expect(await authorization.json()).toEqual({ error: "Unauthorized." });
+        }
+      }
+
+      const logs = JSON.stringify(warn.mock.calls);
+      for (const { reason, token: rejectedToken } of rejectionCases) {
+        expect(logs).toContain(reason);
+        if (rejectedToken) expect(logs).not.toContain(rejectedToken);
+      }
     } finally {
+      warn.mockRestore();
       vi.unstubAllGlobals();
     }
   });

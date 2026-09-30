@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isPersonalMode } from "@/config/appMode";
 import type { SyncStatus } from "@/lib/syncClient";
+import { startSyncPolling } from "@/lib/syncPolling";
 import {
   getMyDataStore,
   type MyDataFolder,
@@ -20,6 +21,8 @@ export function useMyData() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(isPersonalMode ? "syncing" : "idle");
   const [conflictCount, setConflictCount] = useState(0);
   const syncing = useRef(false);
+  const signInNeededRef = useRef(false);
+  const signInNeeded = syncStatus === "sign-in-needed";
 
   const refresh = useCallback(async () => {
     const store = await getMyDataStore();
@@ -32,7 +35,9 @@ export function useMyData() {
   }, []);
 
   const syncNow = useCallback(async () => {
-    if (!isPersonalMode || syncing.current) return;
+    if (!isPersonalMode) return "idle";
+    if (signInNeededRef.current) return "sign-in-needed";
+    if (syncing.current) return "syncing";
     syncing.current = true;
     setSyncStatus("syncing");
     try {
@@ -40,9 +45,16 @@ export function useMyData() {
       const { synchronize } = await import("@/lib/syncClient");
       await synchronize(store);
       await refresh();
+      signInNeededRef.current = false;
       setSyncStatus("idle");
+      return "idle";
     } catch (reason) {
-      setSyncStatus(reason instanceof Error && reason.name === "SyncPausedError" ? "paused" : "error");
+      const status: SyncStatus = reason instanceof Error && reason.name === "SyncAuthenticationError"
+        ? "sign-in-needed"
+        : reason instanceof Error && reason.name === "SyncPausedError" ? "paused" : "error";
+      signInNeededRef.current = status === "sign-in-needed";
+      setSyncStatus(status);
+      return status;
     } finally {
       syncing.current = false;
     }
@@ -58,16 +70,14 @@ export function useMyData() {
   }, [refresh]);
 
   useEffect(() => {
-    if (!isPersonalMode) return;
-    const initialSync = window.setTimeout(() => void syncNow(), 0);
-    const interval = window.setInterval(() => void syncNow(), 30_000);
+    if (!isPersonalMode || signInNeeded) return;
+    const stopPolling = startSyncPolling(syncNow, setSyncStatus);
     window.addEventListener("online", syncNow);
     return () => {
-      window.clearTimeout(initialSync);
-      window.clearInterval(interval);
+      stopPolling();
       window.removeEventListener("online", syncNow);
     };
-  }, [syncNow]);
+  }, [syncNow, signInNeeded]);
 
   const mutate = useCallback(async (operation: () => Promise<unknown>) => {
     try {

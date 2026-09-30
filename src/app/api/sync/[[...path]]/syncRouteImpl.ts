@@ -1,11 +1,12 @@
 import { env } from "cloudflare:workers";
-import { deleteAccount, pullChanges, pushMutation, verifyAccessToken, type SyncEnv } from "@/lib/syncServer";
+import { authorizeSyncRequest, deleteAccount, pullChanges, pushMutation, type SyncEnv } from "@/lib/syncServer";
 
 export const runtime = "edge";
 
 export async function GET(request: Request) {
-  const owner = await verifyAccessToken(request, env as unknown as SyncEnv);
-  if (!owner) return Response.json({ error: "Unauthorized." }, { status: 401 });
+  const authorization = await authorizeSyncRequest(request, env as unknown as SyncEnv);
+  if (authorization instanceof Response) return authorization;
+  const owner = authorization;
   if (new URL(request.url).pathname !== "/api/sync") return Response.json({ error: "Not found." }, { status: 404 });
   const params = new URL(request.url).searchParams;
   const cursor = Number(params.get("cursor") ?? 0);
@@ -17,8 +18,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const owner = await verifyAccessToken(request, env as unknown as SyncEnv);
-  if (!owner) return Response.json({ error: "Unauthorized." }, { status: 401 });
+  const authorization = await authorizeSyncRequest(request, env as unknown as SyncEnv);
+  if (authorization instanceof Response) return authorization;
+  const owner = authorization;
   const path = new URL(request.url).pathname;
   if (path === "/api/sync/reset") return deleteAccount(env.DB, owner, new Date());
   if (path !== "/api/sync") return Response.json({ error: "Not found." }, { status: 404 });
