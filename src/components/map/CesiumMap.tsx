@@ -135,12 +135,15 @@ export function CesiumMap({
       Cartesian3,
       Math: CesiumMath,
       Rectangle,
+      RequestScheduler,
       SceneMode,
       ScreenSpaceEventHandler,
       ScreenSpaceEventType,
       Viewer,
     }) => {
       if (cancelled || !containerRef.current) return;
+      // County layers share the app-origin proxy; raise its limit while staying under Cesium's global cap.
+      RequestScheduler.requestsByServer[`${window.location.hostname}:443`] = 48;
       const height = cameraHeightForLocation(location.kind);
       const mapView = {
         destination: Cartesian3.fromDegrees(location.longitude, location.latitude, height),
