@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { LayersIcon } from "@/components/ui/MapIcons";
 import { isTerrainLayer } from "@/config/layers/types";
 import { MapControls } from "@/components/shell/MapControls";
@@ -24,6 +24,8 @@ import { recordRecentLocation } from "@/lib/locationHistory";
 import { CesiumMap, type MapViewControls } from "./CesiumMap";
 import { LocationGate } from "./LocationGate";
 import { TerrainCoachMark } from "./TerrainCoachMark";
+import { ExpiredSignInDialog } from "./ExpiredSignInDialog";
+import { probeSession } from "@/lib/sessionProbe";
 
 function statusText(cursor: [number, number] | null, viewportCounties: readonly string[]): string {
   if (cursor) return `${cursor[1].toFixed(5)}, ${cursor[0].toFixed(5)}`;
@@ -40,6 +42,10 @@ export function MapShell() {
   const [heading, setHeading] = useState(0);
   const [observer, setObserver] = useState<Position | null>(null);
   const [pickingObserver, setPickingObserver] = useState(false);
+  const [showExpiredSignIn, setShowExpiredSignIn] = useState(false);
+  const probingSessionRef = useRef(false);
+  const imageryFailuresAwaitingProbeRef = useRef(new Set<string>());
+  const failedWhileSignedOutRef = useRef(new Set<string>());
   const [cursor, setCursor] = useState<[number, number] | null>(null);
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
   const [viewControls, setViewControls] = useState<MapViewControls | null>(null);
@@ -49,6 +55,45 @@ export function MapShell() {
     setViewportCenter(center);
   }, []);
   const layerControls = useLayerControls(location, viewportBounds, viewportCenter);
+  const retryLayer = layerControls.drawer.onRetryLayer;
+  const checkSessionAfterImageryFailure = useCallback(async () => {
+    if (!isPersonalMode || probingSessionRef.current) return;
+    probingSessionRef.current = true;
+    try {
+      const status = await probeSession();
+      if (status === "sign-in-required") {
+        for (const id of imageryFailuresAwaitingProbeRef.current) failedWhileSignedOutRef.current.add(id);
+        setShowExpiredSignIn(true);
+      }
+      imageryFailuresAwaitingProbeRef.current.clear();
+    } finally {
+      probingSessionRef.current = false;
+    }
+  }, []);
+  const onImageryCreationFailure = useCallback((id: string) => {
+    if (!isPersonalMode) return;
+    imageryFailuresAwaitingProbeRef.current.add(id);
+    void checkSessionAfterImageryFailure();
+  }, [checkSessionAfterImageryFailure]);
+  const retryFailedWhileSignedOut = useCallback(() => {
+    for (const id of failedWhileSignedOutRef.current) retryLayer(id);
+    failedWhileSignedOutRef.current.clear();
+    setShowExpiredSignIn(false);
+  }, [retryLayer]);
+  useEffect(() => {
+    if (!showExpiredSignIn || !isPersonalMode) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible" || probingSessionRef.current) return;
+      probingSessionRef.current = true;
+      void probeSession().then((status) => {
+        if (status === "signed-in") retryFailedWhileSignedOut();
+      }).finally(() => {
+        probingSessionRef.current = false;
+      });
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [retryFailedWhileSignedOut, showExpiredSignIn]);
   const myData = useMyData();
   const tools = useMapTools(myData.add);
   const shapes = useShapeDrawing(myData.add, myData.onUpdateItemGeometry);
@@ -195,6 +240,7 @@ export function MapShell() {
       <main className="map-region">
         <CesiumMap
           {...layerControls.map}
+          onImageryCreationFailure={onImageryCreationFailure}
           location={location}
           onResetReady={registerReset}
           onViewControlsReady={setViewControls}
@@ -213,6 +259,9 @@ export function MapShell() {
       </main>
       <ShellHeader location={location} onChangeArea={changeArea} />
       <TerrainCoachMark onOpenLayers={() => sheet.open(sheetIds.layers)} />
+      {isPersonalMode && showExpiredSignIn && (
+        <ExpiredSignInDialog onDismiss={() => setShowExpiredSignIn(false)} />
+      )}
       <MapControls
         onRecenter={() => resetCamera?.()}
         onTerrain={showTerrainView}
