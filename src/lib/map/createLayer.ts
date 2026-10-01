@@ -1,6 +1,7 @@
 import type { GeoJsonDataSource, ImageryLayer, TerrainProvider } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
 import type { LayerBounds } from "@/config/layers/types";
+import { fetchFirstCachedLevel } from "@/lib/map/arcgisCache";
 import { fetchAllArcGisFeatures, type ArcGisQueryProgress } from "@/lib/map/arcgisFeatures";
 import { decorateGeoJson } from "@/lib/map/decorateGeoJson";
 import { statewideParcelQuery } from "@/lib/map/parcelLoading";
@@ -82,17 +83,24 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
         }),
         common,
       );
-    case "arcgis-mapserver":
-      return ImageryLayer.fromProviderAsync(
+    case "arcgis-mapserver": {
+      const usePreCachedTiles = booleanOption(layer, "usePreCachedTilesIfAvailable") ?? true;
+      const [provider, cacheStart] = await Promise.all([
         ArcGisMapServerImageryProvider.fromUrl(layer.url, {
           credit: layer.attribution,
           enablePickFeatures: booleanOption(layer, "enablePickFeatures") ?? false,
           layers: stringOption(layer, "layers"),
           rectangle,
-          usePreCachedTilesIfAvailable: booleanOption(layer, "usePreCachedTilesIfAvailable") ?? true,
+          usePreCachedTilesIfAvailable: usePreCachedTiles,
         }),
-        common,
-      );
+        usePreCachedTiles ? fetchFirstCachedLevel(absoluteBrowserUrl(layer.url)) : 0,
+      ]);
+      const minimumLevel = Math.max(cacheStart, layer.minimumLevel ?? 0);
+      // The provider's minimumLevel is a fixed getter of 0 with no constructor option, so the
+      // instance property is the only way to stop Cesium requesting levels the cache lacks.
+      Object.defineProperty(provider, "minimumLevel", { value: minimumLevel });
+      return new ImageryLayer(provider, common);
+    }
     case "arcgis-imageserver": {
       const renderingRule = stringOption(layer, "renderingRule");
       const renderingRuleJson = stringOption(layer, "renderingRuleJson");
