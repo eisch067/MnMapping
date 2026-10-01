@@ -4,9 +4,11 @@ import { openMap } from "./support/map";
 const personal = process.env.NEXT_PUBLIC_APP_MODE === "personal";
 
 async function showLayersIfNeeded(page: import("@playwright/test").Page) {
-  if (await page.getByRole("dialog").isVisible()) return;
   const sheet = page.getByRole("complementary", { name: "Map sheet" });
-  if (await sheet.isHidden()) await page.getByRole("button", { name: "Layers", exact: true }).click();
+  if (await sheet.isHidden()) {
+    await page.getByRole("button", { name: "Layers", exact: true })
+      .evaluate((button: HTMLButtonElement) => button.click());
+  }
 }
 
 test.describe("expired Access sign-in", () => {
