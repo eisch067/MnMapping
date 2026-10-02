@@ -50,6 +50,7 @@ interface CesiumMapProps {
   onCursorChange: (longitude: number, latitude: number) => void;
   retryVersion: Readonly<Record<string, number>>;
   onLayerStatusChange: (id: string, state: LayerRuntimeState) => void;
+  onImageryCreationFailure: (id: string) => void;
 }
 
 export interface MapViewControls {
@@ -79,6 +80,7 @@ export function CesiumMap({
   onCursorChange,
   retryVersion,
   onLayerStatusChange,
+  onImageryCreationFailure,
 }: CesiumMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
@@ -100,6 +102,7 @@ export function CesiumMap({
   const mapClickRef = useRef(onMapClick);
   const cursorChangeRef = useRef(onCursorChange);
   const layerStatusChangeRef = useRef(onLayerStatusChange);
+  const imageryCreationFailureRef = useRef(onImageryCreationFailure);
   const headingChangeRef = useRef(onHeadingChange);
   const retryVersionRef = useRef<Record<string, number>>({});
   const activeLayerIdsRef = useRef(new Set(layers.map((layer) => layer.id)));
@@ -307,6 +310,7 @@ export function CesiumMap({
   useEffect(() => { mapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { cursorChangeRef.current = onCursorChange; }, [onCursorChange]);
   useEffect(() => { layerStatusChangeRef.current = onLayerStatusChange; }, [onLayerStatusChange]);
+  useEffect(() => { imageryCreationFailureRef.current = onImageryCreationFailure; }, [onImageryCreationFailure]);
   useEffect(() => { headingChangeRef.current = onHeadingChange; }, [onHeadingChange]);
   useEffect(() => { drawingOverlayRef.current = drawingOverlay; }, [drawingOverlay]);
   useEffect(() => { midpointInsertRef.current = onMidpointInsert; }, [onMidpointInsert]);
@@ -472,6 +476,7 @@ export function CesiumMap({
       }).catch((error: unknown) => {
         pendingImageryRef.current.delete(layer.id);
         failedImageryRef.current.add(layer.id);
+        imageryCreationFailureRef.current(layer.id);
         layerStatusChangeRef.current(layer.id, { status: "error", message: errorMessage(error, "Unable to load imagery.") });
         console.error(`Unable to load ${layer.name}`, error);
       });
