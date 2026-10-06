@@ -10,6 +10,73 @@ async function openReferenceLayers(page: Page) {
   return page.locator("#layer-section-reference");
 }
 
+test("Hubbard parcels query the visible parcel-scale viewport on initial view setup", async ({ page }) => {
+  const featureQueries: URL[] = [];
+  const parcelScaleLocation = {
+    id: "46.922100,-95.061600",
+    label: "Park Rapids, Minnesota",
+    latitude: 46.9221,
+    longitude: -95.0616,
+    county: "Hubbard",
+    kind: "city" as const,
+  };
+  const requests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("gis-proxy")) requests.push(request.url());
+  });
+  const canvas = await openMap(page, async (currentPage) => {
+    await currentPage.route("**/api/gis-proxy/hubbard/**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/FeatureServer/0")) {
+        return route.fulfill({ json: { maxRecordCount: 1000, objectIdField: "OBJECTID" } });
+      }
+      if (!url.pathname.endsWith("/FeatureServer/0/query")) return route.abort();
+      featureQueries.push(url);
+      await route.fulfill({ json: {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          properties: { hubbgis_GIS_Parcels_PIN: "TEST-PARCEL" },
+          geometry: {
+            type: "Polygon",
+            coordinates: [[[-95.062, 46.922], [-95.061, 46.922], [-95.061, 46.923], [-95.062, 46.923], [-95.062, 46.922]]],
+          },
+        }],
+      } });
+    });
+  }, parcelScaleLocation);
+  await expect(page.locator(".status")).toContainText("Hubbard");
+  await expect.poll(async () =>
+    Number(await canvas.getAttribute("data-camera-height-meters")),
+  ).toBeLessThanOrEqual(35_000);
+  expect(Number(await canvas.getAttribute("data-camera-height-meters"))).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "Layers", exact: true }).click();
+  await page.getByRole("button", { name: /^Parcels\b/ }).click();
+  const parcels = page.locator("#layer-section-parcels").getByRole("checkbox", { name: /^Hubbard tax parcels/ });
+
+  await parcels.check();
+
+  await expect.poll(() => featureQueries.length, { message: `Observed GIS requests: ${requests.join("\\n")}` }).toBeGreaterThan(0);
+  await expect(parcels).toBeChecked();
+  await expect(canvas).toBeVisible();
+  await expect(page.locator(".cesium-widget-errorPanel")).toHaveCount(0);
+  const query = featureQueries[0];
+  expect(query.searchParams.get("geometryType")).toBe("esriGeometryEnvelope");
+  expect(query.searchParams.get("inSR")).toBe("4326");
+  expect(query.searchParams.get("spatialRel")).toBe("esriSpatialRelIntersects");
+  const bounds = query.searchParams.get("geometry")?.split(",").map(Number);
+  expect(bounds).toHaveLength(4);
+  expect(bounds?.every(Number.isFinite)).toBe(true);
+  expect(bounds?.[0]).toBeLessThan(bounds?.[2] ?? Number.NEGATIVE_INFINITY);
+  expect(bounds?.[1]).toBeLessThan(bounds?.[3] ?? Number.NEGATIVE_INFINITY);
+  expect(bounds?.[0]).toBeLessThan(-95.062);
+  expect(bounds?.[1]).toBeLessThan(46.922);
+  expect(bounds?.[2]).toBeGreaterThan(-95.061);
+  expect(bounds?.[3]).toBeGreaterThan(46.923);
+  expect(query.pathname).toContain("/FeatureServer/0/query");
+});
+
 test("a feature layer with a degenerate polygon does not stop subsequent layers", async ({ page }) => {
   test.skip(!personal, "Only the personal build issues this mocked GIS feature-layer request in the smoke-test map view.");
   const errors: string[] = [];

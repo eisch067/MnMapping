@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { CustomDataSource, GeoJsonDataSource, ImageryLayer, TerrainProvider, Viewer } from "cesium";
+import type { Cartographic, CustomDataSource, GeoJsonDataSource, ImageryLayer, TerrainProvider, Viewer } from "cesium";
 import type { LayerDefinition } from "@/config/layers";
 import { isLayerAvailableAtCameraHeight, isTerrainLayer } from "@/config/layers/types";
 import { cameraHeightForLocation, type MapLocation, type ViewportBounds } from "@/lib/location";
@@ -201,13 +201,35 @@ export function CesiumMap({
       viewer.camera.changed.addEventListener(reportHeading);
       const reportViewport = () => {
         const rectangle = viewer.camera.computeViewRectangle(viewer.scene.globe.ellipsoid);
-        if (!rectangle) return;
-        const bounds = {
-          west: CesiumMath.toDegrees(rectangle.west),
-          south: CesiumMath.toDegrees(rectangle.south),
-          east: CesiumMath.toDegrees(rectangle.east),
-          north: CesiumMath.toDegrees(rectangle.north),
-        };
+        let bounds: ViewportBounds;
+        if (rectangle) {
+          bounds = {
+            west: CesiumMath.toDegrees(rectangle.west),
+            south: CesiumMath.toDegrees(rectangle.south),
+            east: CesiumMath.toDegrees(rectangle.east),
+            north: CesiumMath.toDegrees(rectangle.north),
+          };
+        } else {
+          const corners = [
+            new Cartesian2(0, 0),
+            new Cartesian2(viewer.canvas.clientWidth, 0),
+            new Cartesian2(viewer.canvas.clientWidth, viewer.canvas.clientHeight),
+            new Cartesian2(0, viewer.canvas.clientHeight),
+          ].map((screenPoint) => {
+            const point = viewer.camera.pickEllipsoid(screenPoint, viewer.scene.globe.ellipsoid);
+            return point ? viewer.scene.globe.ellipsoid.cartesianToCartographic(point) : null;
+          });
+          const cartographics = corners.filter((corner): corner is Cartographic => corner !== null);
+          if (cartographics.length !== 4) return false;
+          const longitudes = cartographics.map((corner) => CesiumMath.toDegrees(corner.longitude));
+          const latitudes = cartographics.map((corner) => CesiumMath.toDegrees(corner.latitude));
+          bounds = {
+            west: Math.min(...longitudes),
+            south: Math.min(...latitudes),
+            east: Math.max(...longitudes),
+            north: Math.max(...latitudes),
+          };
+        }
         setInternalViewportBounds(bounds);
         const currentCameraHeight = viewer.camera.positionCartographic.height;
         setCameraHeight(currentCameraHeight);
@@ -226,7 +248,12 @@ export function CesiumMap({
               latitude: (bounds.south + bounds.north) / 2,
               longitude: (bounds.west + bounds.east) / 2,
             });
+        return true;
       };
+      const reportInitialViewport = () => {
+        if (reportViewport()) viewer.scene.postRender.removeEventListener(reportInitialViewport);
+      };
+      viewer.scene.postRender.addEventListener(reportInitialViewport);
       viewer.camera.moveEnd.addEventListener(reportViewport);
       viewer.camera.moveEnd.addEventListener(reportHeading);
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -278,7 +305,7 @@ export function CesiumMap({
         const toleranceMeters = edge ? metersBetween(point, edge) : 0;
         mapClickRef.current({ longitude: point[0], latitude: point[1], toleranceMeters });
       }, ScreenSpaceEventType.LEFT_CLICK);
-      reportViewport();
+      reportInitialViewport();
       setMapReady(true);
     }).catch((error: unknown) => console.error("Unable to initialize the map", error));
 
@@ -590,7 +617,14 @@ export function CesiumMap({
     if (viewer) viewer.scene.verticalExaggeration = verticalExaggeration;
   }, [verticalExaggeration]);
 
-  return <div className={`map-canvas mode-${interactionMode}`} ref={containerRef} aria-label={`Interactive map centered on ${location.label}`} />;
+  return (
+    <div
+      className={`map-canvas mode-${interactionMode}`}
+      ref={containerRef}
+      aria-label={`Interactive map centered on ${location.label}`}
+      data-camera-height-meters={Number.isFinite(cameraHeight) ? cameraHeight : undefined}
+    />
+  );
 }
 
 function metersBetween(
