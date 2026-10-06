@@ -20,6 +20,7 @@ interface LayerRequestContext {
   screenWidthPixels?: number;
   signal?: AbortSignal;
   onProgress?: (progress: ArcGisQueryProgress) => void;
+  onFeatureRequestFailure?: () => void;
 }
 
 export async function createLayerResource(layer: LayerDefinition, context: LayerRequestContext = {}): Promise<CesiumLayerResource> {
@@ -184,6 +185,9 @@ export async function createLayerResource(layer: LayerDefinition, context: Layer
       const featureCollection = await fetchAllArcGisFeatures(queryUrl, {
         signal: context.signal,
         onProgress: context.onProgress,
+      }).catch((error: unknown) => {
+        if (!context.signal?.aborted) context.onFeatureRequestFailure?.();
+        throw error;
       });
       const dataSource = await GeoJsonDataSource.load(featureCollection, geoJsonStyle(layer, Color));
       decorateGeoJson(

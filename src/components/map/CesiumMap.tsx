@@ -51,6 +51,7 @@ interface CesiumMapProps {
   retryVersion: Readonly<Record<string, number>>;
   onLayerStatusChange: (id: string, state: LayerRuntimeState) => void;
   onImageryCreationFailure: (id: string) => void;
+  onFeatureDataFailure: (id: string) => void;
 }
 
 export interface MapViewControls {
@@ -81,6 +82,7 @@ export function CesiumMap({
   retryVersion,
   onLayerStatusChange,
   onImageryCreationFailure,
+  onFeatureDataFailure,
 }: CesiumMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
@@ -103,6 +105,7 @@ export function CesiumMap({
   const cursorChangeRef = useRef(onCursorChange);
   const layerStatusChangeRef = useRef(onLayerStatusChange);
   const imageryCreationFailureRef = useRef(onImageryCreationFailure);
+  const featureDataFailureRef = useRef(onFeatureDataFailure);
   const headingChangeRef = useRef(onHeadingChange);
   const retryVersionRef = useRef<Record<string, number>>({});
   const activeLayerIdsRef = useRef(new Set(layers.map((layer) => layer.id)));
@@ -338,6 +341,7 @@ export function CesiumMap({
   useEffect(() => { cursorChangeRef.current = onCursorChange; }, [onCursorChange]);
   useEffect(() => { layerStatusChangeRef.current = onLayerStatusChange; }, [onLayerStatusChange]);
   useEffect(() => { imageryCreationFailureRef.current = onImageryCreationFailure; }, [onImageryCreationFailure]);
+  useEffect(() => { featureDataFailureRef.current = onFeatureDataFailure; }, [onFeatureDataFailure]);
   useEffect(() => { headingChangeRef.current = onHeadingChange; }, [onHeadingChange]);
   useEffect(() => { drawingOverlayRef.current = drawingOverlay; }, [drawingOverlay]);
   useEffect(() => { midpointInsertRef.current = onMidpointInsert; }, [onMidpointInsert]);
@@ -556,6 +560,7 @@ export function CesiumMap({
               featureCount: loaded,
             });
           },
+          onFeatureRequestFailure: () => featureDataFailureRef.current(layer.id),
         }).then(async (resource) => {
           const currentViewer = viewerRef.current;
           if (dataRequestRef.current.get(layer.id) !== requestNumber || !currentViewer || currentViewer.isDestroyed() || !("entities" in resource)) return;
