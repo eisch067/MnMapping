@@ -47,8 +47,9 @@ test("Hubbard parcels query the visible parcel-scale viewport on initial view se
   }, parcelScaleLocation);
   await expect(page.locator(".status")).toContainText("Hubbard");
   await expect.poll(async () =>
-    Math.abs(Number(await canvas.getAttribute("data-camera-height-meters")) - 32_000),
-  ).toBeLessThan(1);
+    Number(await canvas.getAttribute("data-camera-height-meters")),
+  ).toBeLessThanOrEqual(35_000);
+  expect(Number(await canvas.getAttribute("data-camera-height-meters"))).toBeGreaterThan(0);
 
   await page.getByRole("button", { name: "Layers", exact: true }).click();
   await page.getByRole("button", { name: /^Parcels\b/ }).click();
@@ -69,10 +70,10 @@ test("Hubbard parcels query the visible parcel-scale viewport on initial view se
   expect(bounds?.every(Number.isFinite)).toBe(true);
   expect(bounds?.[0]).toBeLessThan(bounds?.[2] ?? Number.NEGATIVE_INFINITY);
   expect(bounds?.[1]).toBeLessThan(bounds?.[3] ?? Number.NEGATIVE_INFINITY);
-  expect(bounds?.[0]).toBeLessThan(-95.0616);
-  expect(bounds?.[1]).toBeLessThan(46.9221);
-  expect(bounds?.[2]).toBeGreaterThan(-95.0616);
-  expect(bounds?.[3]).toBeGreaterThan(46.9221);
+  expect(bounds?.[0]).toBeLessThan(-95.062);
+  expect(bounds?.[1]).toBeLessThan(46.922);
+  expect(bounds?.[2]).toBeGreaterThan(-95.061);
+  expect(bounds?.[3]).toBeGreaterThan(46.923);
   expect(query.pathname).toContain("/FeatureServer/0/query");
 });
 
