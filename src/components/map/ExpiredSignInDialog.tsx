@@ -41,7 +41,7 @@ export function ExpiredSignInDialog({ onDismiss }: ExpiredSignInDialogProps) {
       >
         <h2 id="expired-sign-in-title">Your sign-in session expired</h2>
         <p id="expired-sign-in-description">
-          Sign in again to load imagery. Your map view, layers, and drafts will stay open in this tab.
+          Sign in again to reload your map layers. Your map view and drafts will stay open in this tab.
         </p>
         <div className="expired-sign-in-actions">
           <button

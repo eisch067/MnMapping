@@ -44,7 +44,7 @@ export function MapShell() {
   const [pickingObserver, setPickingObserver] = useState(false);
   const [showExpiredSignIn, setShowExpiredSignIn] = useState(false);
   const probingSessionRef = useRef(false);
-  const imageryFailuresAwaitingProbeRef = useRef(new Set<string>());
+  const layerFailuresAwaitingProbeRef = useRef(new Set<string>());
   const failedWhileSignedOutRef = useRef(new Set<string>());
   const [cursor, setCursor] = useState<[number, number] | null>(null);
   const [resetCamera, setResetCamera] = useState<(() => void) | null>(null);
@@ -56,25 +56,30 @@ export function MapShell() {
   }, []);
   const layerControls = useLayerControls(location, viewportBounds, viewportCenter);
   const retryLayer = layerControls.drawer.onRetryLayer;
-  const checkSessionAfterImageryFailure = useCallback(async () => {
+  const checkSessionAfterLayerFailure = useCallback(async () => {
     if (!isPersonalMode || probingSessionRef.current) return;
     probingSessionRef.current = true;
     try {
       const status = await probeSession();
       if (status === "sign-in-required") {
-        for (const id of imageryFailuresAwaitingProbeRef.current) failedWhileSignedOutRef.current.add(id);
+        for (const id of layerFailuresAwaitingProbeRef.current) failedWhileSignedOutRef.current.add(id);
         setShowExpiredSignIn(true);
       }
-      imageryFailuresAwaitingProbeRef.current.clear();
+      layerFailuresAwaitingProbeRef.current.clear();
     } finally {
       probingSessionRef.current = false;
     }
   }, []);
   const onImageryCreationFailure = useCallback((id: string) => {
     if (!isPersonalMode) return;
-    imageryFailuresAwaitingProbeRef.current.add(id);
-    void checkSessionAfterImageryFailure();
-  }, [checkSessionAfterImageryFailure]);
+    layerFailuresAwaitingProbeRef.current.add(id);
+    void checkSessionAfterLayerFailure();
+  }, [checkSessionAfterLayerFailure]);
+  const onFeatureDataFailure = useCallback((id: string) => {
+    if (!isPersonalMode || id !== "hubbard-parcels") return;
+    layerFailuresAwaitingProbeRef.current.add(id);
+    void checkSessionAfterLayerFailure();
+  }, [checkSessionAfterLayerFailure]);
   const retryFailedWhileSignedOut = useCallback(() => {
     for (const id of failedWhileSignedOutRef.current) retryLayer(id);
     failedWhileSignedOutRef.current.clear();
@@ -241,6 +246,7 @@ export function MapShell() {
         <CesiumMap
           {...layerControls.map}
           onImageryCreationFailure={onImageryCreationFailure}
+          onFeatureDataFailure={onFeatureDataFailure}
           location={location}
           onResetReady={registerReset}
           onViewControlsReady={setViewControls}
