@@ -50,8 +50,7 @@ interface CesiumMapProps {
   onCursorChange: (longitude: number, latitude: number) => void;
   retryVersion: Readonly<Record<string, number>>;
   onLayerStatusChange: (id: string, state: LayerRuntimeState) => void;
-  onImageryCreationFailure: (id: string) => void;
-  onFeatureDataFailure: (id: string) => void;
+  onProxyRequestFailure: (id: string) => void;
 }
 
 export interface MapViewControls {
@@ -81,8 +80,7 @@ export function CesiumMap({
   onCursorChange,
   retryVersion,
   onLayerStatusChange,
-  onImageryCreationFailure,
-  onFeatureDataFailure,
+  onProxyRequestFailure,
 }: CesiumMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
@@ -104,8 +102,7 @@ export function CesiumMap({
   const mapClickRef = useRef(onMapClick);
   const cursorChangeRef = useRef(onCursorChange);
   const layerStatusChangeRef = useRef(onLayerStatusChange);
-  const imageryCreationFailureRef = useRef(onImageryCreationFailure);
-  const featureDataFailureRef = useRef(onFeatureDataFailure);
+  const proxyRequestFailureRef = useRef(onProxyRequestFailure);
   const headingChangeRef = useRef(onHeadingChange);
   const retryVersionRef = useRef<Record<string, number>>({});
   const activeLayerIdsRef = useRef(new Set(layers.map((layer) => layer.id)));
@@ -340,8 +337,7 @@ export function CesiumMap({
   useEffect(() => { mapClickRef.current = onMapClick; }, [onMapClick]);
   useEffect(() => { cursorChangeRef.current = onCursorChange; }, [onCursorChange]);
   useEffect(() => { layerStatusChangeRef.current = onLayerStatusChange; }, [onLayerStatusChange]);
-  useEffect(() => { imageryCreationFailureRef.current = onImageryCreationFailure; }, [onImageryCreationFailure]);
-  useEffect(() => { featureDataFailureRef.current = onFeatureDataFailure; }, [onFeatureDataFailure]);
+  useEffect(() => { proxyRequestFailureRef.current = onProxyRequestFailure; }, [onProxyRequestFailure]);
   useEffect(() => { headingChangeRef.current = onHeadingChange; }, [onHeadingChange]);
   useEffect(() => { drawingOverlayRef.current = drawingOverlay; }, [drawingOverlay]);
   useEffect(() => { midpointInsertRef.current = onMidpointInsert; }, [onMidpointInsert]);
@@ -497,8 +493,10 @@ export function CesiumMap({
         resource.alpha = latestState?.opacity ?? layer.defaultOpacity;
         currentViewer.imageryLayers.add(resource);
         imageryRef.current.set(layer.id, resource);
-        const removeErrorListener = resource.errorEvent.addEventListener((error: { retry?: boolean; message?: string }) => {
+        const provider = resource.imageryProvider;
+        const removeErrorListener = provider.errorEvent.addEventListener((error: { retry?: boolean; message?: string }) => {
           error.retry = true;
+          proxyRequestFailureRef.current(layer.id);
           layerStatusChangeRef.current(layer.id, { status: "error", message: error.message ?? "An imagery tile failed to load." });
         });
         imageryErrorCleanupRef.current.set(layer.id, removeErrorListener);
@@ -507,7 +505,7 @@ export function CesiumMap({
       }).catch((error: unknown) => {
         pendingImageryRef.current.delete(layer.id);
         failedImageryRef.current.add(layer.id);
-        imageryCreationFailureRef.current(layer.id);
+        proxyRequestFailureRef.current(layer.id);
         layerStatusChangeRef.current(layer.id, { status: "error", message: errorMessage(error, "Unable to load imagery.") });
         console.error(`Unable to load ${layer.name}`, error);
       });
@@ -560,7 +558,7 @@ export function CesiumMap({
               featureCount: loaded,
             });
           },
-          onFeatureRequestFailure: () => featureDataFailureRef.current(layer.id),
+          onFeatureRequestFailure: () => proxyRequestFailureRef.current(layer.id),
         }).then(async (resource) => {
           const currentViewer = viewerRef.current;
           if (dataRequestRef.current.get(layer.id) !== requestNumber || !currentViewer || currentViewer.isDestroyed() || !("entities" in resource)) return;

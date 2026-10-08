@@ -46,10 +46,10 @@ test("Hubbard parcels query the visible parcel-scale viewport on initial view se
     });
   }, parcelScaleLocation);
   await expect(page.locator(".status")).toContainText("Hubbard");
-  await expect.poll(async () =>
-    Number(await canvas.getAttribute("data-camera-height-meters")),
-  ).toBeLessThanOrEqual(35_000);
-  expect(Number(await canvas.getAttribute("data-camera-height-meters"))).toBeGreaterThan(0);
+  await expect.poll(async () => {
+    const height = Number(await canvas.getAttribute("data-camera-height-meters"));
+    return height > 0 && height <= 35_000;
+  }).toBe(true);
 
   await page.getByRole("button", { name: "Layers", exact: true }).click();
   await page.getByRole("button", { name: /^Parcels\b/ }).click();
@@ -115,7 +115,7 @@ test("a feature layer with a degenerate polygon does not stop subsequent layers"
   expect(errors.join("\n")).not.toContain("Entity corridor, ellipse, polygon or rectangle with heightReference must also have a defined height");
 });
 
-test("statewide parcels use map images beyond 35 km instead of feature queries", async ({ page }) => {
+test("statewide parcels use feature queries at parcel-scale zoom", async ({ page }) => {
   let featureQueries = 0;
   let mapImages = 0;
   const beckerCounty = {
@@ -124,10 +124,10 @@ test("statewide parcels use map images beyond 35 km instead of feature queries",
     latitude: 46.9,
     longitude: -95.6,
     county: "Becker",
-    kind: "county" as const,
+    kind: "city" as const,
   };
 
-  await openMap(page, async (currentPage) => {
+  const canvas = await openMap(page, async (currentPage) => {
     await currentPage.route("**/api/gis-proxy/mngeo-features/us_mn_state_mngeo/plan_parcels_open/**", async (route) => {
       const url = new URL(route.request().url());
       if (url.pathname.endsWith("/query") && url.pathname.includes("FeatureServer")) {
@@ -152,14 +152,20 @@ test("statewide parcels use map images beyond 35 km instead of feature queries",
     });
   }, beckerCounty);
 
+  await expect.poll(async () => {
+    const height = Number(await canvas.getAttribute("data-camera-height-meters"));
+    return height > 0 && height <= 35_000;
+  }).toBe(true);
   await page.getByRole("button", { name: "Layers", exact: true }).click();
   await page.getByRole("button", { name: /^Parcels\b/ }).click();
-  await page.getByRole("checkbox", { name: /^Becker tax parcels/ }).check();
-  await expect.poll(() => mapImages).toBeGreaterThan(0);
+  const parcels = page.locator("#layer-section-parcels")
+    .getByRole("checkbox", { name: /^Becker tax parcels/ });
+  await parcels.check();
+  await expect.poll(() => featureQueries).toBeGreaterThan(0);
 
-  expect(featureQueries).toBe(0);
-  await page.getByRole("checkbox", { name: /^Becker tax parcels/ }).uncheck();
-  await expect(page.getByRole("checkbox", { name: /^Becker tax parcels/ })).not.toBeChecked();
+  expect(mapImages).toBe(0);
+  await parcels.uncheck();
+  await expect(parcels).not.toBeChecked();
 });
 
 test("category switches appear only on Parcels, Reference, and Public lands", async ({ page }) => {
