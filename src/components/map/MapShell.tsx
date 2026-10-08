@@ -44,6 +44,7 @@ export function MapShell() {
   const [pickingObserver, setPickingObserver] = useState(false);
   const [showExpiredSignIn, setShowExpiredSignIn] = useState(false);
   const probingSessionRef = useRef(false);
+  const expiredDialogOpenRef = useRef(false);
   const layerFailuresAwaitingProbeRef = useRef(new Set<string>());
   const failedWhileSignedOutRef = useRef(new Set<string>());
   const [cursor, setCursor] = useState<[number, number] | null>(null);
@@ -63,6 +64,7 @@ export function MapShell() {
       const status = await probeSession();
       if (status === "sign-in-required") {
         for (const id of layerFailuresAwaitingProbeRef.current) failedWhileSignedOutRef.current.add(id);
+        expiredDialogOpenRef.current = true;
         setShowExpiredSignIn(true);
       }
       layerFailuresAwaitingProbeRef.current.clear();
@@ -70,19 +72,19 @@ export function MapShell() {
       probingSessionRef.current = false;
     }
   }, []);
-  const onImageryCreationFailure = useCallback((id: string) => {
+  const onProxyRequestFailure = useCallback((id: string) => {
     if (!isPersonalMode) return;
-    layerFailuresAwaitingProbeRef.current.add(id);
-    void checkSessionAfterLayerFailure();
-  }, [checkSessionAfterLayerFailure]);
-  const onFeatureDataFailure = useCallback((id: string) => {
-    if (!isPersonalMode || id !== "hubbard-parcels") return;
+    if (expiredDialogOpenRef.current) {
+      failedWhileSignedOutRef.current.add(id);
+      return;
+    }
     layerFailuresAwaitingProbeRef.current.add(id);
     void checkSessionAfterLayerFailure();
   }, [checkSessionAfterLayerFailure]);
   const retryFailedWhileSignedOut = useCallback(() => {
     for (const id of failedWhileSignedOutRef.current) retryLayer(id);
     failedWhileSignedOutRef.current.clear();
+    expiredDialogOpenRef.current = false;
     setShowExpiredSignIn(false);
   }, [retryLayer]);
   useEffect(() => {
@@ -245,8 +247,7 @@ export function MapShell() {
       <main className="map-region">
         <CesiumMap
           {...layerControls.map}
-          onImageryCreationFailure={onImageryCreationFailure}
-          onFeatureDataFailure={onFeatureDataFailure}
+          onProxyRequestFailure={onProxyRequestFailure}
           location={location}
           onResetReady={registerReset}
           onViewControlsReady={setViewControls}
@@ -266,7 +267,10 @@ export function MapShell() {
       <ShellHeader location={location} onChangeArea={changeArea} />
       <TerrainCoachMark onOpenLayers={() => sheet.open(sheetIds.layers)} />
       {isPersonalMode && showExpiredSignIn && (
-        <ExpiredSignInDialog onDismiss={() => setShowExpiredSignIn(false)} />
+        <ExpiredSignInDialog onDismiss={() => {
+          expiredDialogOpenRef.current = false;
+          setShowExpiredSignIn(false);
+        }} />
       )}
       <MapControls
         onRecenter={() => resetCamera?.()}
